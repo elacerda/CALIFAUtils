@@ -29,22 +29,68 @@ pycasso_cube_dir = califa_work_dir + version_config['SuperFitsDir'] + version_co
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 
-def read_one_cube(gal, EL = False):
+def read_one_cube(gal, **kwargs):
+    try:
+        EL = kwargs.pop('EL')
+    except:
+        EL = False
+    try:
+        verbose = kwargs.pop('verbose')
+    except:
+        verbose = False
     pycasso_cube_filename = pycasso_cube_dir + gal + pycasso_suffix
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
-        print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
+        if verbose:
+            print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL == True:
             emlines_cube_filename = emlines_cube_dir + gal + emlines_suffix
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
-                print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
+                if verbose:
+                    print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
     except IOError:
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
+
+
+def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
+    '''
+    Sort galaxies in txt FILENAME by some ATTRibute processed by MODE in ORDER order.
+    ORDER = 0 - sort asc, 1 - sort desc
+    MODE can be any numpy array method such as sum, max, min, mean, median, etc...
+
+    '''
+    try:
+        verbose = kwargs.pop('verbose')
+    except:
+        verbose = False
+        kwargs['verbose'] = False
+    if type(func) != types.FunctionType:
+        if verbose:
+            print 'func need to be FunctionType'
+        return None
+    if verbose:
+        print gals
+    Ng = len(gals)
+    data__g = np.ma.zeros((Ng))
+    for i, gal_id in enumerate(gals):
+        K = read_one_cube(gal_id, **kwargs)
+        data__g[i] = func(K, **kwargs)
+        if verbose:
+            print K.califaID, data__g[i]
+        K.close()
+    sgals = None
+    if data__g.mask.sum() < Ng:
+        iS = np.argsort(data__g)
+        if order != 0:
+            iS = iS[::-1]
+        sgals = np.asarray(gals)[iS]
+        sdata = data__g[iS]
+    return sgals, sdata
 
 
 def sort_gal_func(filename, func = None, order = 1, **kwargs):
@@ -54,19 +100,28 @@ def sort_gal_func(filename, func = None, order = 1, **kwargs):
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
+    try:
+        verbose = kwargs.pop('verbose')
+    except:
+        verbose = False
+        kwargs['verbose'] = False
     if type(func) != types.FunctionType:
+        if verbose:
+            print 'func need to be FunctionType'
         return None
-    
     f = open(filename, 'r')
     l = f.readlines()
     f.close()
     Ng = len(l)
     gals = np.asarray([ l[i].strip() for i in np.arange(Ng) ])
-    print gals
+    if verbose:
+        print gals
     data__g = np.ma.zeros((Ng))
     for i, gal_id in enumerate(gals):
-        K = read_one_cube(gal_id)
+        K = read_one_cube(gal_id, **kwargs)
         data__g[i] = func(K, **kwargs)
+        if verbose:
+            print K.califaID, data__g[i]
         K.close()
     sgals = None
     if data__g.mask.sum() < Ng:
@@ -74,7 +129,8 @@ def sort_gal_func(filename, func = None, order = 1, **kwargs):
         if order != 0:
             iS = iS[::-1]
         sgals = gals[iS]
-    return sgals
+        sdata = data__g[iS]
+    return sgals, sdata
 
 
 
@@ -123,6 +179,85 @@ def create_dx(x):
     #dx[-1]      = x[-1]
     return dx
 
+#XXXXXXXXXXXXXXXXXXXXXXXX#
+#TODOTODOTODOTODOTODOTODO#
+#XXXXXXXXXXXXXXXXXXXXXXXX#
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# class MultiGal(object):
+#     def __init__(self, list, **kwargs):
+#         self._init_kwargs(**kwargs)
+#         self._list = list
+#         if list == types.StringType:
+#             self._set_califaIDs_txt()
+#         else:
+#             self._set_califaIDs()
+#             
+#         self._init_data()
+#         loop_califa_galaxies(self.califaIDs, acquire_data, **kwargs)
+#         
+#     def _init_kwargs(self, **kwargs):
+#         try: 
+#             self._EL = kwargs.pop('EL')
+#         except:
+#             self._EL = False
+#     
+#     def _set_califaIDs_txt(self):
+#         f = open(self._list, 'r')
+#         l = f.readlines()
+#         f.close()
+#         self.N_gals = len(l)
+#         tmp = [ l[i].strip() for i in np.arange(self.N_gals) ]
+#         mask = np.zeros((N_gals), dtype = np.bool)
+#         self.califaIDs = np.ma.masked_array(tmp, mask = mask)
+# 
+#     def _set_califaIDs(self):
+#         self.N_gals = len(self._list)
+#         mask = np.zeros((self.N_gals), dtype = np.bool)
+#         self.califaIDs = np.ma.masked_array(self._list, mask = mask)
+#         
+#     def _init_data(self):
+#         self.Mcor__g = np.ma.zeros((self.N_gals))
+#         self.McorSD__g = np.ma.zeros((self.N_gals))
+#         self.tau_V__g = np.ma.zeros((self.N_gals))
+#         self.Mr__g = np.ma.zeros((self.N_gals))
+#         self.morph__g = np.ma.zeros((self.N_gals))
+#         self.at_flux__g = np.ma.zeros((self.N_gals))
+#         self.ba__g = np.ma.zeros((self.N_gals))
+#         self.u_r__g = np.ma.zeros((self.N_gals))
+#         self.redshift__g = np.ma.zeros((self.N_gals))
+#         if self._EL = True:
+#             self.tau_V_neb__g = np.ma.zeros((self.N_gals))
+#             self.EW_Ha__g = np.ma.zeros((self.N_gals))
+#             self.F_obs_Ha__g = np.ma.zeros((self.N_gals))
+#             self.F_obs_Hb__g = np.ma.zeros((self.N_gals))
+#             self.F_obs_N2__g = np.ma.zeros((self.N_gals))
+#             self.F_obs_O3__g = np.ma.zeros((self.N_gals))
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            
+#TODO
+def loop_califa_galaxies(gals, func = None, **kwargs):
+    '''
+    Loop by all CALIFA galaxies in LIST executing f and returning a HDF5.
+    F must be a type.FunctionType.
+    '''
+    try:
+        verbose = kwargs.pop('verbose')
+    except:
+        verbose = False
+        kwargs['verbose'] = False
+    if type(func) != types.FunctionType:
+        if verbose:
+            print 'func need to be FunctionType'
+        return None
+    Ng = len(gals)
+    data__g = np.ma.zeros((Ng))
+    for i, gal_id in enumerate(gals):
+        K = read_one_cube(gal_id, **kwargs)
+        # TODO think about data structure, maybe an object
+        data__g[i] = func(K, **kwargs)
+        K.close()
+    return data__g
+        
 
 def SFR_parametrize(flux, wl, ages, tSF):
     '''
@@ -135,11 +270,12 @@ def SFR_parametrize(flux, wl, ages, tSF):
     ''' 
     from pystarlight.util.constants import L_sun, h, c, yr_sec
     
-    cmInAA = 1e-8          # cm / AA
+    cmInAA = 1e-8             # cm / AA
     lambda_Ha = 6562.8        # Angstrom
     mask_age = ages <= tSF
     
     y = flux * wl * cmInAA * L_sun / (h * c)
+    #y = flux * cmInAA * L_sun #BOL
     
     qh__Zt = (y * create_dx(l)).sum(axis = 2)
     Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis = 1) * yr_sec
