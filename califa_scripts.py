@@ -257,7 +257,198 @@ def loop_califa_galaxies(gals, func = None, **kwargs):
         data__g[i] = func(K, **kwargs)
         K.close()
     return data__g
+
         
+class ALLGals(object):
+    def __init__(self, N_gals, NRbins, N_T, N_U):
+        self.N_gals = N_gals
+        self.NRbins = NRbins
+        self.N_T = N_T
+        self.N_U = N_U
+        self._init_arrays()
+        self._init_zones_temporary_lists()
+        
+    def mask_gal(self, iGal):
+        for v in self.__dict__.keys():
+            if isinstance(self.__dict__[v], np.ma.core.MaskedArray):
+                self.__dict__[v][..., iGal] = np.ma.masked
+        
+    def _init_arrays(self):
+        N_gals = self.N_gals
+        NRbins = self.NRbins
+        N_T = self.N_T
+        N_U = self.N_U
+        self.N_zones__g = np.ma.zeros((N_gals))
+        self.morfType_GAL__g = np.ma.zeros((N_gals))
+        self.at_flux_GAL__g = np.ma.zeros((N_gals))
+        self.Mcor_GAL__g = np.ma.zeros((N_gals))
+        self.McorSD_GAL__g = np.ma.zeros((N_gals))
+        self.ba_GAL__g = np.ma.zeros((N_gals))
+        self.integrated_tau_V__g = np.ma.zeros((N_gals))
+        self.integrated_SFR_Ha__g = np.ma.zeros((N_gals))
+        self.integrated_SFRSD_Ha__g = np.ma.zeros((N_gals))
+        self.integrated_L_int_Ha__g = np.ma.zeros((N_gals))
+        self.integrated_SFR__Tg = np.ma.zeros((N_T, N_gals))
+        self.integrated_SFRSD__Tg = np.ma.zeros((N_T, N_gals))
+        self.alogZ_mass_GAL__Ug = np.ma.zeros((N_U, N_gals))
+        self.alogZ_flux_GAL__Ug = np.ma.zeros((N_U, N_gals))
+        self.califaID__rg = np.ma.zeros((NRbins, N_gals), dtype = '|S5')
+        self.morfType_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
+        self.Mr_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
+        self.ur_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
+        self.tau_V_neb__rg = np.ma.zeros((NRbins, N_gals))
+        self.aSFRSD_Ha__rg = np.ma.zeros((NRbins, N_gals))
+        self.McorSD__rg = np.ma.zeros((NRbins, N_gals))
+        self.logZ_neb_S06__rg = np.ma.zeros((NRbins, N_gals))
+        #self.f_gas__rg = np.ma.zeros((NRbins, N_gals))
+        self.califaID__Trg = np.ma.zeros((N_T, NRbins, N_gals), dtype = '|S5')
+        self.aSFRSD__Trg = np.ma.zeros((N_T, NRbins, N_gals))
+        self.tau_V__Trg = np.ma.zeros((N_T, NRbins, N_gals))
+        self.McorSD__Trg = np.ma.zeros((N_T, NRbins, N_gals))
+        self.f_gas__Trg = np.ma.zeros((N_T, NRbins, N_gals))
+        self.califaID__Urg = np.ma.zeros((N_U, NRbins, N_gals), dtype = '|S5')
+        self.alogZ_mass__Urg = np.ma.zeros((N_U, NRbins, N_gals))
+        self.alogZ_flux__Urg = np.ma.zeros((N_U, NRbins, N_gals))
+        #self.at_flux__Trg    = np.ma.zeros((N_T, NRbins, N_gals))
+        #self.integrated_at_flux__Tg      = np.ma.zeros((N_T, N_gals))
+        
+    def _init_zones_temporary_lists(self):
+        N_T = self.N_T 
+        N_U = self.N_U 
+        self._califaID_GAL_zones__g = []
+        self._morfType_GAL_zones__g = []
+        self._integrated_tau_V_zones__g = []
+        #self._f_gas__g = []
+        self._ba_GAL_zones__g = []
+        self._Mr_GAL_zones__g = []
+        self._ur_GAL_zones__g = []
+        self._Mcor__g = []
+        self._McorSD__g = []
+        self._Mcor_GAL_zones__g = []
+        self._McorSD_GAL_zones__g = []
+        self._at_flux_GAL_zones__g = []
+        self._tau_V_neb__g = []
+        self._tau_V_neb_err__g = []
+        self._tau_V_neb_mask__g = []
+        self._logZ_neb_S06__g = []
+        self._logZ_neb_S06_err__g = []
+        self._logZ_neb_S06_mask__g = []
+        self._SFR_Ha__g = []
+        self._SFRSD_Ha__g = []
+        self._F_obs_Ha__g = []
+        self._L_int_Ha__g = []
+        self._L_int_Ha_err__g = []
+        self._L_int_Ha_mask__g = []
+        self._dist_zone__g = []
+        self._EW_Ha__g = []
+        self._EW_Hb__g = []
+        self._tau_V__Tg = []
+        self._tau_V_mask__Tg = []
+        self._SFR__Tg = []
+        self._SFR_mask__Tg = []
+        self._SFRSD__Tg = []
+        self._SFRSD_mask__Tg = []
+        self._at_flux__Tg = []
+        self._at_flux_mask__Tg = []
+        self._x_Y__Tg = []
+        self._McorSD__Tg = []
+        #self._f_gas__Tg = []
+        for iT in range(N_T):
+            self._tau_V__Tg.append([])
+            self._tau_V_mask__Tg.append([])
+            self._SFR__Tg.append([])
+            self._SFR_mask__Tg.append([])
+            self._SFRSD__Tg.append([])
+            self._SFRSD_mask__Tg.append([])
+            self._at_flux__Tg.append([])
+            self._at_flux_mask__Tg.append([])
+            self._x_Y__Tg.append([])
+            self._McorSD__Tg.append([])
+            #self._f_gas__Tg.append([])
+        self._alogZ_mass__Ug = []
+        self._alogZ_mass_mask__Ug = []
+        self._alogZ_flux__Ug = []
+        self._alogZ_flux_mask__Ug = []
+        for iU in range(N_U):
+            self._alogZ_mass__Ug.append([])
+            self._alogZ_mass_mask__Ug.append([])
+            self._alogZ_flux__Ug.append([])
+            self._alogZ_flux_mask__Ug.append([])
+            
+    def stack_zones_data(self):
+        N_T = self.N_T 
+        N_U = self.N_U 
+        self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
+        aux = np.hstack(self._tau_V_neb__g)
+        auxMask = np.hstack(self._tau_V_neb_mask__g)
+        self.tau_V_neb__g = np.ma.masked_array(aux, mask = auxMask)
+        self.tau_V_neb_err__g = np.ma.masked_array(np.hstack(self._tau_V_neb_err__g), mask = auxMask)
+        aux = np.hstack(self._logZ_neb_S06__g)
+        auxMask = np.hstack(self._logZ_neb_S06_mask__g)
+        self.logZ_neb_S06__g = np.ma.masked_array(aux, mask = auxMask)
+        self.logZ_neb_S06_err__g = np.ma.masked_array(np.hstack(self._logZ_neb_S06_err__g), mask = auxMask)
+        aux = np.hstack(self._L_int_Ha__g)
+        auxMask = np.hstack(self._L_int_Ha_mask__g)
+        self.L_int_Ha__g = np.ma.masked_array(aux, mask = auxMask)
+        self.F_obs_Ha__g = np.ma.masked_array(np.hstack(self._F_obs_Ha__g), mask = auxMask)
+        self.SFR_Ha__g = np.ma.masked_array(np.hstack(self._SFR_Ha__g), mask = auxMask)
+        self.SFRSD_Ha__g = np.ma.masked_array(np.hstack(self._SFRSD_Ha__g), mask = auxMask)
+        self.Mcor__g = np.ma.masked_array(np.hstack(self._Mcor__g))
+        self.McorSD__g = np.ma.masked_array(np.hstack(self._McorSD__g))
+        self.Mcor_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mcor_GAL_zones__g))
+        self.McorSD_GAL_zones__g = np.ma.masked_array(np.hstack(self._McorSD_GAL_zones__g))
+        self.morfType_GAL_zones__g = np.ma.masked_array(np.hstack(self._morfType_GAL_zones__g))
+        self.at_flux_GAL_zones__g = np.ma.masked_array(np.hstack(self._at_flux_GAL_zones__g))
+        self.EW_Ha__g = np.ma.masked_array(np.hstack(self._EW_Ha__g))
+        self.EW_Hb__g = np.ma.masked_array(np.hstack(self._EW_Hb__g))
+        self.Mr_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mr_GAL_zones__g))
+        self.ur_GAL_zones__g = np.ma.masked_array(np.hstack(self._ur_GAL_zones__g))
+        self.califaID_GAL_zones__g = np.ma.masked_array(np.hstack(self._califaID_GAL_zones__g))
+        self.tau_V__Tg = []
+        self.SFR__Tg = []
+        self.SFRSD__Tg = []
+        self.x_Y__Tg = []
+        self.alogZ_mass__Ug = []
+        self.alogZ_flux__Ug = []
+        self.McorSD__Tg = []
+        for iT in np.arange(self.N_T):
+            aux = np.hstack(self._SFR__Tg[iT])
+            auxMask = np.hstack(self._SFR_mask__Tg[iT])        
+            self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._SFRSD__Tg[iT])
+            auxMask = np.hstack(self._SFRSD_mask__Tg[iT])
+            self.SFRSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._x_Y__Tg[iT])
+            self.x_Y__Tg.append(np.ma.masked_array(aux))
+            aux = np.hstack(self._tau_V__Tg[iT])
+            auxMask = np.hstack(self._tau_V_mask__Tg[iT])
+            self.tau_V__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._McorSD__Tg[iT])
+            self.McorSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+        for iU in np.arange(self.N_U):
+            aux = np.hstack(self._alogZ_mass__Ug[iU])
+            self.alogZ_mass__Ug.append(np.ma.masked_array(aux))
+            aux = np.hstack(self._alogZ_flux__Ug[iU])
+            self.alogZ_flux__Ug.append(np.ma.masked_array(aux))
+            
+    def create_dict_h5(self):
+        D = {}
+        for v in self.__dict__.keys():
+            if v[0] != '_':
+                suffix = v.split('_')[-1]
+                if isinstance(self.__dict__[v], np.ma.core.MaskedArray):
+                    D['/masked/data/%s' % v] = self.__dict__[v].data
+                    D['/masked/mask/%s' % v] = self.__dict__[v].mask 
+                else:    
+                    if suffix == 'Tg':
+                        for iT in np.arange(self.N_T):                        
+                            D['/masked/data/%s/%d' % (v, iT)] = self.__dict__[v][iT].data
+                            D['/masked/mask/%s/%d' % (v, iT)] = self.__dict__[v][iT].mask
+                    elif suffix == 'Ug':
+                        for iU in np.arange(self.N_U):                        
+                            D['/masked/data/%s/%d' % (v, iU)] = self.__dict__[v][iU].data
+                            D['/masked/mask/%s/%d' % (v, iU)] = self.__dict__[v][iU].mask
+        return D                    
 
 def SFR_parametrize(flux, wl, ages, tSF):
     '''
@@ -336,11 +527,13 @@ class H5SFRData:
         self.h5file = h5file
         self.h5 = h5py.File(self.h5file, 'r')
         try: 
-            self.califaIDs__g = self.get_data_h5('califaID_GAL_zones__g')
+            self.califaIDs_zones__g = self.get_data_h5('califaID_GAL_zones__g')
             self.califaIDs__rg = self.get_data_h5('califaID__rg')
             self.califaIDs__Trg = self.get_data_h5('califaID__Trg')
             self.califaIDs__Urg = self.get_data_h5('califaID__Urg')
-            self.califaIDs = np.unique(self.califaIDs__g)
+            self.califaIDs = np.unique(self.califaIDs_zones__g)
+            self.N_gals = len(self.califaIDs)
+            self.N_gals_masked = self.califaIDs__rg.shape[1] - self.N_gals
             self.tSF__T = self.get_data_h5('tSF__T')
             self.N_T = len(self.tSF__T)
             self.tZ__U = self.get_data_h5('tZ__U')
@@ -407,7 +600,7 @@ class H5SFRData:
                     where_slice = np.where(self.califaIDs__Trg == gal)
                     prop__dim = (data[where_slice]).reshape(self.N_T, self.NRbins)
             else:
-                where_slice = np.where(self.califaIDs__g == gal)
+                where_slice = np.where(self.califaIDs_zones__g == gal)
                 if type(data) is list:
                     #prop__dim here is prop__Tz
                     prop__dim = []
