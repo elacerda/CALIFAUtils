@@ -8,8 +8,7 @@ import h5py
 from pycasso import fitsQ3DataCube
 import types
 import matplotlib.pyplot as plt
-
-
+        
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 califa_work_dir = '/Users/lacerda/CALIFA/'
 baseCode = 'Bgsd6e'
@@ -29,22 +28,26 @@ pycasso_cube_dir = califa_work_dir + version_config['SuperFitsDir'] + version_co
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 
+class read_kwargs(object):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs  
+        
+    def __getattr__(self, attr):
+        return self.kwargs.get(attr)
+
+
 def read_one_cube(gal, **kwargs):
-    try:
-        EL = kwargs.pop('EL')
-    except:
-        EL = False
-    try:
-        verbose = kwargs.pop('verbose')
-    except:
-        verbose = False
+    args = read_kwargs(**kwargs)
+    EL = args.EL
+    verbose = args.verbose
+
     pycasso_cube_filename = pycasso_cube_dir + gal + pycasso_suffix
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
         if verbose:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
-        if EL == True:
+        if EL:
             emlines_cube_filename = emlines_cube_dir + gal + emlines_suffix
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
@@ -55,7 +58,7 @@ def read_one_cube(gal, **kwargs):
     except IOError:
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
-
+        
 
 def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
     '''
@@ -64,11 +67,9 @@ def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
-    try:
-        verbose = kwargs.pop('verbose')
-    except:
-        verbose = False
-        kwargs['verbose'] = False
+    args = read_kwargs(**kwargs)
+    verbose = args.verbose
+
     if type(func) != types.FunctionType:
         if verbose:
             print 'func need to be FunctionType'
@@ -100,11 +101,8 @@ def sort_gal_func(filename, func = None, order = 1, **kwargs):
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
-    try:
-        verbose = kwargs.pop('verbose')
-    except:
-        verbose = False
-        kwargs['verbose'] = False
+    args = read_kwargs(**kwargs)
+    verbose = args.verbose
     if type(func) != types.FunctionType:
         if verbose:
             print 'func need to be FunctionType'
@@ -131,7 +129,6 @@ def sort_gal_func(filename, func = None, order = 1, **kwargs):
         sgals = gals[iS]
         sdata = data__g[iS]
     return sgals, sdata
-
 
 
 def sort_gal(filename, attr = None, mode = None, order = 1):
@@ -240,11 +237,8 @@ def loop_califa_galaxies(gals, func = None, **kwargs):
     Loop by all CALIFA galaxies in LIST executing f and returning a HDF5.
     F must be a type.FunctionType.
     '''
-    try:
-        verbose = kwargs.pop('verbose')
-    except:
-        verbose = False
-        kwargs['verbose'] = False
+    args = read_kwargs(**kwargs)
+    verbose = args.verbose
     if type(func) != types.FunctionType:
         if verbose:
             print 'func need to be FunctionType'
@@ -258,7 +252,7 @@ def loop_califa_galaxies(gals, func = None, **kwargs):
         K.close()
     return data__g
 
-        
+
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
         self.N_gals = N_gals
@@ -351,6 +345,7 @@ class ALLGals(object):
         self._at_flux__Tg = []
         self._at_flux_mask__Tg = []
         self._x_Y__Tg = []
+        self._Mcor__Tg = []
         self._McorSD__Tg = []
         #self._f_gas__Tg = []
         for iT in range(N_T):
@@ -363,6 +358,7 @@ class ALLGals(object):
             self._at_flux__Tg.append([])
             self._at_flux_mask__Tg.append([])
             self._x_Y__Tg.append([])
+            self._Mcor__Tg.append([])
             self._McorSD__Tg.append([])
             #self._f_gas__Tg.append([])
         self._alogZ_mass__Ug = []
@@ -374,6 +370,15 @@ class ALLGals(object):
             self._alogZ_mass_mask__Ug.append([])
             self._alogZ_flux__Ug.append([])
             self._alogZ_flux_mask__Ug.append([])
+        #final Tg and Ug zone-by-zone lists
+        self.tau_V__Tg = []
+        self.SFR__Tg = []
+        self.SFRSD__Tg = []
+        self.x_Y__Tg = []
+        self.alogZ_mass__Ug = []
+        self.alogZ_flux__Ug = []
+        self.Mcor__Tg = []
+        self.McorSD__Tg = []
             
     def stack_zones_data(self):
         N_T = self.N_T 
@@ -404,13 +409,6 @@ class ALLGals(object):
         self.Mr_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mr_GAL_zones__g))
         self.ur_GAL_zones__g = np.ma.masked_array(np.hstack(self._ur_GAL_zones__g))
         self.califaID_GAL_zones__g = np.ma.masked_array(np.hstack(self._califaID_GAL_zones__g))
-        self.tau_V__Tg = []
-        self.SFR__Tg = []
-        self.SFRSD__Tg = []
-        self.x_Y__Tg = []
-        self.alogZ_mass__Ug = []
-        self.alogZ_flux__Ug = []
-        self.McorSD__Tg = []
         for iT in np.arange(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
@@ -423,6 +421,8 @@ class ALLGals(object):
             aux = np.hstack(self._tau_V__Tg[iT])
             auxMask = np.hstack(self._tau_V_mask__Tg[iT])
             self.tau_V__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._Mcor__Tg[iT])
+            self.Mcor__Tg.append(np.ma.masked_array(aux, mask = auxMask))
             aux = np.hstack(self._McorSD__Tg[iT])
             self.McorSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
         for iU in np.arange(self.N_U):
@@ -439,16 +439,16 @@ class ALLGals(object):
                 if isinstance(self.__dict__[v], np.ma.core.MaskedArray):
                     D['/masked/data/%s' % v] = self.__dict__[v].data
                     D['/masked/mask/%s' % v] = self.__dict__[v].mask 
-                else:    
+                else:
                     if suffix == 'Tg':
-                        for iT in np.arange(self.N_T):                        
-                            D['/masked/data/%s/%d' % (v, iT)] = self.__dict__[v][iT].data
-                            D['/masked/mask/%s/%d' % (v, iT)] = self.__dict__[v][iT].mask
+                        tmp = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
                     elif suffix == 'Ug':
-                        for iU in np.arange(self.N_U):                        
-                            D['/masked/data/%s/%d' % (v, iU)] = self.__dict__[v][iU].data
-                            D['/masked/mask/%s/%d' % (v, iU)] = self.__dict__[v][iU].mask
+                        tmp = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
+                    else:
+                        tmp = {}
+                    D.update(tmp)
         return D                    
+
 
 def SFR_parametrize(flux, wl, ages, tSF):
     '''
@@ -525,7 +525,11 @@ def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
 class H5SFRData:
     def __init__(self, h5file):
         self.h5file = h5file
-        self.h5 = h5py.File(self.h5file, 'r')
+        try:
+            self.h5 = h5py.File(self.h5file, 'r')
+        except IOError:
+            print "%s: file does not exists" % h5file
+            pass
         try: 
             self.califaIDs_zones__g = self.get_data_h5('califaID_GAL_zones__g')
             self.califaIDs__rg = self.get_data_h5('califaID__rg')
@@ -551,9 +555,30 @@ class H5SFRData:
             self.tauVNebOkMin = self.get_data_h5('tauVNebOkMin')
             self.tauVNebErrMax = self.get_data_h5('tauVNebErrMax')
         except:
-            print >> sys.stderr, 'Missing califaID_GAL_zones__g on h5 file!'
-
+            print >> sys.stderr, 'Missing var on h5 file!'
+        self._create_attrs()
             
+    def _create_attrs(self):
+        # Ugly way to fill the arrays since ALLGals have all the
+        # arrays in the 
+        tmp = ALLGals(1,1,1,1)
+        for k in tmp.__dict__.keys():
+            if not k in self.__dict__.keys() and k[0] != '_':
+                self.__getattr__(k)
+        del tmp
+                
+    def __getattr__(self, attr):
+        a = attr.split('_')
+        x = None
+        if not a[0].find('K0'):
+            gal = a[0]
+            prop = '_'.join(a[1:])
+            x = self.get_prop_gal(prop, gal)
+        else:
+            x = self.get_data_h5(attr)
+        setattr(self, attr, x)
+        return x
+        
     def get_data_h5(self, prop):
         h5 = self.h5
         if any([ prop in s for s in h5['masked/mask'].keys() ]):
