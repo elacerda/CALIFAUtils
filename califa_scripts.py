@@ -77,7 +77,7 @@ def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
     if verbose:
         print gals
     Ng = len(gals)
-    data__g = np.ma.zeros((Ng))
+    data__g = np.ma.empty((Ng))
     for i, gal_id in enumerate(gals):
         K = read_one_cube(gal_id, **kwargs)
         data__g[i] = func(K, **kwargs)
@@ -114,7 +114,7 @@ def sort_gal_func(filename, func = None, order = 1, **kwargs):
     gals = np.asarray([ l[i].strip() for i in np.arange(Ng) ])
     if verbose:
         print gals
-    data__g = np.ma.zeros((Ng))
+    data__g = np.ma.empty((Ng))
     for i, gal_id in enumerate(gals):
         K = read_one_cube(gal_id, **kwargs)
         data__g[i] = func(K, **kwargs)
@@ -143,7 +143,7 @@ def sort_gal(filename, attr = None, mode = None, order = 1):
     f.close()
     Ng = len(l)
     gals = np.asarray([ l[i].strip() for i in np.arange(Ng) ])
-    data__g = np.ma.zeros((Ng))
+    data__g = np.ma.empty((Ng))
     for i, gal_id in enumerate(gals):
         K = read_one_cube(gal_id)
         try:
@@ -168,7 +168,7 @@ def sort_gal(filename, attr = None, mode = None, order = 1):
 
 
 def create_dx(x):
-    dx = np.zeros_like(x)
+    dx = np.empty_like(x)
     dx[1:] = (x[1:] - x[:-1]) / 2.   # dl/2 from right neighbor
     dx[:-1] += dx[1:]               # dl/2 from left neighbor
     dx[0] = 2 * dx[0]
@@ -204,31 +204,31 @@ def create_dx(x):
 #         f.close()
 #         self.N_gals = len(l)
 #         tmp = [ l[i].strip() for i in np.arange(self.N_gals) ]
-#         mask = np.zeros((N_gals), dtype = np.bool)
+#         mask = np.empty((N_gals), dtype = np.bool)
 #         self.califaIDs = np.ma.masked_array(tmp, mask = mask)
 # 
 #     def _set_califaIDs(self):
 #         self.N_gals = len(self._list)
-#         mask = np.zeros((self.N_gals), dtype = np.bool)
+#         mask = np.empty((self.N_gals), dtype = np.bool)
 #         self.califaIDs = np.ma.masked_array(self._list, mask = mask)
 #         
 #     def _init_data(self):
-#         self.Mcor__g = np.ma.zeros((self.N_gals))
-#         self.McorSD__g = np.ma.zeros((self.N_gals))
-#         self.tau_V__g = np.ma.zeros((self.N_gals))
-#         self.Mr__g = np.ma.zeros((self.N_gals))
-#         self.morph__g = np.ma.zeros((self.N_gals))
-#         self.at_flux__g = np.ma.zeros((self.N_gals))
-#         self.ba__g = np.ma.zeros((self.N_gals))
-#         self.u_r__g = np.ma.zeros((self.N_gals))
-#         self.redshift__g = np.ma.zeros((self.N_gals))
+#         self.Mcor__g = np.ma.empty((self.N_gals))
+#         self.McorSD__g = np.ma.empty((self.N_gals))
+#         self.tau_V__g = np.ma.empty((self.N_gals))
+#         self.Mr__g = np.ma.empty((self.N_gals))
+#         self.morph__g = np.ma.empty((self.N_gals))
+#         self.at_flux__g = np.ma.empty((self.N_gals))
+#         self.ba__g = np.ma.empty((self.N_gals))
+#         self.u_r__g = np.ma.empty((self.N_gals))
+#         self.redshift__g = np.ma.empty((self.N_gals))
 #         if self._EL = True:
-#             self.tau_V_neb__g = np.ma.zeros((self.N_gals))
-#             self.EW_Ha__g = np.ma.zeros((self.N_gals))
-#             self.F_obs_Ha__g = np.ma.zeros((self.N_gals))
-#             self.F_obs_Hb__g = np.ma.zeros((self.N_gals))
-#             self.F_obs_N2__g = np.ma.zeros((self.N_gals))
-#             self.F_obs_O3__g = np.ma.zeros((self.N_gals))
+#             self.tau_V_neb__g = np.ma.empty((self.N_gals))
+#             self.EW_Ha__g = np.ma.empty((self.N_gals))
+#             self.F_obs_Ha__g = np.ma.empty((self.N_gals))
+#             self.F_obs_Hb__g = np.ma.empty((self.N_gals))
+#             self.F_obs_N2__g = np.ma.empty((self.N_gals))
+#             self.F_obs_O3__g = np.ma.empty((self.N_gals))
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
             
 #TODO
@@ -244,7 +244,7 @@ def loop_califa_galaxies(gals, func = None, **kwargs):
             print 'func need to be FunctionType'
         return None
     Ng = len(gals)
-    data__g = np.ma.zeros((Ng))
+    data__g = np.ma.empty((Ng))
     for i, gal_id in enumerate(gals):
         K = read_one_cube(gal_id, **kwargs)
         # TODO think about data structure, maybe an object
@@ -272,39 +272,39 @@ class ALLGals(object):
         NRbins = self.NRbins
         N_T = self.N_T
         N_U = self.N_U
-        self.N_zones__g = np.ma.zeros((N_gals))
-        self.morfType_GAL__g = np.ma.zeros((N_gals))
-        self.at_flux_GAL__g = np.ma.zeros((N_gals))
-        self.Mcor_GAL__g = np.ma.zeros((N_gals))
-        self.McorSD_GAL__g = np.ma.zeros((N_gals))
-        self.ba_GAL__g = np.ma.zeros((N_gals))
-        self.integrated_tau_V__g = np.ma.zeros((N_gals))
-        self.integrated_SFR_Ha__g = np.ma.zeros((N_gals))
-        self.integrated_SFRSD_Ha__g = np.ma.zeros((N_gals))
-        self.integrated_L_int_Ha__g = np.ma.zeros((N_gals))
-        self.integrated_SFR__Tg = np.ma.zeros((N_T, N_gals))
-        self.integrated_SFRSD__Tg = np.ma.zeros((N_T, N_gals))
-        self.alogZ_mass_GAL__Ug = np.ma.zeros((N_U, N_gals))
-        self.alogZ_flux_GAL__Ug = np.ma.zeros((N_U, N_gals))
-        self.califaID__rg = np.ma.zeros((NRbins, N_gals), dtype = '|S5')
-        self.morfType_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
-        self.Mr_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
-        self.ur_GAL_zones__rg = np.ma.zeros((NRbins, N_gals))
-        self.tau_V_neb__rg = np.ma.zeros((NRbins, N_gals))
-        self.aSFRSD_Ha__rg = np.ma.zeros((NRbins, N_gals))
-        self.McorSD__rg = np.ma.zeros((NRbins, N_gals))
-        self.logZ_neb_S06__rg = np.ma.zeros((NRbins, N_gals))
-        #self.f_gas__rg = np.ma.zeros((NRbins, N_gals))
-        self.califaID__Trg = np.ma.zeros((N_T, NRbins, N_gals), dtype = '|S5')
-        self.aSFRSD__Trg = np.ma.zeros((N_T, NRbins, N_gals))
-        self.tau_V__Trg = np.ma.zeros((N_T, NRbins, N_gals))
-        self.McorSD__Trg = np.ma.zeros((N_T, NRbins, N_gals))
-        self.f_gas__Trg = np.ma.zeros((N_T, NRbins, N_gals))
-        self.califaID__Urg = np.ma.zeros((N_U, NRbins, N_gals), dtype = '|S5')
-        self.alogZ_mass__Urg = np.ma.zeros((N_U, NRbins, N_gals))
-        self.alogZ_flux__Urg = np.ma.zeros((N_U, NRbins, N_gals))
-        #self.at_flux__Trg    = np.ma.zeros((N_T, NRbins, N_gals))
-        #self.integrated_at_flux__Tg      = np.ma.zeros((N_T, N_gals))
+        self.N_zones__g = np.ma.empty((N_gals))
+        self.morfType_GAL__g = np.ma.empty((N_gals))
+        self.at_flux_GAL__g = np.ma.empty((N_gals))
+        self.Mcor_GAL__g = np.ma.empty((N_gals))
+        self.McorSD_GAL__g = np.ma.empty((N_gals))
+        self.ba_GAL__g = np.ma.empty((N_gals))
+        self.integrated_tau_V__g = np.ma.empty((N_gals))
+        self.integrated_SFR_Ha__g = np.ma.empty((N_gals))
+        self.integrated_SFRSD_Ha__g = np.ma.empty((N_gals))
+        self.integrated_L_int_Ha__g = np.ma.empty((N_gals))
+        self.integrated_SFR__Tg = np.ma.empty((N_T, N_gals))
+        self.integrated_SFRSD__Tg = np.ma.empty((N_T, N_gals))
+        self.alogZ_mass_GAL__Ug = np.ma.empty((N_U, N_gals))
+        self.alogZ_flux_GAL__Ug = np.ma.empty((N_U, N_gals))
+        self.califaID__rg = np.ma.empty((NRbins, N_gals), dtype = '|S5')
+        self.morfType_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
+        self.Mr_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
+        self.ur_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
+        self.tau_V_neb__rg = np.ma.empty((NRbins, N_gals))
+        self.aSFRSD_Ha__rg = np.ma.empty((NRbins, N_gals))
+        self.McorSD__rg = np.ma.empty((NRbins, N_gals))
+        self.logZ_neb_S06__rg = np.ma.empty((NRbins, N_gals))
+        #self.f_gas__rg = np.ma.empty((NRbins, N_gals))
+        self.califaID__Trg = np.ma.empty((N_T, NRbins, N_gals), dtype = '|S5')
+        self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.McorSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.f_gas__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.califaID__Urg = np.ma.empty((N_U, NRbins, N_gals), dtype = '|S5')
+        self.alogZ_mass__Urg = np.ma.empty((N_U, NRbins, N_gals))
+        self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals))
+        #self.at_flux__Trg    = np.ma.empty((N_T, NRbins, N_gals))
+        #self.integrated_at_flux__Tg      = np.ma.empty((N_T, N_gals))
         
     def _init_zones_temporary_lists(self):
         N_T = self.N_T 
