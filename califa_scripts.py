@@ -151,7 +151,7 @@ def sort_gal(filename, attr = None, mode = None, order = 1):
             if mode == None:
                 data__g[i] = attribute
             else:
-                f_mode = np.__getattribute__(mode)
+                f_mode = np.__dict__[mode]
                 data__g[i] = f_mode(attribute)
         except AttributeError:
             print >> sys.stderr, '%s: %s: non-existent attribute' % (gal_id, attr)
@@ -336,6 +336,7 @@ class ALLGals(object):
         self._dist_zone__g = []
         self._EW_Ha__g = []
         self._EW_Hb__g = []
+        
         self._tau_V__Tg = []
         self._tau_V_mask__Tg = []
         self._SFR__Tg = []
@@ -371,7 +372,7 @@ class ALLGals(object):
             self._alogZ_flux__Ug.append([])
             self._alogZ_flux_mask__Ug.append([])
         #final Tg and Ug zone-by-zone lists
-        self.tau_V__Tg = []
+        self.tau_V__Tg = [] 
         self.SFR__Tg = []
         self.SFRSD__Tg = []
         self.x_Y__Tg = []
@@ -381,8 +382,6 @@ class ALLGals(object):
         self.McorSD__Tg = []
             
     def stack_zones_data(self):
-        N_T = self.N_T 
-        N_U = self.N_U 
         self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
         aux = np.hstack(self._tau_V_neb__g)
         auxMask = np.hstack(self._tau_V_neb_mask__g)
@@ -409,7 +408,7 @@ class ALLGals(object):
         self.Mr_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mr_GAL_zones__g))
         self.ur_GAL_zones__g = np.ma.masked_array(np.hstack(self._ur_GAL_zones__g))
         self.califaID_GAL_zones__g = np.ma.masked_array(np.hstack(self._califaID_GAL_zones__g))
-        for iT in np.arange(self.N_T):
+        for iT in range(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
             self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask))
@@ -441,12 +440,16 @@ class ALLGals(object):
                     D['/masked/mask/%s' % v] = self.__dict__[v].mask 
                 else:
                     if suffix == 'Tg':
-                        tmp = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
+                        tmp_data = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
+                        tmp_mask = {'/masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_T)}
                     elif suffix == 'Ug':
-                        tmp = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
+                        tmp_data = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
+                        tmp_mask = {'/masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_U)}
                     else:
-                        tmp = {}
-                    D.update(tmp)
+                        tmp_data = {}
+                        tmp_mask = {}
+                    D.update(tmp_data)
+                    D.update(tmp_mask)
         return D                    
 
 
@@ -556,7 +559,7 @@ class H5SFRData:
             self.tauVNebErrMax = self.get_data_h5('tauVNebErrMax')
         except:
             print >> sys.stderr, 'Missing var on h5 file!'
-        self._create_attrs()
+        #self._create_attrs()
             
     def _create_attrs(self):
         # Ugly way to fill the arrays since ALLGals have all the
@@ -564,6 +567,7 @@ class H5SFRData:
         tmp = ALLGals(1,1,1,1)
         for k in tmp.__dict__.keys():
             if not k in self.__dict__.keys() and k[0] != '_':
+                print k
                 self.__getattr__(k)
         del tmp
                 
@@ -578,32 +582,29 @@ class H5SFRData:
             x = self.get_data_h5(attr)
         setattr(self, attr, x)
         return x
-        
+
     def get_data_h5(self, prop):
         h5 = self.h5
-        if any([ prop in s for s in h5['masked/mask'].keys() ]):
-            node = '/masked/data/' + prop
+        folder_data = 'masked/data'
+        folder_mask = 'masked/mask'
+        if any([ prop in s for s in h5[folder_mask].keys() ]):
+            node = '%s/%s' % (folder_data, prop)
+            node_m = '%s/%s' % (folder_mask, prop)
             ds = h5[node]
             if type(ds) == h5py.Dataset:
-                data = h5.get('/masked/data/' + prop).value
-                mask = h5.get('/masked/mask/' + prop).value
-                arr = np.ma.masked_array(data, mask = mask)
+                arr = np.ma.masked_array(ds.value, mask = h5[node_m].value)
             else:
                 suffix = prop[-2:]
                 if suffix[0] == 'U':
-                    arr = []
-                    for iU, tZ in enumerate(self.tZ__U):
-                        group = '%s/%d' % (prop, iU)
-                        data = h5.get('/masked/data/' + group).value
-                        mask = h5.get('/masked/mask/' + group).value
-                        arr.append(np.ma.masked_array(data, mask = mask))
+                    arr = [ 
+                        np.ma.masked_array(h5['%s/%d' % (node, iU)].value, mask = h5['%s/%d' % (node_m, iU)].value) 
+                        for iU in range(self.N_U) 
+                    ]
                 elif suffix[0] == 'T':
-                    arr = []
-                    for iT, tSF in enumerate(self.tSF__T):
-                        group = '%s/%d' % (prop, iT)
-                        data = h5.get('/masked/data/' + group).value
-                        mask = h5.get('/masked/mask/' + group).value
-                        arr.append(np.ma.masked_array(data, mask = mask))
+                    arr = [ 
+                        np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value) 
+                        for iT in range(self.N_T) 
+                    ]
             return arr 
         else:
             return h5.get('/data/' + prop).value
@@ -627,14 +628,11 @@ class H5SFRData:
             else:
                 where_slice = np.where(self.califaIDs_zones__g == gal)
                 if type(data) is list:
-                    #prop__dim here is prop__Tz
-                    prop__dim = []
+                    # prop__dim here is prop__T(NZones * NGals)
                     if prop[-2] == 'U':
-                        for iU, tZ in enumerate(self.tZ__U):
-                            prop__dim.append(data[iU][where_slice])
+                        prop__dim = [ data[iU][where_slice] for iU in range(self.N_U) ]
                     elif prop[-2] == 'T':
-                        for iT, tSF in enumerate(self.tSF__T):
-                            prop__dim.append(data[iT][where_slice])
+                        prop__dim = [ data[iT][where_slice] for iT in range(self.N_T) ]
                 else:
                     # by zone
                     prop__dim = data[where_slice]
@@ -642,8 +640,10 @@ class H5SFRData:
 
     
     def get_prop_uniq(self, prop):
-        tmp = [np.unique(self.get_prop_gal(prop, g))[0] for g in self.califaIDs]
-        return np.ma.masked_array(tmp, dtype = data.dtype)
+        for g in self.califaIDs:
+            data = np.unique(self.get_prop_gal(prop, g))
+        tmp = [ np.unique(self.get_prop_gal(prop, g))[0] for g in self.califaIDs ]
+        return np.ma.masked_array(tmp)
 
     
     def sort_gal_by_prop(self, prop, unique = False, desc = False):
