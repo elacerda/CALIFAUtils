@@ -8,6 +8,7 @@ import h5py
 from pycasso import fitsQ3DataCube
 import types
 import matplotlib.pyplot as plt
+import itertools
         
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 califa_work_dir = '/Users/lacerda/CALIFA/'
@@ -58,7 +59,7 @@ def read_one_cube(gal, **kwargs):
     except IOError:
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
-        
+
 
 def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
     '''
@@ -272,55 +273,40 @@ class ALLGals(object):
         NRbins = self.NRbins
         N_T = self.N_T
         N_U = self.N_U
-        self.N_zones__g = np.ma.empty((N_gals))
+        self.califaIDs = np.ma.empty((N_gals), dtype = '|S5')
+        self.N_zones__g = np.ma.empty((N_gals), dtype = int)
         self.morfType_GAL__g = np.ma.empty((N_gals))
         self.at_flux_GAL__g = np.ma.empty((N_gals))
         self.Mcor_GAL__g = np.ma.empty((N_gals))
         self.McorSD_GAL__g = np.ma.empty((N_gals))
         self.ba_GAL__g = np.ma.empty((N_gals))
+        self.ba_PyCASSO_GAL__g = np.ma.empty((N_gals))
+        self.Mr_GAL__g = np.ma.empty((N_gals))
+        self.ur_GAL__g = np.ma.empty((N_gals))
         self.integrated_tau_V__g = np.ma.empty((N_gals))
+        self.integrated_tau_V_neb__g = np.ma.empty((N_gals))
+        self.integrated_logZ_neb_S06__g = np.ma.empty((N_gals))
+        self.integrated_L_int_Ha__g = np.ma.empty((N_gals))
         self.integrated_SFR_Ha__g = np.ma.empty((N_gals))
         self.integrated_SFRSD_Ha__g = np.ma.empty((N_gals))
-        self.integrated_L_int_Ha__g = np.ma.empty((N_gals))
         self.integrated_SFR__Tg = np.ma.empty((N_T, N_gals))
         self.integrated_SFRSD__Tg = np.ma.empty((N_T, N_gals))
         self.alogZ_mass_GAL__Ug = np.ma.empty((N_U, N_gals))
         self.alogZ_flux_GAL__Ug = np.ma.empty((N_U, N_gals))
-        self.califaID__rg = np.ma.empty((NRbins, N_gals), dtype = '|S5')
-        self.morfType_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
-        self.Mr_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
-        self.ur_GAL_zones__rg = np.ma.empty((NRbins, N_gals))
         self.tau_V_neb__rg = np.ma.empty((NRbins, N_gals))
         self.aSFRSD_Ha__rg = np.ma.empty((NRbins, N_gals))
         self.McorSD__rg = np.ma.empty((NRbins, N_gals))
         self.logZ_neb_S06__rg = np.ma.empty((NRbins, N_gals))
-        #self.f_gas__rg = np.ma.empty((NRbins, N_gals))
-        self.califaID__Trg = np.ma.empty((N_T, NRbins, N_gals), dtype = '|S5')
         self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.McorSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.f_gas__Trg = np.ma.empty((N_T, NRbins, N_gals))
-        self.califaID__Urg = np.ma.empty((N_U, NRbins, N_gals), dtype = '|S5')
         self.alogZ_mass__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals))
-        #self.at_flux__Trg    = np.ma.empty((N_T, NRbins, N_gals))
-        #self.integrated_at_flux__Tg      = np.ma.empty((N_T, N_gals))
         
     def _init_zones_temporary_lists(self):
-        N_T = self.N_T 
-        N_U = self.N_U 
-        self._califaID_GAL_zones__g = []
-        self._morfType_GAL_zones__g = []
-        self._integrated_tau_V_zones__g = []
-        #self._f_gas__g = []
-        self._ba_GAL_zones__g = []
-        self._Mr_GAL_zones__g = []
-        self._ur_GAL_zones__g = []
         self._Mcor__g = []
         self._McorSD__g = []
-        self._Mcor_GAL_zones__g = []
-        self._McorSD_GAL_zones__g = []
-        self._at_flux_GAL_zones__g = []
         self._tau_V_neb__g = []
         self._tau_V_neb_err__g = []
         self._tau_V_neb_mask__g = []
@@ -348,8 +334,8 @@ class ALLGals(object):
         self._x_Y__Tg = []
         self._Mcor__Tg = []
         self._McorSD__Tg = []
-        #self._f_gas__Tg = []
-        for iT in range(N_T):
+        
+        for _ in range(self.N_T):
             self._tau_V__Tg.append([])
             self._tau_V_mask__Tg.append([])
             self._SFR__Tg.append([])
@@ -361,16 +347,18 @@ class ALLGals(object):
             self._x_Y__Tg.append([])
             self._Mcor__Tg.append([])
             self._McorSD__Tg.append([])
-            #self._f_gas__Tg.append([])
+        
         self._alogZ_mass__Ug = []
         self._alogZ_mass_mask__Ug = []
         self._alogZ_flux__Ug = []
         self._alogZ_flux_mask__Ug = []
-        for iU in range(N_U):
+        
+        for _ in range(self.N_U):
             self._alogZ_mass__Ug.append([])
             self._alogZ_mass_mask__Ug.append([])
             self._alogZ_flux__Ug.append([])
             self._alogZ_flux_mask__Ug.append([])
+        
         #final Tg and Ug zone-by-zone lists
         self.tau_V__Tg = [] 
         self.SFR__Tg = []
@@ -383,14 +371,17 @@ class ALLGals(object):
             
     def stack_zones_data(self):
         self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
+        
         aux = np.hstack(self._tau_V_neb__g)
         auxMask = np.hstack(self._tau_V_neb_mask__g)
         self.tau_V_neb__g = np.ma.masked_array(aux, mask = auxMask)
         self.tau_V_neb_err__g = np.ma.masked_array(np.hstack(self._tau_V_neb_err__g), mask = auxMask)
+        
         aux = np.hstack(self._logZ_neb_S06__g)
         auxMask = np.hstack(self._logZ_neb_S06_mask__g)
         self.logZ_neb_S06__g = np.ma.masked_array(aux, mask = auxMask)
         self.logZ_neb_S06_err__g = np.ma.masked_array(np.hstack(self._logZ_neb_S06_err__g), mask = auxMask)
+
         aux = np.hstack(self._L_int_Ha__g)
         auxMask = np.hstack(self._L_int_Ha_mask__g)
         self.L_int_Ha__g = np.ma.masked_array(aux, mask = auxMask)
@@ -399,15 +390,10 @@ class ALLGals(object):
         self.SFRSD_Ha__g = np.ma.masked_array(np.hstack(self._SFRSD_Ha__g), mask = auxMask)
         self.Mcor__g = np.ma.masked_array(np.hstack(self._Mcor__g))
         self.McorSD__g = np.ma.masked_array(np.hstack(self._McorSD__g))
-        self.Mcor_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mcor_GAL_zones__g))
-        self.McorSD_GAL_zones__g = np.ma.masked_array(np.hstack(self._McorSD_GAL_zones__g))
-        self.morfType_GAL_zones__g = np.ma.masked_array(np.hstack(self._morfType_GAL_zones__g))
-        self.at_flux_GAL_zones__g = np.ma.masked_array(np.hstack(self._at_flux_GAL_zones__g))
+
         self.EW_Ha__g = np.ma.masked_array(np.hstack(self._EW_Ha__g))
         self.EW_Hb__g = np.ma.masked_array(np.hstack(self._EW_Hb__g))
-        self.Mr_GAL_zones__g = np.ma.masked_array(np.hstack(self._Mr_GAL_zones__g))
-        self.ur_GAL_zones__g = np.ma.masked_array(np.hstack(self._ur_GAL_zones__g))
-        self.califaID_GAL_zones__g = np.ma.masked_array(np.hstack(self._califaID_GAL_zones__g))
+
         for iT in range(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
@@ -424,6 +410,7 @@ class ALLGals(object):
             self.Mcor__Tg.append(np.ma.masked_array(aux, mask = auxMask))
             aux = np.hstack(self._McorSD__Tg[iT])
             self.McorSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+        
         for iU in np.arange(self.N_U):
             aux = np.hstack(self._alogZ_mass__Ug[iU])
             self.alogZ_mass__Ug.append(np.ma.masked_array(aux))
@@ -436,8 +423,8 @@ class ALLGals(object):
             if v[0] != '_':
                 suffix = v.split('_')[-1]
                 if isinstance(self.__dict__[v], np.ma.core.MaskedArray):
-                    D['/masked/data/%s' % v] = self.__dict__[v].data
-                    D['/masked/mask/%s' % v] = self.__dict__[v].mask 
+                    tmp_data = {'/masked/data/%s' % v : self.__dict__[v].data}
+                    tmp_mask = {'/masked/mask/%s' % v : self.__dict__[v].mask}
                 else:
                     if suffix == 'Tg':
                         tmp_data = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
@@ -448,8 +435,8 @@ class ALLGals(object):
                     else:
                         tmp_data = {}
                         tmp_mask = {}
-                    D.update(tmp_data)
-                    D.update(tmp_mask)
+                D.update(tmp_data)
+                D.update(tmp_mask)
         return D                    
 
 
@@ -471,7 +458,7 @@ def SFR_parametrize(flux, wl, ages, tSF):
     y = flux * wl * cmInAA * L_sun / (h * c)
     #y = flux * cmInAA * L_sun #BOL
     
-    qh__Zt = (y * create_dx(l)).sum(axis = 2)
+    qh__Zt = (y * create_dx(wl)).sum(axis = 2)
     Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis = 1) * yr_sec
     Nh__Zt = np.cumsum(qh__Zt * create_dx(ages), axis = 1) * yr_sec
          
@@ -509,7 +496,10 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF):
 
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba):
     from matplotlib.patches import Ellipse
-    center , a , b_a , theta = np.array([ 256 , 256]) , HLR_pix * 512.0 / 75.0 , ba , pa * 180 / np.pi 
+    center = np.array([ 256 , 256])
+    a = HLR_pix * 512.0 / 75.0 
+    b_a = ba
+    theta = pa * 180 / np.pi 
     e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = 'white', lw = 2, ls = 'dotted')
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = 'white', lw = 2, ls = 'dotted')
     ax.add_artist(e1)
@@ -533,65 +523,94 @@ class H5SFRData:
         except IOError:
             print "%s: file does not exists" % h5file
             pass
-        try: 
-            self.califaIDs_zones__g = self.get_data_h5('califaID_GAL_zones__g')
-            self.califaIDs__rg = self.get_data_h5('califaID__rg')
-            self.califaIDs__Trg = self.get_data_h5('califaID__Trg')
-            self.califaIDs__Urg = self.get_data_h5('califaID__Urg')
-            self.califaIDs = np.unique(self.califaIDs_zones__g)
-            self.N_gals = len(self.califaIDs)
-            self.N_gals_masked = self.califaIDs__rg.shape[1] - self.N_gals
-            self.tSF__T = self.get_data_h5('tSF__T')
-            self.N_T = len(self.tSF__T)
-            self.tZ__U = self.get_data_h5('tZ__U')
-            self.N_U = len(self.tZ__U)
-            self.RbinIni = self.get_data_h5('RbinIni')
-            self.RbinFin = self.get_data_h5('RbinFin')
-            self.RbinStep = self.get_data_h5('RbinStep')
-            self.Rbin__r = self.get_data_h5('Rbin__r')
-            self.RbinCenter__r = self.get_data_h5('RbinCenter__r')
-            self.NRbins = self.get_data_h5('NRbins')
-            self.RColor = self.get_data_h5('RColor')
-            self.RRange = self.get_data_h5('RRange')
-            self.xOkMin = self.get_data_h5('xOkMin')
-            self.tauVOkMin = self.get_data_h5('tauVOkMin')
-            self.tauVNebOkMin = self.get_data_h5('tauVNebOkMin')
-            self.tauVNebErrMax = self.get_data_h5('tauVNebErrMax')
-        except:
-            print >> sys.stderr, 'Missing var on h5 file!'
-        #self._create_attrs()
-            
+
+        self.RbinIni = self.get_data_h5('RbinIni')
+        self.RbinFin = self.get_data_h5('RbinFin')
+        self.RbinStep = self.get_data_h5('RbinStep')
+        self.Rbin__r = self.get_data_h5('Rbin__r')
+        self.RbinCenter__r = self.get_data_h5('RbinCenter__r')
+        self.NRbins = self.get_data_h5('NRbins')
+        self.RColor = self.get_data_h5('RColor')
+        self.RRange = self.get_data_h5('RRange')
+        self.xOkMin = self.get_data_h5('xOkMin')
+        self.tauVOkMin = self.get_data_h5('tauVOkMin')
+        self.tauVNebOkMin = self.get_data_h5('tauVNebOkMin')
+        self.tauVNebErrMax = self.get_data_h5('tauVNebErrMax')
+        self.tSF__T = self.get_data_h5('tSF__T')
+        self.tZ__U = self.get_data_h5('tZ__U')
+        self.califaIDs_all = self.get_data_h5('califaIDs')
+        self.califaIDs = self.califaIDs_all.compressed()
+        self.N_zones_all__g = self.get_data_h5('N_zones__g')
+        self.N_gals_all = len(self.califaIDs_all)
+        self.N_gals = len(self.califaIDs)
+        self.N_zones__g = self.N_zones_all__g.compressed()
+        self.N_T = len(self.tSF__T)
+        self.N_U = len(self.tZ__U)
+
+        self._create_attrs()
+        
+        
     def _create_attrs(self):
         # Ugly way to fill the arrays since ALLGals have all the
         # arrays in the 
         tmp = ALLGals(1,1,1,1)
-        for k in tmp.__dict__.keys():
-            if not k in self.__dict__.keys() and k[0] != '_':
-                print k
-                self.__getattr__(k)
+        for attr in tmp.__dict__.keys():
+            if attr[0] != '_' and not hasattr(self, attr):
+                x = self.get_data_h5(attr)
+                setattr(self, attr, x)
         del tmp
-                
+
+        
+    def reply_arr_by_zones(self, p):
+        if isinstance(p, str):
+            p = self.get_data_h5(p)
+        if isinstance(p, np.ma.core.MaskedArray):
+            p = p.tolist()
+        ltmp = [ itertools.repeat(p[i], self.N_zones__g[i]) for i in range(self.N_gals) ]
+        arr = np.asarray(list(itertools.chain.from_iterable(ltmp)))
+        return arr
+
+
+    def reply_arr_by_radius(self, p, N_dim = None):
+        if isinstance(p, str):
+            p = self.get_data_h5(p)
+        if isinstance(p, np.ma.core.MaskedArray):
+            p = p.tolist()
+        if N_dim:
+            Nloop = N_dim * self.NRbins
+            output_shape = (N_dim, self.NRbins, self.N_gals)
+        else:
+            Nloop = self.NRbins
+            output_shape = (self.NRbins, self.N_gals)
+        l = [ list(v) for v in [ itertools.repeat(p[i], Nloop) for i in range(self.N_gals) ]]
+        return np.asarray([list(i) for i in zip(*l)]).reshape(output_shape)
+
+
     def __getattr__(self, attr):
         a = attr.split('_')
         x = None
-        if not a[0].find('K0'):
-            gal = a[0]
-            prop = '_'.join(a[1:])
-            x = self.get_prop_gal(prop, gal)
-        else:
-            x = self.get_data_h5(attr)
-        setattr(self, attr, x)
-        return x
+        # somestr.find(str) returns 0 if str is found in somestr.
+        if a[0]:
+            if not a[0].find('K0'):
+                gal = a[0]
+                prop = '_'.join(a[1:])
+                x = self.get_prop_gal(prop, gal)
+            else:
+                x = self.get_data_h5(attr)
+            setattr(self, attr, x)
+            return x
+
 
     def get_data_h5(self, prop):
         h5 = self.h5
-        folder_data = 'masked/data'
-        folder_mask = 'masked/mask'
-        if any([ prop in s for s in h5[folder_mask].keys() ]):
+        try:
+            folder_data = 'masked/data'
+            folder_mask = 'masked/mask'
+            #if prop in h5[folder_mask].keys():
             node = '%s/%s' % (folder_data, prop)
             node_m = '%s/%s' % (folder_mask, prop)
             ds = h5[node]
-            if type(ds) == h5py.Dataset:
+            if isinstance(ds, h5py.Dataset):
                 arr = np.ma.masked_array(ds.value, mask = h5[node_m].value)
             else:
                 suffix = prop[-2:]
@@ -605,55 +624,60 @@ class H5SFRData:
                         np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value) 
                         for iT in range(self.N_T) 
                     ]
-            return arr 
-        else:
-            return h5.get('/data/' + prop).value
-
+            return arr
+        except:
+            try:
+                node = '/data/' + prop
+                ds = h5[node]
+                return ds.value
+            except:
+                print '%s: property not found' % prop
+                return None
         
-    def get_prop_gal(self, prop, gal = None):
-        data = self.get_data_h5(prop)
-        prop__dim = None
-        suffix = prop[-3:]
-        if gal:
-            if suffix[1:] == 'rg':
-                if suffix[0] == '_':
-                    where_slice = np.where(self.califaIDs__rg == gal)
-                    prop__dim = data[where_slice]
-                elif suffix[0] == 'U':
-                    where_slice = np.where(self.califaIDs__Urg == gal)
-                    prop__dim = (data[where_slice]).reshape(self.N_U, self.NRbins)
-                elif suffix[0] == 'T':
-                    where_slice = np.where(self.califaIDs__Trg == gal)
-                    prop__dim = (data[where_slice]).reshape(self.N_T, self.NRbins)
-            else:
-                where_slice = np.where(self.califaIDs_zones__g == gal)
-                if type(data) is list:
-                    # prop__dim here is prop__T(NZones * NGals)
-                    if prop[-2] == 'U':
-                        prop__dim = [ data[iU][where_slice] for iU in range(self.N_U) ]
-                    elif prop[-2] == 'T':
-                        prop__dim = [ data[iT][where_slice] for iT in range(self.N_T) ]
-                else:
-                    # by zone
-                    prop__dim = data[where_slice]
-        return prop__dim
-
-    
-    def get_prop_uniq(self, prop):
-        for g in self.califaIDs:
-            data = np.unique(self.get_prop_gal(prop, g))
-        tmp = [ np.unique(self.get_prop_gal(prop, g))[0] for g in self.califaIDs ]
-        return np.ma.masked_array(tmp)
-
-    
-    def sort_gal_by_prop(self, prop, unique = False, desc = False):
-        list_uniq_gal = self.califaIDs
-        if unique == True:
-            data__g = self.get_data_h5(prop).compressed()
+        
+    def get_prop_gal(self, data, gal = None):
+        if isinstance(data, str):
+            data = self.get_data_h5(data)
+        arr = None
+        if isinstance(data, list):
+            califaIDs = self.reply_arr_by_zones(self.califaIDs)
+            where_slice = np.where(califaIDs == gal)
+            arr = [ data[iU][where_slice] for iU in range(len(data)) ]
         else:
-            data__g = self.get_prop_uniq(prop)
-        iS = np.ma.argsort(data__g)
-        if desc == True:
+            d_shape = data.shape
+            if len(d_shape) == 3:
+                califaIDs = self.reply_arr_by_radius(self.califaIDs, d_shape[0])
+                where_slice = np.where(califaIDs == gal)
+                prop_shape = d_shape[0:2]
+                arr = data[where_slice].reshape(prop_shape)
+            elif len(d_shape) == 2:
+                califaIDs = self.reply_arr_by_radius(self.califaIDs)
+                where_slice = np.where(califaIDs == gal)
+                prop_shape = self.NRbins
+                arr = data[where_slice].reshape(prop_shape)
+            else:
+                if data.shape == self.califaIDs.shape:
+                    # that's not an array...
+                    arr = data[self.califaIDs == gal].item()
+                else:
+                    califaIDs = self.reply_arr_by_zones(self.califaIDs)
+                    where_slice = np.where(califaIDs == gal)
+                    arr = data[where_slice]
+        return arr
+    
+    
+    def sort_gal_by_prop(self, prop, order = 1):
+        '''
+        ORDER = 0 - sort asc, 1 - sort desc
+        '''
+        gals = self.califaIDs
+        if not isinstance(prop, str) and prop.shape == self.califaIDs.shape:
+            data__g = prop
+        else:
+            data__g = np.asarray([ self.get_prop_gal(prop, gal) for gal in gals ])
+        iS = np.argsort(data__g)
+        if order != 0:
             iS = iS[::-1]
-        list_uniq_gal = self.califaIDs[iS]
-        return list_uniq_gal
+        sgals = np.asarray(gals)[iS]
+        sdata = data__g[iS]
+        return sgals, sdata
