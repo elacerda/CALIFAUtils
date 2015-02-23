@@ -10,6 +10,7 @@ import types
 import matplotlib.pyplot as plt
 import itertools
         
+        
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 califa_work_dir = '/Users/lacerda/CALIFA/'
 baseCode = 'Bgsd6e'
