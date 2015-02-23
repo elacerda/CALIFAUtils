@@ -35,7 +35,7 @@ class read_kwargs(object):
         
     def __getattr__(self, attr):
         return self.kwargs.get(attr)
-
+    
 
 def read_one_cube(gal, **kwargs):
     args = read_kwargs(**kwargs)
@@ -300,9 +300,10 @@ class ALLGals(object):
         self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.McorSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
-        self.f_gas__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.alogZ_mass__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals))
+        self.alogZ_mass_wei__Urg = np.ma.empty((N_U, NRbins, N_gals))
+        self.alogZ_flux_wei__Urg = np.ma.empty((N_U, NRbins, N_gals))
         
     def _init_zones_temporary_lists(self):
         self._Mcor__g = []
@@ -513,6 +514,163 @@ def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     ax.add_artist(e1)
     ax.add_artist(e2)
+    
+    
+def radialProfileWeighted(v__yx, w__yx, **kwargs): 
+    args = read_kwargs(**kwargs)
+    r_func = args.r_func
+    rad_scale = args.rad_scale
+    bin_r = args.bin_r
+    
+    v__r = None
+
+    if r_func:
+        w__r = r_func(w__yx, bin_r = bin_r, mode = 'sum', rad_scale = rad_scale)
+        v_w__r = r_func(v__yx * w__yx, bin_r = bin_r, mode = 'sum', rad_scale = rad_scale)
+        v__r = v_w__r / w__r
+
+    return v__r
+
+
+def calc_xY(K, tY):
+    aCen__t, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
+
+    # Compute xY__z
+    x__tZz =  K.popx / K.popx.sum(axis=1).sum(axis=0)
+    aux1__z = x__tZz[:indY,:,:].sum(axis=1).sum(axis=0)
+    aux2__z = x__tZz[indY,:,:].sum(axis=0) *  (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1__z + aux2__z)
+    
+
+def calc_SFR(K, tSF):
+    '''
+    Add up (in Mini and x) populations younger than tSF to compute SFR's and xY.
+    First for zones (__z), and then images (__yx).
+
+    tSF is a arbitrary/continuous number; it'll cover full age-bins plus a last one which will be
+    only partially covered. The mass (light) within this last age-bin is scaled by the ratio
+    (tSF - bin-lower-age) / bin-size. (P ex, if tSF is such that only 34% of the last-bin width is
+    covered, then only 34% of its mass is added to the total.)
+
+    Since our bases span so many ages, this "exact" calculation is just a refinement over the simpler
+    method of just adding upp all age-bins satisfying K.agebase < tSF.
+
+    OBS: Note that we are NOT dezonifying SFR__z. (Among other reasons, it'll be compared to the un-dezonifiable tauV!)
+
+    Cid@IAA - 27/Jan/2015
+    '''
+    aCen__t, aLow__t, aUpp__t, indSF = calc_agebins(K.ageBase, tSF)
+    
+    # Compute SFR__z
+    aux1__z  = K.Mini__tZz[:indSF,:,:].sum(axis=1).sum(axis=0)
+    aux2__z  = K.Mini__tZz[indSF,:,:].sum(axis=0) *  (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
+    SFR__z   = (aux1__z + aux2__z) / tSF
+    SFRSD__z = SFR__z / K.zoneArea_pc2
+
+    return SFR__z, SFRSD__z
+
+
+def calc_alogZ_Stuff(K, tZ, xOkMin):
+ #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+ # flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
+ #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    '''
+    Compute average logZ (alogZ_*) both for each zone (*__z) and the galaxy-wide
+    average (*_GAL, computed a la GD14).
+
+    Only st-pops satisfying the input flag__t (ageBase-related) mask are considered!
+    This allows us to compute alogZ_* for, say, < 2 Gyr or 1--7 Gyr populations,
+    as well as the whole-age range (using flag__t = True for all base ages)
+    with a same function and saving the trouble of keeping separate variables for the same thing:-)
+
+    Radial profiles of alogZ_mass and alogZ_flux are also computed. They are/are-not weighted
+    (by Mcor__yx & Lobn__yx, respectively) according to weiRadProf.
+
+    ==> return alogZ_mass_GAL, alogZ_flux_GAL, isOkFrac_GAL , alogZ_mass__r, alogZ_flux__r
+
+    Cid@Lagoa - 05/Jun/2014
+
+
+    !!HELP!! ATT: My way of computing alogZ_*__z produces nan', which are ugly but harmless.
+    I tried to fix it using masked arrays:
+
+    alogZ_mass__z  = np.ma.masked_array( numerator__z/(denominator__z+0e-30) , mask = (denominator__z == 0))
+
+    but this did not work!
+
+    Cid@Lagoa - 20/Jun/2014
+    
+    Correct nan problems using:
+    alogZ_mass__z[np.isnan(alogZ_mass__z)] = np.ma.masked
+    Lacerda@Granada - 19/Feb/2015
+    
+    removed radial profiles inside this func.
+    Lacerda@Granada - 23/Feb/2015
+    '''
+    #--------------------------------------------------------------------------
+    # Initialization
+    Zsun = 0.019
+    # Define log of base metallicities **in solar units** for convenience
+    logZBase__Z = np.log10(K.metBase / Zsun)
+    #--------------------------------------------------------------------------
+    flag__t = K.ageBase <= tZ
+
+    #--------------------------------------------------------------------------
+    # Define alogZ_****__z: flux & mass weighted average logZ for each zone
+    # ==> alogZ_mass__z - ATT: There may be nan's here depending on flag__t!
+    numerator__z = np.tensordot(K.Mcor__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis = 0)
+    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    alogZ_mass__z = np.ma.masked_array(numerator__z / denominator__z)
+    alogZ_mass__z[np.isnan(alogZ_mass__z)] = np.ma.masked
+
+    # ==> alogZ_flux__z - ATT: There may be nan's here depending on flag__t!
+    numerator__z = np.tensordot(K.Lobn__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis = 0)
+    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    alogZ_flux__z = np.ma.masked_array(numerator__z / denominator__z)
+    alogZ_flux__z[np.isnan(alogZ_mass__z)] = np.ma.masked
+    #--------------------------------------------------------------------------
+
+    #--------------------------------------------------------------------------
+    # Def galaxy-wide averages of alogZ in light & mass, but **discards** zones having
+    # too little light fractions in the ages given by flag__t
+    isOk__z = np.ones_like(K.Mcor__z, dtype = np.bool)
+    
+    # Define Ok flag: Zones with light fraction x < xOkMin are not reliable for alogZ (& etc) estimation!
+    if xOkMin >= 0.:
+        x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+        xOk__z = x__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+        isOk__z = xOk__z > xOkMin
+        
+    # Fraction of all zones which are Ok in the isOk__z sense. Useful to censor galaxies whose
+    # galaxy-wide averages are based on too few zones (hence not representative)
+    # OBS: isOkFrac_GAL is not used in this function, but it's returned to be used by the caller
+    isOkFrac_GAL = (1.0 * isOk__z.sum()) / (1.0 * K.N_zone)
+
+    # Galaxy wide averages of logZ - ATT: Only isOk__z zones are considered in this averaging!
+    numerator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0) * alogZ_mass__z
+    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    alogZ_mass_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
+
+    numerator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0) * alogZ_flux__z
+    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    alogZ_flux_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
+
+    return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, isOkFrac_GAL
+
+
+def calc_agebins(ages, age):
+    # Define ranges for age-bins
+    # ToDo: This age-bin-edges thing could be made more elegant & general.
+    aCen__t = ages
+    aLow__t = np.empty_like(ages)
+    aUpp__t = np.empty_like(ages)
+    aLow__t[0]   = 0.
+    aLow__t[1:]  = (aCen__t[1:] + aCen__t[:-1]) / 2
+    aUpp__t[:-1] = aLow__t[1:]
+    aUpp__t[-1]  = aCen__t[-1]
+    # Find index of age-bin corresponding to the last bin fully within < tSF
+    age_index = np.where(aLow__t < age)[0][-1]
+    return aCen__t, aLow__t, aUpp__t, age_index 
 
 
 class H5SFRData:
@@ -564,25 +722,24 @@ class H5SFRData:
     def reply_arr_by_zones(self, p):
         if isinstance(p, str):
             p = self.get_data_h5(p)
-        if isinstance(p, np.ma.core.MaskedArray):
+        if isinstance(p, np.ndarray):
             p = p.tolist()
-        ltmp = [ itertools.repeat(p[i], self.N_zones__g[i]) for i in range(self.N_gals) ]
-        arr = np.asarray(list(itertools.chain.from_iterable(ltmp)))
-        return arr
+        laux1 = [ itertools.repeat(a[0], times = a[1]) for a in zip(p, self.N_zones__g) ]
+        return np.asarray(list(itertools.chain.from_iterable(laux1)))
 
 
     def reply_arr_by_radius(self, p, N_dim = None):
         if isinstance(p, str):
             p = self.get_data_h5(p)
-        if isinstance(p, np.ma.core.MaskedArray):
+        if isinstance(p, np.ndarray):
             p = p.tolist()
         if N_dim:
             Nloop = N_dim * self.NRbins
-            output_shape = (N_dim, self.NRbins, self.N_gals)
+            output_shape = (N_dim, self.NRbins, self.N_gals_all)
         else:
             Nloop = self.NRbins
-            output_shape = (self.NRbins, self.N_gals)
-        l = [ list(v) for v in [ itertools.repeat(p[i], Nloop) for i in range(self.N_gals) ]]
+            output_shape = (self.NRbins, self.N_gals_all)
+        l = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p ]]
         return np.asarray([list(i) for i in zip(*l)]).reshape(output_shape)
 
 
@@ -646,19 +803,19 @@ class H5SFRData:
         else:
             d_shape = data.shape
             if len(d_shape) == 3:
-                califaIDs = self.reply_arr_by_radius(self.califaIDs, d_shape[0])
+                califaIDs = self.reply_arr_by_radius(self.califaIDs_all, d_shape[0])
                 where_slice = np.where(califaIDs == gal)
                 prop_shape = d_shape[0:2]
                 arr = data[where_slice].reshape(prop_shape)
             elif len(d_shape) == 2:
-                califaIDs = self.reply_arr_by_radius(self.califaIDs)
+                califaIDs = self.reply_arr_by_radius(self.califaIDs_all)
                 where_slice = np.where(califaIDs == gal)
                 prop_shape = self.NRbins
                 arr = data[where_slice].reshape(prop_shape)
             else:
-                if data.shape == self.califaIDs.shape:
+                if data.shape == self.califaIDs_all.shape:
                     # that's not an array...
-                    arr = data[self.califaIDs == gal].item()
+                    arr = data[self.califaIDs_all == gal].item()
                 else:
                     califaIDs = self.reply_arr_by_zones(self.califaIDs)
                     where_slice = np.where(califaIDs == gal)
