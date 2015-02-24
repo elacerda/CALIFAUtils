@@ -30,6 +30,33 @@ pycasso_cube_dir = califa_work_dir + version_config['SuperFitsDir'] + version_co
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 
+def get_morfologia(Kname, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
+    # Morfologia, incluyendo tipo medio y +- error
+    # ES.Enrique . DF . 20120808
+    # ES.Enrique . Chiclana . 20140417 . Corrected to distinguish E0 and S0.
+    Korder = int(Kname[1:])
+    # lee el numero de la galaxia, tipo y subtipo morfologico
+    id, name, morf0,morf1, morf_m0,morf_m1, morf_p0,morf_p1, bar, bar_m, bar_p = np.loadtxt(morf_file, delimiter=',',unpack=True,usecols=(0,2,5,6,7,8,9,10,12,13,14),skiprows=23,dtype={'names': ('a','b','c','d','e','f','g','h','i','j','k'),'formats': ('I3','S15','S3','S3','S3','S3','S3','S3','S3','S3','S3')})
+    morf = [morf0[i].strip()+morf1[i].strip() for i in range(len(morf0))]
+    morf_m = [morf_m0[i].strip()+morf_m1[i].strip() for i in range(len(morf0))]
+    morf_p = [morf_p0[i].strip()+morf_p1[i].strip() for i in range(len(morf0))]
+
+    # convierte tipo y subtipo morfologico a valor numerico T (-7:E0 -1:E7 0:S0 5:Sm) en array 'tipo'
+    # este algoritmo es una verdadera chapuza, pero funciona.
+    type = [['E0','E1','E2','E3','E4','E5','E6','E7','S0','S0a','Sa','Sab','Sb','Sbc','Sc','Scd','Sd','Sdm','Sm','Ir'], \
+            [  0,   1,   2,   3,   4,   5,   6,   7,   8,  8.5,   9,  9.5,  10,  10.5, 11, 11.5,  12, 12.5,  13,  14]]
+    
+    tipos = morf[Korder-1]        # tipo medio ascii
+    tipo = type[1][type[0].index(morf[Korder-1])]        # tipo medio
+    tipo_m = type[1][type[0].index(morf_m[Korder-1])]   # tipo minimo
+    tipo_p = type[1][type[0].index(morf_p[Korder-1])]   # tipo maximo
+    
+    etipo_m = tipo - tipo_m  # error INFerior en tipo:  tipo-etipo_m
+    etipo_p = tipo_p - tipo  # error SUPerior en tipo:  tipo+etipo_p
+    
+    return tipos, tipo, tipo_m, tipo_p
+
+
 class read_kwargs(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs  
@@ -390,6 +417,7 @@ class ALLGals(object):
         self.F_obs_Ha__g = np.ma.masked_array(np.hstack(self._F_obs_Ha__g), mask = auxMask)
         self.SFR_Ha__g = np.ma.masked_array(np.hstack(self._SFR_Ha__g), mask = auxMask)
         self.SFRSD_Ha__g = np.ma.masked_array(np.hstack(self._SFRSD_Ha__g), mask = auxMask)
+
         self.Mcor__g = np.ma.masked_array(np.hstack(self._Mcor__g))
         self.McorSD__g = np.ma.masked_array(np.hstack(self._McorSD__g))
 
@@ -400,16 +428,21 @@ class ALLGals(object):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
             self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            
             aux = np.hstack(self._SFRSD__Tg[iT])
             auxMask = np.hstack(self._SFRSD_mask__Tg[iT])
             self.SFRSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            
             aux = np.hstack(self._x_Y__Tg[iT])
             self.x_Y__Tg.append(np.ma.masked_array(aux))
+            
             aux = np.hstack(self._tau_V__Tg[iT])
             auxMask = np.hstack(self._tau_V_mask__Tg[iT])
             self.tau_V__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            
             aux = np.hstack(self._Mcor__Tg[iT])
             self.Mcor__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            
             aux = np.hstack(self._McorSD__Tg[iT])
             self.McorSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
         
@@ -723,6 +756,8 @@ class H5SFRData:
     def reply_arr_by_zones(self, p):
         if isinstance(p, str):
             p = self.get_data_h5(p)
+        if isinstance(p, np.ma.core.MaskedArray):
+            p = p.compressed()
         if isinstance(p, np.ndarray):
             p = p.tolist()
         laux1 = [ itertools.repeat(a[0], times = a[1]) for a in zip(p, self.N_zones__g) ]
@@ -761,10 +796,10 @@ class H5SFRData:
 
     def get_data_h5(self, prop):
         h5 = self.h5
-        try:
-            folder_data = 'masked/data'
-            folder_mask = 'masked/mask'
-            #if prop in h5[folder_mask].keys():
+        #try:
+        folder_data = 'masked/data'
+        folder_mask = 'masked/mask'
+        if prop in h5[folder_mask].keys():
             node = '%s/%s' % (folder_data, prop)
             node_m = '%s/%s' % (folder_mask, prop)
             ds = h5[node]
@@ -775,22 +810,31 @@ class H5SFRData:
                 if suffix[0] == 'U':
                     arr = [ 
                         np.ma.masked_array(h5['%s/%d' % (node, iU)].value, mask = h5['%s/%d' % (node_m, iU)].value) 
-                        for iU in range(self.N_U) 
+                        for iU in xrange(self.N_U) 
                     ]
                 elif suffix[0] == 'T':
                     arr = [ 
                         np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value) 
-                        for iT in range(self.N_T) 
+                        for iT in xrange(self.N_T) 
                     ]
-            return arr
-        except:
-            try:
-                node = '/data/' + prop
-                ds = h5[node]
-                return ds.value
-            except:
-                print '%s: property not found' % prop
-                return None
+        else:
+        #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+        #     return arr
+        # except:
+        #     try:
+        #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            node = '/data/' + prop
+            ds = h5[node]
+            arr = ds.value
+            return ds.value
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            # except:
+            #     pass
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+                #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+                # print '%s: property not found' % prop
+                # return None
+                #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
         
         
     def get_prop_gal(self, data, gal = None):
