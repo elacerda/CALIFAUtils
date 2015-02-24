@@ -7,11 +7,9 @@ import h5py
 from scipy import stats as st
 import scipy.optimize as so
 from matplotlib import pyplot as plt
-from matplotlib.pyplot import MultipleLocator
-from sklearn import linear_model
-from califa_scripts.scripts import read_one_cube, sort_gal, \
-                                   DrawHLRCircle, DrawHLRCircleInSDSSImage, \
-                                   DrawHLRCircleInSDSSImage, H5SFRData
+#from matplotlib.pyplot import MultipleLocator
+#from sklearn import linear_model
+from .scripts import read_one_cube, DrawHLRCircleInSDSSImage
 
 def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fontsize = 12):
     y = param

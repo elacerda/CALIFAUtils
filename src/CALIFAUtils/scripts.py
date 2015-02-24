@@ -7,49 +7,35 @@ import sys
 import h5py
 from pycasso import fitsQ3DataCube
 import types
-import matplotlib.pyplot as plt
 import itertools
-        
-        
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-califa_work_dir = '/Users/lacerda/CALIFA/'
-baseCode = 'Bgsd6e'
-version_config = dict(baseCode = 'Bgsd6e',
-#                      versionSuffix = 'v20_q036.d13c', 
-#                      versionSuffix = 'v20_q046.d15a', 
-#                      versionSuffix = 'px1_q043.d14a', 
-                      versionSuffix = 'v20_q043.d14a',
-#                      othSuffix = '512.ps03.k2.mC.CCM.',     
-                      othSuffix = '512.ps03.k1.mE.CCM.',
-                      SuperFitsDir = 'gal_fits/')
-tmp_suffix = '_synthesis_eBR_' + version_config['versionSuffix'] + version_config['othSuffix'] + version_config['baseCode']
-pycasso_suffix = tmp_suffix + '.fits'
-emlines_suffix = tmp_suffix + '.EML.MC100.fits'
-emlines_cube_dir = califa_work_dir + 'rgb-gas/' + version_config['versionSuffix'] + '/'
-pycasso_cube_dir = califa_work_dir + version_config['SuperFitsDir'] + version_config['versionSuffix'] + '/'
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+from .globals import *
 
 
-def get_morfologia(Kname, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
+def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
     # Morfologia, incluyendo tipo medio y +- error
     # ES.Enrique . DF . 20120808
     # ES.Enrique . Chiclana . 20140417 . Corrected to distinguish E0 and S0.
-    Korder = int(Kname[1:])
+    Korder = int(galName[1:])
     # lee el numero de la galaxia, tipo y subtipo morfologico
-    id, name, morf0,morf1, morf_m0,morf_m1, morf_p0,morf_p1, bar, bar_m, bar_p = np.loadtxt(morf_file, delimiter=',',unpack=True,usecols=(0,2,5,6,7,8,9,10,12,13,14),skiprows=23,dtype={'names': ('a','b','c','d','e','f','g','h','i','j','k'),'formats': ('I3','S15','S3','S3','S3','S3','S3','S3','S3','S3','S3')})
-    morf = [morf0[i].strip()+morf1[i].strip() for i in range(len(morf0))]
-    morf_m = [morf_m0[i].strip()+morf_m1[i].strip() for i in range(len(morf0))]
-    morf_p = [morf_p0[i].strip()+morf_p1[i].strip() for i in range(len(morf0))]
-
+    id, name, morf0, morf1, morf_m0, morf_m1, morf_p0, morf_p1, bar, bar_m, bar_p = \
+        np.loadtxt(morf_file, delimiter = ',', unpack = True, 
+                   usecols = (0, 2, 5, 6, 7, 8, 9, 10, 12, 13, 14), 
+                   skiprows = 23, 
+                   dtype = {
+                       'names': ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'), 
+                       'formats': ('I3', 'S15', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3')
+                   })
+    morf = [morf0[i].strip() + morf1[i].strip() for i in range(len(morf0))]
+    morf_m = [morf_m0[i].strip() + morf_m1[i].strip() for i in range(len(morf0))]
+    morf_p = [morf_p0[i].strip() + morf_p1[i].strip() for i in range(len(morf0))]
     # convierte tipo y subtipo morfologico a valor numerico T (-7:E0 -1:E7 0:S0 5:Sm) en array 'tipo'
     # este algoritmo es una verdadera chapuza, pero funciona.
-    type = [['E0','E1','E2','E3','E4','E5','E6','E7','S0','S0a','Sa','Sab','Sb','Sbc','Sc','Scd','Sd','Sdm','Sm','Ir'], \
-            [  0,   1,   2,   3,   4,   5,   6,   7,   8,  8.5,   9,  9.5,  10,  10.5, 11, 11.5,  12, 12.5,  13,  14]]
-    
-    tipos = morf[Korder-1]        # tipo medio ascii
-    tipo = type[1][type[0].index(morf[Korder-1])]        # tipo medio
-    tipo_m = type[1][type[0].index(morf_m[Korder-1])]   # tipo minimo
-    tipo_p = type[1][type[0].index(morf_p[Korder-1])]   # tipo maximo
+    gtype = [['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'S0', 'S0a', 'Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd', 'Sd', 'Sdm', 'Sm', 'Ir'], 
+             [   0,    1,    2,    3,    4,    5,    6,    7,    8,   8.5,    9,   9.5,   10,  10.5,   11,  11.5,   12,  12.5,   13,   14]]
+    tipos = morf[Korder - 1] # tipo medio ascii
+    tipo = gtype[1][gtype[0].index(morf[Korder - 1])] # tipo medio
+    tipo_m = gtype[1][gtype[0].index(morf_m[Korder - 1])] # tipo minimo
+    tipo_p = gtype[1][gtype[0].index(morf_p[Korder - 1])] # tipo maximo
     
     etipo_m = tipo - tipo_m  # error INFerior en tipo:  tipo-etipo_m
     etipo_p = tipo_p - tipo  # error SUPerior en tipo:  tipo+etipo_p
@@ -89,111 +75,46 @@ def read_one_cube(gal, **kwargs):
     return K
 
 
-def sort_gal_list_func(gals, func = None, order = 1, **kwargs):
+def loop_cubes(gals, **kwargs):
+    for g in gals:
+        yield gals.index(g), read_one_cube(g, **kwargs)
+
+
+def sort_gals(gals, func = None, order = 1, **kwargs):
     '''
-    Sort galaxies in txt FILENAME by some ATTRibute processed by MODE in ORDER order.
+    Sort galaxies in txt GALS by some ATTRibute processed by MODE in ORDER order.
+    If FUNC = None returns a list of galaxies without sort.
     ORDER = 0 - sort asc, 1 - sort desc
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
     args = read_kwargs(**kwargs)
     verbose = args.verbose
-
-    if type(func) != types.FunctionType:
-        if verbose:
-            print 'func need to be FunctionType'
-        return None
-    if verbose:
-        print gals
+    if isinstance(gals, str):
+        fname = gals
+        f = open(fname, 'r')
+        gals = np.asarray([ l.strip() for l in f.readlines() ])
     Ng = len(gals)
-    data__g = np.ma.empty((Ng))
-    for i, gal_id in enumerate(gals):
-        K = read_one_cube(gal_id, **kwargs)
-        data__g[i] = func(K, **kwargs)
+    if isinstance(func, types.FunctionType):
         if verbose:
-            print K.califaID, data__g[i]
-        K.close()
-    sgals = None
-    if data__g.mask.sum() < Ng:
-        iS = np.argsort(data__g)
-        if order != 0:
-            iS = iS[::-1]
-        sgals = np.asarray(gals)[iS]
-        sdata = data__g[iS]
+            print gals
+        data__g = np.ma.empty((Ng))
+        for i, K in loop_cubes(gals.tolist(), **kwargs):
+            data__g[i] = func(K, **kwargs)
+            if verbose:
+                print K.califaID, data__g[i]
+            K.close()
+        sgals = None
+        if data__g.mask.sum() < Ng:
+            iS = np.argsort(data__g)
+            if order != 0:
+                iS = iS[::-1]
+            sgals = gals[iS]
+            sdata = data__g[iS]
+    else:
+        sgals = gals
+        sdata = None
     return sgals, sdata
-
-
-def sort_gal_func(filename, func = None, order = 1, **kwargs):
-    '''
-    Sort galaxies in txt FILENAME by some ATTRibute processed by MODE in ORDER order.
-    ORDER = 0 - sort asc, 1 - sort desc
-    MODE can be any numpy array method such as sum, max, min, mean, median, etc...
-
-    '''
-    args = read_kwargs(**kwargs)
-    verbose = args.verbose
-    if type(func) != types.FunctionType:
-        if verbose:
-            print 'func need to be FunctionType'
-        return None
-    f = open(filename, 'r')
-    l = f.readlines()
-    f.close()
-    Ng = len(l)
-    gals = np.asarray([ l[i].strip() for i in np.arange(Ng) ])
-    if verbose:
-        print gals
-    data__g = np.ma.empty((Ng))
-    for i, gal_id in enumerate(gals):
-        K = read_one_cube(gal_id, **kwargs)
-        data__g[i] = func(K, **kwargs)
-        if verbose:
-            print K.califaID, data__g[i]
-        K.close()
-    sgals = None
-    if data__g.mask.sum() < Ng:
-        iS = np.argsort(data__g)
-        if order != 0:
-            iS = iS[::-1]
-        sgals = gals[iS]
-        sdata = data__g[iS]
-    return sgals, sdata
-
-
-def sort_gal(filename, attr = None, mode = None, order = 1):
-    '''
-    Sort galaxies in txt FILENAME by some ATTRibute processed by MODE in ORDER order.
-    ORDER = 0 - sort asc, 1 - sort desc
-    MODE can be any numpy array method such as sum, max, min, mean, median, etc...
-
-    '''
-    f = open(filename, 'r')
-    l = f.readlines()
-    f.close()
-    Ng = len(l)
-    gals = np.asarray([ l[i].strip() for i in np.arange(Ng) ])
-    data__g = np.ma.empty((Ng))
-    for i, gal_id in enumerate(gals):
-        K = read_one_cube(gal_id)
-        try:
-            attribute = K.__getattribute__(attr)
-            if mode == None:
-                data__g[i] = attribute
-            else:
-                f_mode = np.__dict__[mode]
-                data__g[i] = f_mode(attribute)
-        except AttributeError:
-            print >> sys.stderr, '%s: %s: non-existent attribute' % (gal_id, attr)
-            data__g[i] = np.ma.masked
-            continue
-        K.close()
-    sgals = None
-    if data__g.mask.sum() < Ng:
-        iS = np.argsort(data__g)
-        if order != 0:
-            iS = iS[::-1]
-        sgals = gals[iS]
-    return sgals
 
 
 def create_dx(x):
@@ -205,83 +126,7 @@ def create_dx(x):
     #dx[-1]      = x[-1]
     return dx
 
-#XXXXXXXXXXXXXXXXXXXXXXXX#
-#TODOTODOTODOTODOTODOTODO#
-#XXXXXXXXXXXXXXXXXXXXXXXX#
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# class MultiGal(object):
-#     def __init__(self, list, **kwargs):
-#         self._init_kwargs(**kwargs)
-#         self._list = list
-#         if list == types.StringType:
-#             self._set_califaIDs_txt()
-#         else:
-#             self._set_califaIDs()
-#             
-#         self._init_data()
-#         loop_califa_galaxies(self.califaIDs, acquire_data, **kwargs)
-#         
-#     def _init_kwargs(self, **kwargs):
-#         try: 
-#             self._EL = kwargs.pop('EL')
-#         except:
-#             self._EL = False
-#     
-#     def _set_califaIDs_txt(self):
-#         f = open(self._list, 'r')
-#         l = f.readlines()
-#         f.close()
-#         self.N_gals = len(l)
-#         tmp = [ l[i].strip() for i in np.arange(self.N_gals) ]
-#         mask = np.empty((N_gals), dtype = np.bool)
-#         self.califaIDs = np.ma.masked_array(tmp, mask = mask)
-# 
-#     def _set_califaIDs(self):
-#         self.N_gals = len(self._list)
-#         mask = np.empty((self.N_gals), dtype = np.bool)
-#         self.califaIDs = np.ma.masked_array(self._list, mask = mask)
-#         
-#     def _init_data(self):
-#         self.Mcor__g = np.ma.empty((self.N_gals))
-#         self.McorSD__g = np.ma.empty((self.N_gals))
-#         self.tau_V__g = np.ma.empty((self.N_gals))
-#         self.Mr__g = np.ma.empty((self.N_gals))
-#         self.morph__g = np.ma.empty((self.N_gals))
-#         self.at_flux__g = np.ma.empty((self.N_gals))
-#         self.ba__g = np.ma.empty((self.N_gals))
-#         self.u_r__g = np.ma.empty((self.N_gals))
-#         self.redshift__g = np.ma.empty((self.N_gals))
-#         if self._EL = True:
-#             self.tau_V_neb__g = np.ma.empty((self.N_gals))
-#             self.EW_Ha__g = np.ma.empty((self.N_gals))
-#             self.F_obs_Ha__g = np.ma.empty((self.N_gals))
-#             self.F_obs_Hb__g = np.ma.empty((self.N_gals))
-#             self.F_obs_N2__g = np.ma.empty((self.N_gals))
-#             self.F_obs_O3__g = np.ma.empty((self.N_gals))
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
             
-#TODO
-def loop_califa_galaxies(gals, func = None, **kwargs):
-    '''
-    Loop by all CALIFA galaxies in LIST executing f and returning a HDF5.
-    F must be a type.FunctionType.
-    '''
-    args = read_kwargs(**kwargs)
-    verbose = args.verbose
-    if type(func) != types.FunctionType:
-        if verbose:
-            print 'func need to be FunctionType'
-        return None
-    Ng = len(gals)
-    data__g = np.ma.empty((Ng))
-    for i, gal_id in enumerate(gals):
-        K = read_one_cube(gal_id, **kwargs)
-        # TODO think about data structure, maybe an object
-        data__g[i] = func(K, **kwargs)
-        K.close()
-    return data__g
-
-
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
         self.N_gals = N_gals
@@ -458,15 +303,15 @@ class ALLGals(object):
             if v[0] != '_':
                 suffix = v.split('_')[-1]
                 if isinstance(self.__dict__[v], np.ma.core.MaskedArray):
-                    tmp_data = {'/masked/data/%s' % v : self.__dict__[v].data}
-                    tmp_mask = {'/masked/mask/%s' % v : self.__dict__[v].mask}
+                    tmp_data = {'masked/data/%s' % v : self.__dict__[v].data}
+                    tmp_mask = {'masked/mask/%s' % v : self.__dict__[v].mask}
                 else:
                     if suffix == 'Tg':
-                        tmp_data = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
-                        tmp_mask = {'/masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_T)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_T)}
                     elif suffix == 'Ug':
-                        tmp_data = {'/masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
-                        tmp_mask = {'/masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_U)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_U)}
                     else:
                         tmp_data = {}
                         tmp_mask = {}
@@ -567,12 +412,12 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
 
 def calc_xY(K, tY):
-    aCen__t, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
+    _, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
 
     # Compute xY__z
-    x__tZz =  K.popx / K.popx.sum(axis=1).sum(axis=0)
-    aux1__z = x__tZz[:indY,:,:].sum(axis=1).sum(axis=0)
-    aux2__z = x__tZz[indY,:,:].sum(axis=0) *  (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+    aux1__z = x__tZz[:indY, :, :].sum(axis = 1).sum(axis = 0)
+    aux2__z = x__tZz[indY, :, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
     return (aux1__z + aux2__z)
     
 
@@ -593,12 +438,12 @@ def calc_SFR(K, tSF):
 
     Cid@IAA - 27/Jan/2015
     '''
-    aCen__t, aLow__t, aUpp__t, indSF = calc_agebins(K.ageBase, tSF)
+    _, aLow__t, aUpp__t, indSF = calc_agebins(K.ageBase, tSF)
     
     # Compute SFR__z
-    aux1__z  = K.Mini__tZz[:indSF,:,:].sum(axis=1).sum(axis=0)
-    aux2__z  = K.Mini__tZz[indSF,:,:].sum(axis=0) *  (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
-    SFR__z   = (aux1__z + aux2__z) / tSF
+    aux1__z = K.Mini__tZz[:indSF, :, :].sum(axis = 1).sum(axis = 0)
+    aux2__z = K.Mini__tZz[indSF, :, :].sum(axis = 0) * (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
+    SFR__z = (aux1__z + aux2__z) / tSF
     SFRSD__z = SFR__z / K.zoneArea_pc2
 
     return SFR__z, SFRSD__z
@@ -698,24 +543,25 @@ def calc_agebins(ages, age):
     aCen__t = ages
     aLow__t = np.empty_like(ages)
     aUpp__t = np.empty_like(ages)
-    aLow__t[0]   = 0.
-    aLow__t[1:]  = (aCen__t[1:] + aCen__t[:-1]) / 2
+    aLow__t[0] = 0.
+    aLow__t[1:] = (aCen__t[1:] + aCen__t[:-1]) / 2
     aUpp__t[:-1] = aLow__t[1:]
-    aUpp__t[-1]  = aCen__t[-1]
+    aUpp__t[-1] = aCen__t[-1]
     # Find index of age-bin corresponding to the last bin fully within < tSF
     age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
 
 
-class H5SFRData:
+class H5SFRData(object):
     def __init__(self, h5file):
         self.h5file = h5file
+    
         try:
             self.h5 = h5py.File(self.h5file, 'r')
         except IOError:
             print "%s: file does not exists" % h5file
             pass
-
+        
         self.RbinIni = self.get_data_h5('RbinIni')
         self.RbinFin = self.get_data_h5('RbinFin')
         self.RbinStep = self.get_data_h5('RbinStep')
@@ -728,16 +574,18 @@ class H5SFRData:
         self.tauVOkMin = self.get_data_h5('tauVOkMin')
         self.tauVNebOkMin = self.get_data_h5('tauVNebOkMin')
         self.tauVNebErrMax = self.get_data_h5('tauVNebErrMax')
+
         self.tSF__T = self.get_data_h5('tSF__T')
         self.tZ__U = self.get_data_h5('tZ__U')
-        self.califaIDs_all = self.get_data_h5('califaIDs')
-        self.califaIDs = self.califaIDs_all.compressed()
-        self.N_zones_all__g = self.get_data_h5('N_zones__g')
-        self.N_gals_all = len(self.califaIDs_all)
-        self.N_gals = len(self.califaIDs)
-        self.N_zones__g = self.N_zones_all__g.compressed()
         self.N_T = len(self.tSF__T)
         self.N_U = len(self.tZ__U)
+        
+        self.califaIDs_all = self.get_data_h5('califaIDs')
+        self.califaIDs = self.califaIDs_all.compressed()
+        self.N_gals_all = len(self.califaIDs_all)
+        self.N_gals = len(self.califaIDs)
+        self.N_zones_all__g = self.get_data_h5('N_zones__g')
+        self.N_zones__g = self.N_zones_all__g.compressed()
 
         self._create_attrs()
         
@@ -745,9 +593,9 @@ class H5SFRData:
     def _create_attrs(self):
         # Ugly way to fill the arrays since ALLGals have all the
         # arrays in the 
-        tmp = ALLGals(1,1,1,1)
+        tmp = ALLGals(1, 1, 1, 1)
         for attr in tmp.__dict__.keys():
-            if attr[0] != '_' and not hasattr(self, attr):
+            if attr[0] != '_' and attr not in self.__dict__.keys():
                 x = self.get_data_h5(attr)
                 setattr(self, attr, x)
         del tmp
@@ -782,8 +630,8 @@ class H5SFRData:
     def __getattr__(self, attr):
         a = attr.split('_')
         x = None
-        # somestr.find(str) returns 0 if str is found in somestr.
         if a[0]:
+            # somestr.find(str) returns 0 if str is found in somestr.
             if not a[0].find('K0'):
                 gal = a[0]
                 prop = '_'.join(a[1:])
@@ -796,9 +644,9 @@ class H5SFRData:
 
     def get_data_h5(self, prop):
         h5 = self.h5
-        #try:
         folder_data = 'masked/data'
         folder_mask = 'masked/mask'
+        folder_nomask = 'data'
         if prop in h5[folder_mask].keys():
             node = '%s/%s' % (folder_data, prop)
             node_m = '%s/%s' % (folder_mask, prop)
@@ -817,24 +665,11 @@ class H5SFRData:
                         np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value) 
                         for iT in xrange(self.N_T) 
                     ]
-        else:
-        #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        #     return arr
-        # except:
-        #     try:
-        #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-            node = '/data/' + prop
+            return arr
+        elif prop in h5[folder_nomask].keys():
+            node = '%s/%s' % (folder_nomask, prop)
             ds = h5[node]
-            arr = ds.value
             return ds.value
-            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-            # except:
-            #     pass
-            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-                #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-                # print '%s: property not found' % prop
-                # return None
-                #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
         
         
     def get_prop_gal(self, data, gal = None):

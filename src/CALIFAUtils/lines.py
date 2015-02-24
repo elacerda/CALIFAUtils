@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import numpy as np
-
 '''
 lines - the shape of the line function and the values used in the a,b and c
 constants can be find at Cid et al. (2010) - Alternative diagnostic diagramas
@@ -16,9 +15,9 @@ for t in l.lines:
     x = l.x[t]
     y = l.y[t]
 
-    plot (x, y)
+    plot(x, y)
 
-if you want to add you line do it like this:
+if you want to add a line do it like this:
 def someFuncLine(c, x):
     a = c[0]
     b = c[1]
