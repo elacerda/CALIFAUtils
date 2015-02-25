@@ -619,7 +619,7 @@ class H5SFRData(object):
                 x = self.get_prop_gal(prop, gal)
             else:
                 x = self.get_data_h5(attr)
-            setattr(self, attr, x)
+                setattr(self, attr, x)
             return x
 
 
