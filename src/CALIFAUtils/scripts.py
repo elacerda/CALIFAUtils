@@ -78,7 +78,8 @@ def read_one_cube(gal, **kwargs):
 
 
 def loop_cubes(gals, **kwargs):
-    for g in gals:
+    imax = kwargs.get('imax', None)
+    for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
 
 
