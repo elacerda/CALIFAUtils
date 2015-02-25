@@ -575,14 +575,11 @@ class H5SFRData(object):
         
         
     def _create_attrs(self):
-        # Ugly way to fill the arrays since ALLGals have all the
-        # arrays in the 
-        tmp = ALLGals(1, 1, 1, 1)
-        for attr in tmp.__dict__.keys():
-            if attr[0] != '_' and attr not in self.__dict__.keys():
-                x = self.get_data_h5(attr)
-                setattr(self, attr, x)
-        del tmp
+        ds = self.h5['masked/data']
+        for k in ds.iterkeys():
+            if k not in self.__dict__.keys():
+                v = self.get_data_h5(k)
+                setattr(self, k, v)
 
         
     def reply_arr_by_zones(self, p):
