@@ -8,7 +8,10 @@ import h5py
 from pycasso import fitsQ3DataCube
 import types
 import itertools
-from .globals import *
+from .globals import pycasso_cube_dir
+from .globals import pycasso_suffix
+from .globals import emlines_cube_dir
+from .globals import emlines_suffix
 
 
 def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
@@ -25,9 +28,9 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
                        'names': ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'), 
                        'formats': ('I3', 'S15', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3')
                    })
-    morf = [morf0[i].strip() + morf1[i].strip() for i in range(len(morf0))]
-    morf_m = [morf_m0[i].strip() + morf_m1[i].strip() for i in range(len(morf0))]
-    morf_p = [morf_p0[i].strip() + morf_p1[i].strip() for i in range(len(morf0))]
+    morf = [morf0[i].strip() + morf1[i].strip() for i in xrange(len(morf0))]
+    morf_m = [morf_m0[i].strip() + morf_m1[i].strip() for i in xrange(len(morf0))]
+    morf_p = [morf_p0[i].strip() + morf_p1[i].strip() for i in xrange(len(morf0))]
     # convierte tipo y subtipo morfologico a valor numerico T (-7:E0 -1:E7 0:S0 5:Sm) en array 'tipo'
     # este algoritmo es una verdadera chapuza, pero funciona.
     gtype = [['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'S0', 'S0a', 'Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd', 'Sd', 'Sdm', 'Sm', 'Ir'], 
@@ -55,7 +58,6 @@ def read_one_cube(gal, **kwargs):
     args = read_kwargs(**kwargs)
     EL = args.EL
     verbose = args.verbose
-
     pycasso_cube_filename = pycasso_cube_dir + gal + pycasso_suffix
     K = None
     try:
@@ -197,41 +199,22 @@ class ALLGals(object):
         self._EW_Ha__g = []
         self._EW_Hb__g = []
         
-        self._tau_V__Tg = []
-        self._tau_V_mask__Tg = []
-        self._SFR__Tg = []
-        self._SFR_mask__Tg = []
-        self._SFRSD__Tg = []
-        self._SFRSD_mask__Tg = []
-        self._at_flux__Tg = []
-        self._at_flux_mask__Tg = []
-        self._x_Y__Tg = []
-        self._Mcor__Tg = []
-        self._McorSD__Tg = []
-        
-        for _ in range(self.N_T):
-            self._tau_V__Tg.append([])
-            self._tau_V_mask__Tg.append([])
-            self._SFR__Tg.append([])
-            self._SFR_mask__Tg.append([])
-            self._SFRSD__Tg.append([])
-            self._SFRSD_mask__Tg.append([])
-            self._at_flux__Tg.append([])
-            self._at_flux_mask__Tg.append([])
-            self._x_Y__Tg.append([])
-            self._Mcor__Tg.append([])
-            self._McorSD__Tg.append([])
-        
-        self._alogZ_mass__Ug = []
-        self._alogZ_mass_mask__Ug = []
-        self._alogZ_flux__Ug = []
-        self._alogZ_flux_mask__Ug = []
-        
-        for _ in range(self.N_U):
-            self._alogZ_mass__Ug.append([])
-            self._alogZ_mass_mask__Ug.append([])
-            self._alogZ_flux__Ug.append([])
-            self._alogZ_flux_mask__Ug.append([])
+        self._tau_V__Tg = [[] for _ in xrange(self.N_T)]
+        self._tau_V_mask__Tg = [[] for _ in xrange(self.N_T)]
+        self._SFR__Tg = [[] for _ in xrange(self.N_T)]
+        self._SFR_mask__Tg = [[] for _ in xrange(self.N_T)]
+        self._SFRSD__Tg = [[] for _ in xrange(self.N_T)]
+        self._SFRSD_mask__Tg = [[] for _ in xrange(self.N_T)]
+        self._at_flux__Tg = [[] for _ in xrange(self.N_T)]
+        self._at_flux_mask__Tg = [[] for _ in xrange(self.N_T)]
+        self._x_Y__Tg = [[] for _ in xrange(self.N_T)]
+        self._Mcor__Tg = [[] for _ in xrange(self.N_T)]
+        self._McorSD__Tg = [[] for _ in xrange(self.N_T)]
+                
+        self._alogZ_mass__Ug = [[] for _ in xrange(self.N_U)]
+        self._alogZ_mass_mask__Ug = [[] for _ in xrange(self.N_U)]
+        self._alogZ_flux__Ug = [[] for _ in xrange(self.N_U)]
+        self._alogZ_flux_mask__Ug = [[] for _ in xrange(self.N_U)]
         
         #final Tg and Ug zone-by-zone lists
         self.tau_V__Tg = [] 
@@ -269,7 +252,7 @@ class ALLGals(object):
         self.EW_Ha__g = np.ma.masked_array(np.hstack(self._EW_Ha__g))
         self.EW_Hb__g = np.ma.masked_array(np.hstack(self._EW_Hb__g))
 
-        for iT in range(self.N_T):
+        for iT in xrange(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
             self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask))
@@ -307,11 +290,11 @@ class ALLGals(object):
                     tmp_mask = {'masked/mask/%s' % v : self.__dict__[v].mask}
                 else:
                     if suffix == 'Tg':
-                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_T)}
-                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_T)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in xrange(self.N_T)}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in xrange(self.N_T)}
                     elif suffix == 'Ug':
-                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in range(self.N_U)}
-                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in range(self.N_U)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in xrange(self.N_U)}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in xrange(self.N_U)}
                     else:
                         tmp_data = {}
                         tmp_mask = {}
@@ -679,7 +662,7 @@ class H5SFRData(object):
         if isinstance(data, list):
             califaIDs = self.reply_arr_by_zones(self.califaIDs)
             where_slice = np.where(califaIDs == gal)
-            arr = [ data[iU][where_slice] for iU in range(len(data)) ]
+            arr = [ data[iU][where_slice] for iU in xrange(len(data)) ]
         else:
             d_shape = data.shape
             if len(d_shape) == 3:
