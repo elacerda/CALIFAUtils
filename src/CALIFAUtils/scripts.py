@@ -173,9 +173,17 @@ class ALLGals(object):
         self.aSFRSD_Ha__rg = np.ma.empty((NRbins, N_gals))
         self.McorSD__rg = np.ma.empty((NRbins, N_gals))
         self.logZ_neb_S06__rg = np.ma.empty((NRbins, N_gals))
+        self.at_flux__rg = np.ma.empty((NRbins, N_gals))
+        self.at_mass__rg = np.ma.empty((NRbins, N_gals))
         self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.McorSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_flux__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_mass__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_flux_dezon__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_mass_dezon__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_flux_wei__Trg = np.ma.empty((N_T, NRbins, N_gals))
+        self.at_mass_wei__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.alogZ_mass__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_mass_wei__Urg = np.ma.empty((N_U, NRbins, N_gals))
@@ -199,6 +207,8 @@ class ALLGals(object):
         self._dist_zone__g = []
         self._EW_Ha__g = []
         self._EW_Hb__g = []
+        self._at_flux__g = []
+        self._at_mass__g = []
         
         self._tau_V__Tg = [[] for _ in xrange(self.N_T)]
         self._tau_V_mask__Tg = [[] for _ in xrange(self.N_T)]
@@ -206,11 +216,11 @@ class ALLGals(object):
         self._SFR_mask__Tg = [[] for _ in xrange(self.N_T)]
         self._SFRSD__Tg = [[] for _ in xrange(self.N_T)]
         self._SFRSD_mask__Tg = [[] for _ in xrange(self.N_T)]
-        self._at_flux__Tg = [[] for _ in xrange(self.N_T)]
-        self._at_flux_mask__Tg = [[] for _ in xrange(self.N_T)]
         self._x_Y__Tg = [[] for _ in xrange(self.N_T)]
         self._Mcor__Tg = [[] for _ in xrange(self.N_T)]
         self._McorSD__Tg = [[] for _ in xrange(self.N_T)]
+        self._at_flux__Tg = [[] for _ in xrange(self.N_T)]
+        self._at_mass__Tg = [[] for _ in xrange(self.N_T)]
                 
         self._alogZ_mass__Ug = [[] for _ in xrange(self.N_U)]
         self._alogZ_mass_mask__Ug = [[] for _ in xrange(self.N_U)]
@@ -226,6 +236,8 @@ class ALLGals(object):
         self.alogZ_flux__Ug = []
         self.Mcor__Tg = []
         self.McorSD__Tg = []
+        self.at_flux__Tg = []
+        self.at_mass__Tg = []
             
     def stack_zones_data(self):
         self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
@@ -252,28 +264,34 @@ class ALLGals(object):
 
         self.EW_Ha__g = np.ma.masked_array(np.hstack(self._EW_Ha__g))
         self.EW_Hb__g = np.ma.masked_array(np.hstack(self._EW_Hb__g))
+        
+        aux = np.hstack(self._at_flux__g)
+        auxMask = np.zeros_like(aux, dtype = np.bool)
+        self.at_flux__g = np.ma.masked_array(aux, mask = auxMask)
+        aux = np.hstack(self._at_mass__g)
+        self.at_mass__g = np.ma.masked_array(aux, mask = auxMask)
 
         for iT in xrange(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
             self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask))
-            
             aux = np.hstack(self._SFRSD__Tg[iT])
             auxMask = np.hstack(self._SFRSD_mask__Tg[iT])
             self.SFRSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
-            
             aux = np.hstack(self._x_Y__Tg[iT])
             self.x_Y__Tg.append(np.ma.masked_array(aux))
-            
+            # all arrays below are using the same tau_V_mask
             aux = np.hstack(self._tau_V__Tg[iT])
             auxMask = np.hstack(self._tau_V_mask__Tg[iT])
             self.tau_V__Tg.append(np.ma.masked_array(aux, mask = auxMask))
-            
             aux = np.hstack(self._Mcor__Tg[iT])
             self.Mcor__Tg.append(np.ma.masked_array(aux, mask = auxMask))
-            
             aux = np.hstack(self._McorSD__Tg[iT])
             self.McorSD__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._at_flux__Tg[iT])
+            self.at_flux__Tg.append(np.ma.masked_array(aux, mask = auxMask))
+            aux = np.hstack(self._at_mass__Tg[iT])
+            self.at_mass__Tg.append(np.ma.masked_array(aux, mask = auxMask))
         
         for iU in np.arange(self.N_U):
             aux = np.hstack(self._alogZ_mass__Ug[iU])
@@ -433,7 +451,7 @@ def calc_SFR(K, tSF):
     return SFR__z, SFRSD__z
 
 
-def calc_alogZ_Stuff(K, tZ, xOkMin):
+def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
  #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
  # flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
  #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
