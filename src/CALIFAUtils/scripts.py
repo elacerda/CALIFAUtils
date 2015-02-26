@@ -535,8 +535,23 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     numerator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0) * alogZ_flux__z
     denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
     alogZ_flux_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
+    
+    #radial profiles
+    alogZ_mass__yx = K.zoneToYX(alogZ_mass__z, extensive = False, surface_density = False)
+    alogZ_flux__yx = K.zoneToYX(alogZ_flux__z, extensive = False, surface_density = False)
+    alogZ_mass__r = K.radialProfile(alogZ_mass__yx, Rbin__r, rad_scale = K.HLR_pix)
+    alogZ_flux__r = K.radialProfile(alogZ_flux__yx, Rbin__r, rad_scale = K.HLR_pix)
+    
+    Mcor__z = np.ma.masked_array(K.Mcor__z, mask = ~isOk__z)
+    Lobn__z = np.ma.masked_array(K.Lobn__z, mask = ~isOk__z)
+    Mcor__yx = K.zoneToYX(Mcor__z, extensive = True)
+    Lobn__yx = K.zoneToYX(Lobn__z, extensive = True)
+    alogZ_mass_wei__r = radialProfileWeighted(alogZ_mass__yx, Mcor__yx, r_func = K.radialProfile, bin_r = Rbin__r, rad_scale = K.HLR_pix)
+    alogZ_flux_wei__r = radialProfileWeighted(alogZ_flux__yx, Lobn__yx, r_func = K.radialProfile, bin_r = Rbin__r, rad_scale = K.HLR_pix)
 
-    return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, isOkFrac_GAL
+    return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, \
+           alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
+           isOkFrac_GAL
 
 
 def calc_agebins(ages, age):
