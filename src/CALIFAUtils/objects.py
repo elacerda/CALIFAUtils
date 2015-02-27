@@ -15,6 +15,7 @@ class GasProp(object):
         self.header = self._hdulist[0].header
         self._nobs = self.header['NOBS']
         self._create_attrs()
+        self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.))) 
         
     def _iter_hdus(self):
         for i in xrange(1, len(self._hdulist)):
@@ -34,7 +35,13 @@ class GasProp(object):
                 else:
                     data = h[k]
                     setattr(self, attr, data)
-
+                    
+    def AVtoTau(self, AV):
+        return AV * self.cte_av_tau 
+                        
+    def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
+        return self.AVtoTau(c * (Rv/extlaw))
+    
 
 class read_kwargs(object):
     def __init__(self, **kwargs):
