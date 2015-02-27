@@ -38,9 +38,12 @@ class GasProp(object):
                     
     def AVtoTau(self, AV):
         return AV * self.cte_av_tau 
+    
+    def CtoAV(self, c, Rv = 3.1, extlaw = 1.443):
+        return c * (Rv/extlaw)
                         
     def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
-        return self.AVtoTau(c * (Rv/extlaw))
+        return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
     
 
 class read_kwargs(object):
