@@ -5,12 +5,13 @@
 import sys
 import types
 import numpy as np
-from pycasso import fitsQ3DataCube
-from .globals import pycasso_cube_dir
-from .globals import pycasso_suffix
-from .globals import emlines_cube_dir
-from .globals import emlines_suffix
+from .objects import GasProp
 from .objects import read_kwargs
+from pycasso import fitsQ3DataCube
+from .globals import pycasso_cube_dir, pycasso_suffix
+from .globals import emlines_cube_dir, emlines_suffix
+from .globals import gasprop_cube_dir, gasprop_suffix
+
 
 def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
     # Morfologia, incluyendo tipo medio y +- error
@@ -44,24 +45,209 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
     return tipos, tipo, tipo_m, tipo_p
 
 
+def find_confidence_interval(x, pdf, confidence_level):
+    return pdf[pdf > x].sum() - confidence_level
+
+
+def calc_running_stats(x, y, **kwargs):
+    '''
+    Statistics of x & y in equal size x-bins (dx-box).
+    Note the mery small default xbinStep, so we have overlapping boxes.. so running stats..
+
+    Cid@Lagoa -
+    '''
+    # XXX Lacerda@IAA - masked array mess with the method
+    dxBox = kwargs.get('dxBox', 0.3)
+    xbinIni = kwargs.get('xbinIni', 8.5)
+    xbinFin = kwargs.get('xbinFin', 12)
+    xbinStep = kwargs.get('xbinStep', 0.05)
+    if isinstance(x, np.ma.core.MaskedArray):
+        x = x[~(x.mask)]
+    if isinstance(y, np.ma.core.MaskedArray):
+        y = y[~(y.mask)]
+    # Def x-bins
+    xbin = kwargs.get('xbin', np.arange(xbinIni, xbinFin + xbinStep, xbinStep))
+    xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
+    Nbins = len(xbinCenter)
+    # Reset in-bin stats arrays
+    xMedian , xMean , xStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
+    yMedian , yMean , yStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
+    xPrc16, yPrc16 = np.zeros(Nbins) , np.zeros(Nbins)
+    xPrc84, yPrc84 = np.zeros(Nbins) , np.zeros(Nbins)
+    nInBin = np.zeros(Nbins)
+    # fill up in x & y stats for each x-bin
+    for ixBin in xrange(Nbins):
+        isInBin = (np.abs(x - xbinCenter[ixBin]) <= dxBox / 2.)
+        xx , yy = x[isInBin] , y[isInBin]
+        xMedian[ixBin] , xMean[ixBin] , xStd[ixBin] = np.median(xx) , xx.mean() , xx.std()
+        yMedian[ixBin] , yMean[ixBin] , yStd[ixBin] = np.median(yy) , yy.mean() , yy.std()
+        if (len(xx) > 2):
+            xPrc16[ixBin], xPrc84[ixBin] = np.percentile(xx, [16, 84])
+            yPrc16[ixBin], yPrc84[ixBin] = np.percentile(yy, [16, 84])
+        else:
+            xPrc16[ixBin] = np.median(xx)
+            xPrc84[ixBin] = np.median(xx)
+            
+            yPrc16[ixBin] = np.median(yy)
+            yPrc84[ixBin] = np.median(yy)
+        nInBin[ixBin] = isInBin.sum()
+    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, \
+           nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
+
+
+def gaussSmooth_YofX(x, y, FWHM):
+    '''
+    Sloppy function to return the gaussian-smoothed version of an y(x) relation.
+    Cid@Lagoa - 07/June/2014
+    '''
+
+    sig = FWHM / np.sqrt(8. * np.log(2))
+    xS , yS = np.zeros_like(x), np.zeros_like(x)
+    w__ij = np.zeros((len(x), len(x)))
+    for i in range(len(x)):
+        # for j in np.arange(len(x)):
+        #     w__ij[i,j] = np.exp( -0.5 * ((x[j] - x[i]) / sig)**2  )
+
+        w__ij[i, :] = np.exp(-0.5 * ((x - x[i]) / sig) ** 2)
+        w__ij[i, :] = w__ij[i, :] / w__ij[i, :].sum()
+
+        xS[i] = (w__ij[i, :] * x).sum()
+        yS[i] = (w__ij[i, :] * y).sum()
+
+    return xS , yS
+
+
+def calcYofXStats_EqNumberBins(x, y, nPerBin = 25):
+    '''
+    This gives the statistics of y(x) for x-bins of variable width, but all containing
+    the same number of points.
+    We 1st sort x, and the y accordingly. Then we compute the median, mean and std
+    of x & y in contiguous x-bins in x defined to have nPerBin points each
+
+    Cid@Lagoa - 05/June/2014
+    '''
+
+    ind_sx = np.argsort(x)
+    xS , yS = x[ind_sx] , y[ind_sx]
+
+    Nbins = len(x) - nPerBin + 1
+    xMedian , xMean , xStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
+    yMedian , yMean , yStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
+    nInBin = np.zeros(Nbins)
+
+    for ixBin in np.arange(0, Nbins):
+        xx , yy = xS[ixBin:ixBin + nPerBin] , yS[ixBin:ixBin + nPerBin]
+        xMedian[ixBin] , xMean[ixBin] , xStd[ixBin] = np.median(xx) , xx.mean() , xx.std()
+        yMedian[ixBin] , yMean[ixBin] , yStd[ixBin] = np.median(yy) , yy.mean() , yy.std()
+        nInBin[ixBin] = len(xx)
+    return xMedian, xMean, xStd, yMedian, yMean , yStd, nInBin
+
+
+def data_uniq(list_gal, data):
+    list_uniq_gal = np.unique(list_gal)
+    NGal = len(list_uniq_gal)
+    data__g = np.ones((NGal))
+    
+    for i, g in enumerate(list_uniq_gal):
+        data__g[i] = np.unique(data[np.where(list_gal == g)])
+        
+    return NGal, list_uniq_gal, data__g        
+
+        
+def list_gal_sorted_by_data(list_gal, data, type):
+    '''
+    type = 0 - sort asc
+    type = 1 - sort desc
+    type = -1 - receives list_gal and data as uniq
+                aka. only sorts, list_gal by data
+    
+    '''
+    if type >= 0:
+        NGal, list_uniq_gal, data__g = data_uniq(list_gal, data)
+    else:
+        NGal = len(list_gal)
+        list_uniq_gal = list_gal
+        data__g = data
+        
+    iS = np.argsort(data__g)
+    
+    if type != 0:
+        iS = iS[::-1]
+    
+    return list_uniq_gal[iS]
+
+
+def OLS_bisector(x, y):
+    xdev = x - x.mean()
+    ydev = y - y.mean()
+    Sxx = (xdev ** 2.0).sum()
+    Syy = (ydev ** 2.0).sum()
+    Sxy = (xdev * ydev).sum()
+    b1 = Sxy / Sxx
+    b2 = Syy / Sxy
+    var1 = 1. / Sxx ** 2.
+    var1 *= (xdev ** 2.0 * (ydev - b1 * xdev) ** 2.0).sum()
+    var2 = 1. / Sxy ** 2.
+    var2 *= (ydev ** 2.0 * (ydev - b2 * xdev) ** 2.0).sum()
+    
+    cov12 = 1. / (b1 * Sxx ** 2.0)
+    cov12 *= (xdev * ydev * (ydev - b1 * ydev) * (ydev - b2 * ydev)).sum() 
+    
+    bb1 = (1 + b1 ** 2.)
+    bb2 = (1 + b2 ** 2.)
+
+    b3 = 1. / (b1 + b2) * (b1 * b2 - 1 + (bb1 * bb2) ** .5)
+    
+    var = b3 ** 2.0 / ((b1 + b2) ** 2.0 * bb1 * bb2) 
+    var *= (bb2 ** 2.0 * var1 + 2. * bb1 * bb2 * cov12 + bb1 ** 2. * var2)
+        
+    slope = b3
+    intercept = y.mean() - slope * x.mean()
+    var_slope = var
+    
+    try: 
+        n = (~x.mask).sum()
+    except AttributeError:
+        n = len(x)
+    
+    gamma1 = b3 / ((b1 + b2) * (bb1 * bb2) ** 0.5)
+    gamma13 = gamma1 * bb2
+    gamma23 = gamma1 * bb1
+    var_intercept = 1. / n ** 2.0
+    var_intercept *= ((ydev - b3 * xdev - n * x.mean() * (gamma13 / Sxx * xdev * (ydev - b1 * xdev) + gamma23 / Sxy * ydev * (ydev - b2 * xdev))) ** 2.0).sum() 
+    
+    sigma_slope = var_slope ** 0.5
+    sigma_intercept = var_intercept ** 0.5
+    
+    return slope, intercept, sigma_slope, sigma_intercept
+
+
 def read_one_cube(gal, **kwargs):
-    args = read_kwargs(**kwargs)
-    EL = args.EL
-    verbose = args.verbose
+    EL = kwargs.get('EL', None)
+    GP = kwargs.get('GP', None)
+    verbose = kwargs.get('verbose', None)
     pycasso_cube_filename = pycasso_cube_dir + gal + pycasso_suffix
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
-        if verbose:
+        if verbose is not None:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
-        if EL:
+        if EL is True:
             emlines_cube_filename = emlines_cube_dir + gal + emlines_suffix
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
-                if verbose:
+                if verbose is not None:
                     print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
+        if GP is True:
+            gasprop_cube_filename = gasprop_cube_dir + gal + gasprop_suffix
+            try:
+                K.GP = GasProp(gasprop_cube_filename)
+                if verbose is not None:
+                    print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
+            except IOError:
+                print >> sys.stderr, 'GP: File does not exists: %s' % gasprop_cube_filename
     except IOError:
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
@@ -69,8 +255,23 @@ def read_one_cube(gal, **kwargs):
 
 def loop_cubes(gals, **kwargs):
     imax = kwargs.get('imax', None)
+    if isinstance(gals, np.ndarray):
+        gals = gals.tolist()
     for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
+
+
+def debug_var(turn_on = False, **kwargs):
+    pref = kwargs.get('pref', '>>>')
+    if turn_on == True:
+        name = kwargs.keys()[0]
+        var = kwargs.get(name)
+        if isinstance(var, dict):
+            print '%s' % pref, name
+            for k, v in var.iteritems():
+                print '\t%s' % pref, k, '=', v
+        else:
+            print '%s' % pref, '%s: ' % name, var
 
 
 def sort_gals(gals, func = None, order = 1, **kwargs):
@@ -107,7 +308,10 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
     else:
         sgals = gals
         sdata = None
-    return sgals, sdata
+    if kwargs.get('return_data_sort', True) == True:
+        return sgals, sdata
+    else:
+        return sgals
 
 
 def create_dx(x):

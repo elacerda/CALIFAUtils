@@ -15,5 +15,7 @@ version_config = dict(baseCode = 'Bgsd6e',
 tmp_suffix = '_synthesis_eBR_' + version_config['versionSuffix'] + version_config['othSuffix'] + version_config['baseCode']
 pycasso_suffix = tmp_suffix + '.fits'
 emlines_suffix = tmp_suffix + '.EML.MC100.fits'
+gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
+gasprop_cube_dir = califa_work_dir+ 'rgb-gas/' + version_config['versionSuffix'] + '/prop/'
 emlines_cube_dir = califa_work_dir + 'rgb-gas/' + version_config['versionSuffix'] + '/'
 pycasso_cube_dir = califa_work_dir + version_config['SuperFitsDir'] + version_config['versionSuffix'] + '/'

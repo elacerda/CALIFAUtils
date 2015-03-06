@@ -5,17 +5,20 @@ import h5py
 
 
 class GasProp(object):
-    def __init__(self, filename):
+    def __init__(self, filename = None):
         try:
             self._hdulist = pyfits.open(filename)
         except:
             print 'pyfits: %s: file error' % filename
-            pass
-        
-        self.header = self._hdulist[0].header
-        self._nobs = self.header['NOBS']
-        self._create_attrs()
+            self._hdulist = None
+            
+        if self._hdulist is not None:
+            self.header = self._hdulist[0].header
+            self._nobs = self.header['NOBS']
+            self._create_attrs()
+            
         self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.))) 
+
         
     def _iter_hdus(self):
         for i in xrange(1, len(self._hdulist)):
@@ -40,7 +43,7 @@ class GasProp(object):
         return AV * self.cte_av_tau 
     
     def CtoAV(self, c, Rv = 3.1, extlaw = 1.443):
-        return c * (Rv/extlaw)
+        return c * (Rv / extlaw)
                         
     def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
         return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
@@ -95,6 +98,7 @@ class ALLGals(object):
         self.alogZ_flux_GAL__Ug = np.ma.empty((N_U, N_gals))
         self.tau_V_neb__rg = np.ma.empty((NRbins, N_gals))
         self.aSFRSD_Ha__rg = np.ma.empty((NRbins, N_gals))
+        self.aSFRSD_Ha_masked__rg = np.ma.empty((NRbins, N_gals))
         self.McorSD__rg = np.ma.empty((NRbins, N_gals))
         self.logZ_neb_S06__rg = np.ma.empty((NRbins, N_gals))
         self.at_flux__rg = np.ma.empty((NRbins, N_gals))
@@ -112,6 +116,15 @@ class ALLGals(object):
         self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_mass_wei__Urg = np.ma.empty((N_U, NRbins, N_gals))
         self.alogZ_flux_wei__Urg = np.ma.empty((N_U, NRbins, N_gals))
+        #GasProp
+        self.integrated_chb_in__g = np.ma.empty((N_gals))
+        self.integrated_c_Ha_Hb__g = np.ma.empty((N_gals))
+        self.integrated_O_HIICHIM__g = np.ma.empty((N_gals))
+        self.integrated_O_O3N2_M13__g = np.ma.empty((N_gals))
+        self.integrated_O_O3N2_PP04__g = np.ma.empty((N_gals))
+        self.O_HIICHIM__rg = np.ma.empty((NRbins, N_gals))
+        self.O_O3N2_M13__rg = np.ma.empty((NRbins, N_gals))
+        self.O_O3N2_PP04__rg = np.ma.empty((NRbins, N_gals))
         
     def _init_zones_temporary_lists(self):
         self._Mcor__g = []
@@ -123,17 +136,21 @@ class ALLGals(object):
         self._logZ_neb_S06_err__g = []
         self._logZ_neb_S06_mask__g = []
         self._SFR_Ha__g = []
+        self._SFR_Ha_mask__g = []
         self._SFRSD_Ha__g = []
+        self._SFRSD_Ha_mask__g = []
         self._F_obs_Ha__g = []
+        self._F_obs_Ha_mask__g = []
         self._L_int_Ha__g = []
         self._L_int_Ha_err__g = []
         self._L_int_Ha_mask__g = []
         self._dist_zone__g = []
         self._EW_Ha__g = []
         self._EW_Hb__g = []
+        self._EW_Ha_mask__g = []
+        self._EW_Hb_mask__g = []
         self._at_flux__g = []
         self._at_mass__g = []
-        
         self._tau_V__Tg = [[] for _ in xrange(self.N_T)]
         self._tau_V_mask__Tg = [[] for _ in xrange(self.N_T)]
         self._SFR__Tg = [[] for _ in xrange(self.N_T)]
@@ -145,12 +162,10 @@ class ALLGals(object):
         self._McorSD__Tg = [[] for _ in xrange(self.N_T)]
         self._at_flux__Tg = [[] for _ in xrange(self.N_T)]
         self._at_mass__Tg = [[] for _ in xrange(self.N_T)]
-                
         self._alogZ_mass__Ug = [[] for _ in xrange(self.N_U)]
         self._alogZ_mass_mask__Ug = [[] for _ in xrange(self.N_U)]
         self._alogZ_flux__Ug = [[] for _ in xrange(self.N_U)]
         self._alogZ_flux_mask__Ug = [[] for _ in xrange(self.N_U)]
-        
         #final Tg and Ug zone-by-zone lists
         self.tau_V__Tg = [] 
         self.SFR__Tg = []
@@ -162,6 +177,12 @@ class ALLGals(object):
         self.McorSD__Tg = []
         self.at_flux__Tg = []
         self.at_mass__Tg = []
+        #GasProp
+        self._chb_in__g = []
+        self._c_Ha_Hb__g = []
+        self._O_HIICHIM__g = []
+        self._O_O3N2_M13__g = []
+        self._O_O3N2_PP04__g = []
             
     def stack_zones_data(self):
         self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
@@ -179,22 +200,35 @@ class ALLGals(object):
         aux = np.hstack(self._L_int_Ha__g)
         auxMask = np.hstack(self._L_int_Ha_mask__g)
         self.L_int_Ha__g = np.ma.masked_array(aux, mask = auxMask)
-        self.F_obs_Ha__g = np.ma.masked_array(np.hstack(self._F_obs_Ha__g), mask = auxMask)
-        self.SFR_Ha__g = np.ma.masked_array(np.hstack(self._SFR_Ha__g), mask = auxMask)
-        self.SFRSD_Ha__g = np.ma.masked_array(np.hstack(self._SFRSD_Ha__g), mask = auxMask)
+
+        aux = np.hstack(self._F_obs_Ha__g)
+        auxMask = np.hstack(self._F_obs_Ha_mask__g)
+        self.F_obs_Ha__g = np.ma.masked_array(aux, mask = auxMask)
+
+        aux = np.hstack(self._SFR_Ha__g)
+        auxMask = np.hstack(self._SFR_Ha_mask__g)
+        self.SFR_Ha__g = np.ma.masked_array(aux, mask = auxMask)
+
+        aux = np.hstack(self._SFRSD_Ha__g)
+        auxMask = np.hstack(self._SFRSD_Ha_mask__g)
+        self.SFRSD_Ha__g = np.ma.masked_array(aux, mask = auxMask)
 
         self.Mcor__g = np.ma.masked_array(np.hstack(self._Mcor__g))
         self.McorSD__g = np.ma.masked_array(np.hstack(self._McorSD__g))
 
-        self.EW_Ha__g = np.ma.masked_array(np.hstack(self._EW_Ha__g))
-        self.EW_Hb__g = np.ma.masked_array(np.hstack(self._EW_Hb__g))
+        aux = np.hstack(self._EW_Ha__g)
+        auxMask = np.hstack(self._EW_Ha_mask__g)
+        self.EW_Ha__g = np.ma.masked_array(aux, mask = auxMask)
+
+        aux = np.hstack(self._EW_Hb__g)
+        auxMask = np.hstack(self._EW_Hb_mask__g)
+        self.EW_Hb__g = np.ma.masked_array(aux, mask = auxMask)
         
         aux = np.hstack(self._at_flux__g)
         auxMask = np.zeros_like(aux, dtype = np.bool)
         self.at_flux__g = np.ma.masked_array(aux, mask = auxMask)
         aux = np.hstack(self._at_mass__g)
         self.at_mass__g = np.ma.masked_array(aux, mask = auxMask)
-
         for iT in xrange(self.N_T):
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
@@ -216,12 +250,22 @@ class ALLGals(object):
             self.at_flux__Tg.append(np.ma.masked_array(aux, mask = auxMask))
             aux = np.hstack(self._at_mass__Tg[iT])
             self.at_mass__Tg.append(np.ma.masked_array(aux, mask = auxMask))
-        
         for iU in np.arange(self.N_U):
             aux = np.hstack(self._alogZ_mass__Ug[iU])
             self.alogZ_mass__Ug.append(np.ma.masked_array(aux))
             aux = np.hstack(self._alogZ_flux__Ug[iU])
             self.alogZ_flux__Ug.append(np.ma.masked_array(aux))
+        #GasProp
+        aux = np.hstack(self._chb_in__g)
+        self.chb_in__g = np.ma.masked_array(aux, mask = np.isnan(aux))
+        aux = np.hstack(self._c_Ha_Hb__g)
+        self.c_Ha_Hb__g = np.ma.masked_array(aux, mask = np.isnan(aux))
+        aux = np.hstack(self._O_HIICHIM__g)
+        self.O_HIICHIM__g = np.ma.masked_array(aux, mask = np.isnan(aux))
+        aux = np.hstack(self._O_O3N2_M13__g)
+        self.O_O3N2_M13__g = np.ma.masked_array(aux, mask = np.isnan(aux))
+        aux = np.hstack(self._O_O3N2_PP04__g)
+        self.O_O3N2_PP04__g = np.ma.masked_array(aux, mask = np.isnan(aux))
             
     def create_dict_h5(self):
         D = {}
@@ -280,6 +324,7 @@ class H5SFRData(object):
         self.N_gals = len(self.califaIDs)
         self.N_zones_all__g = self.get_data_h5('N_zones__g')
         self.N_zones__g = self.N_zones_all__g.compressed()
+        self.zones_map = np.asarray([ i for j in xrange(self.N_gals) for i in xrange(self.N_zones__g[j]) ])
 
         self._create_attrs()
         
