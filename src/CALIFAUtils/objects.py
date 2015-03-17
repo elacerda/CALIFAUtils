@@ -16,6 +16,7 @@ class GasProp(object):
             self.header = self._hdulist[0].header
             self._nobs = self.header['NOBS']
             self._create_attrs()
+            self._dlcons = eval(self._hdulist[-1].header['DLCONS'])
             
         self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.))) 
 

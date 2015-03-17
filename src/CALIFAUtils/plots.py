@@ -496,13 +496,11 @@ def plot_zbins(**kwargs):
     zticklabels = kwargs.get('zticklabels', None)
     zticks = kwargs.get('zticks', None)
     ###### vars end ######
-    if z is not None: 
-        if zmask == True:
-            mask = x.mask | y.mask | z.mask
-            if z2mask == True:
-                mask = mask | z2.mask
-    else:
-        mask = x.mask | y.mask
+    mask = x.mask | y.mask
+    if z is not None and zmask == True:
+        mask |= z.mask
+    if z2 is not None and z2mask == True:
+        mask |= z2.mask
     xm = np.ma.masked_array(x, mask = mask)
     ym = np.ma.masked_array(y, mask = mask)
     kwargs_scatter = {}
@@ -605,8 +603,8 @@ def plot_zbins(**kwargs):
                 for i in listrange:
                     zmskmax = zmsk[i].max()
                     zmskmin = zmsk[i].min()
-                    debug(debug, zmskmax = zmskmax)
-                    debug(debug, zmskmin = zmskmin)
+                    debug_var(debug, zmskmax = zmskmax)
+                    debug_var(debug, zmskmin = zmskmin)
                     if zmskmin == zmskmax:
                         zbins_labels.append('%s = %.2f' % (zname, zmskmin))
                     else:
@@ -616,6 +614,8 @@ def plot_zbins(**kwargs):
                 for i in listrange:
                     zmskmax = zmsk[i].max()
                     zmskmin = zmsk[i].min()
+                    debug_var(debug, zmskmax = zmskmax)
+                    debug_var(debug, zmskmin = zmskmin)
                     if zmskmin == zmskmax:
                         zbins_colors.append(zcmap.to_rgba(zmskmax))
                     else:
