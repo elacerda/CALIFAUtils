@@ -57,14 +57,12 @@ def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fonts
     ax.set_ylabel(ylabel)
     f.savefig(fname)
 
-
 def plot_text_ax(ax, txt, xpos, ypos, fontsize, va, ha, color = 'k'):
     textbox = dict(boxstyle = 'round', facecolor = 'wheat', alpha = 0.)
     ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
             transform = ax.transAxes,
             verticalalignment = va, horizontalalignment = ha,
             bbox = textbox)
-
 
 def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black', errorbar = True, nBox = 25):
     dxBox = (x.max() - x.min()) / (nBox - 1.)
@@ -89,7 +87,6 @@ def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black'
     
     if errorbar:
         ax.errorbar(xx, yy, yerr = yStd, xerr = xStd, c = color)
-
  
 def density_contour(xdata, ydata, binsx, binsy, ax = None, **contour_kwargs):
     """ Create a density contour plot.
@@ -131,12 +128,10 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, **contour_kwargs):
  
     return contour
 
-
 def plotStatCorreAxis(ax, x, y, pos_x, pos_y, fontsize):
     rhoSpearman, pvalSpearman = st.spearmanr(x, y)
     txt = '<y/x>:%.3f - (y/x) median:%.3f - $\sigma(y/x)$:%.3f - Rs: %.2f' % (np.mean(y / x), np.ma.median((y / x)), np.ma.std(y / x), rhoSpearman)
     plot_text_ax(ax, txt, pos_x, pos_y, fontsize, 'top', 'left')
-
 
 def plotOLSbisectorAxis(ax, x, y, **kwargs):
     pos_x = kwargs.get('pos_x', 0.99)
@@ -164,7 +159,6 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         print txt_y
     return a, b, sigma_a, sigma_b
 
-
 def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize):
     galimg = plt.imread(imgfile)[::-1, :, :]
     plt.setp(ax.get_xticklabels(), visible = False)
@@ -177,7 +171,6 @@ def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize):
     txt = '%s' % gal
     plot_text_ax(ax, txt, pos_x, pos_y, fontsize, 'top', 'left', color = 'w')
     return ax
-
 
 def plotSFR(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     f = plt.figure()
@@ -201,7 +194,6 @@ def plotSFR(x, y, xlabel, ylabel, xlim, ylim, age, fname):
         f.show()
     plt.close(f)
 
-
 def plotTau(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     f = plt.figure()
     f.set_size_inches(10, 8)
@@ -223,7 +215,6 @@ def plotTau(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     else:
         f.show()
     plt.close(f)
-
 
 def plotScatterColorAxis(f, x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
                          zlim = None, age = None,
@@ -276,8 +267,7 @@ def plotScatterColorAxis(f, x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
     if age != None:
         txt = r'$%s$ Myr' % str(age / 1.e6)
         plot_text_ax(ax, txt, 0.02, 0.98, 14, 'top', 'left')
-    
-    
+        
 def plotScatterColor(x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
                      fname = 'PlotScatter.png',
                      zlim = None, age = None,
@@ -348,12 +338,10 @@ def plotScatterColor(x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
     f.savefig(fname)
     plt.close(f)
 
-
 def plot_contour_axis(ax, x, y, n = 21, color = 'k'):
     binsx = np.linspace(min(x), max(x), n)
     binsy = np.linspace(min(y), max(y), n)
     density_contour(x, y, binsx, binsy, ax = ax)
-
 
 def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
                 age = None, color = 'grey', contour = True, run_stats = True,
@@ -400,7 +388,6 @@ def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
         
     f.savefig(fname)
     plt.close(f)
-
 
 def plotLinRegAge(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     f = plt.figure()
@@ -470,6 +457,27 @@ def plotLinRegAxis(ax, x, y, xlabel, ylabel, xlim, ylim):
     ax.plot(ax.get_xlim(), ax.get_xlim(), ls = '--', label = '', c = 'k')
     ax.legend()
 
+def add_subplot_axes(ax, rect, axisbg = 'w'):
+    fig = plt.gcf()
+    box = ax.get_position()
+    width = box.width
+    height = box.height
+    inax_position = ax.transAxes.transform(rect[0:2])
+    transFigure = fig.transFigure.inverted()
+    infig_position = transFigure.transform(inax_position)
+    x = infig_position[0]
+    y = infig_position[1]
+    width *= rect[2]
+    height *= rect[3]  # <= Typo was here
+    subax = fig.add_axes([x, y, width, height], axisbg = axisbg)
+    x_labelsize = subax.get_xticklabels()[0].get_size()
+    y_labelsize = subax.get_yticklabels()[0].get_size()
+    x_labelsize *= rect[2] ** 0.5
+    y_labelsize *= rect[3] ** 0.5
+    subax.xaxis.set_tick_params(labelsize = x_labelsize)
+    subax.yaxis.set_tick_params(labelsize = y_labelsize)
+
+    return subax
 
 def plot_zbins(**kwargs):
     debug = kwargs.get('debug', False)
@@ -485,6 +493,8 @@ def plot_zbins(**kwargs):
     zmask = kwargs.get('zmask', False)
     zbins = kwargs.get('zbins', False)
     zlim = kwargs.get('zlim', None)
+    xlimprc = kwargs.get('xlimprc', None)
+    ylimprc = kwargs.get('ylimprc', None)
     zlimprc = kwargs.get('zlimprc', None)
     zname = kwargs.get('zname', 'z')
     z2 = kwargs.get('z2', None)
@@ -524,13 +534,22 @@ def plot_zbins(**kwargs):
         zcmap.set_norm(norm)
         kwargs_scatter.update(dict(norm = norm))
     ###### fig begin ######
-    f = plt.figure()
-    ax = f.gca()
+    f_kw = kwargs.get('figure', kwargs.get('f', None))
+    if f_kw is not None:
+        f = f_kw
+    else:
+        kwargs_figure = kwargs.get('kwargs_figure', {})
+        f = plt.figure(**kwargs_figure)
+    ax_kw = kwargs.get('axis', kwargs.get('ax', None)) 
+    if ax_kw is not None:
+        ax = ax_kw
+    else:
+        ax = f.gca()
     if xlabel is not None:
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
-    kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))
+    kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))    
     debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     zlabel = kwargs.get('zlabel', None)
@@ -538,7 +557,7 @@ def plot_zbins(**kwargs):
         kwargs_tmp = {}
         if zticks is not None:
             kwargs_tmp.update(dict(ticks = zticks))
-        cb = f.colorbar(sc, **kwargs_tmp)
+        cb = ax.colorbar(sc, **kwargs_tmp)
         cb.set_label(zlabel)
         if zticklabels is not None:
             cb.ax.set_yticklabels(zticklabels)
@@ -570,24 +589,34 @@ def plot_zbins(**kwargs):
             m_gs = np.isnan(xM) | np.isnan(yM) 
             Xs, Ys = gaussSmooth_YofX(xM[~m_gs], yM[~m_gs], FWHM)
             ax.plot(Xs, Ys, **kwargs_plot_rs)
-        ax.plot(xPrc[0], yPrc[0], 'k--')
-        ax.plot(xPrc[1], yPrc[1], 'k--')
+        if kwargs.get('rs_percentiles', None) is not None:
+            ax.plot(xPrc[0], yPrc[0], 'k--', label = '16 perc. (run. stats)')
+            ax.plot(xPrc[1], yPrc[1], 'k--', label = '84 perc. (run. stats)')
         if kwargs.get('ols_rs', False) is not False:
             kwargs_ols_rs = dict(pos_x = 0.98, pos_y = 0.03, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
             kwargs_ols_rs.update(kwargs.get('kwargs_ols_rs', {}))
             debug_var(debug, kwargs_ols_rs = kwargs_ols_rs)
             a, b, sa, sb = plotOLSbisectorAxis(ax, xMedian, yMedian, **kwargs_ols_rs)
     if zbins != False:
-        zbinsrange = xrange(zbins)
         if zbins_mask is None:
-            nprc = kwargs.get('zbinsprc', [ (i + 1) * (100 / zbins) for i in zbinsrange ])
-            center_nprc = [ (nprc[i] + nprc[i - 1]) / 2. for i in zbinsrange ]
-            center_nprc[0] = nprc[0] / 2.
-            zprc = np.percentile(zm.compressed(), nprc)
-            center_prc = [ np.percentile(zm.compressed(), center_nprc[i]) for i in zbinsrange ]
-            debug_var(debug, nprc = nprc)
-            debug_var(debug, zprc = zprc)
-            debug_var(debug, center_prc = center_prc)
+            if isinstance(zbins, list):
+                ### XXX: TODO
+                zbinsrange = xrange(len(zbins))
+                zprc = np.asarray(zbins, dtype = np.double)
+                center_prc = (zprc[1:] + zprc[0:-1]) / 2
+                debug_var(debug, zprc = zprc)
+                debug_var(debug, center_prc = center_prc)
+            else:
+                zbinsrange = xrange(zbins)
+                nprc = kwargs.get('zbinsprc', [ (i + 1) * (100 / zbins) for i in zbinsrange ])
+                nprc[-1] = 100
+                center_nprc = [ (nprc[i] + nprc[i - 1]) / 2. for i in zbinsrange ]
+                center_nprc[0] = nprc[0] / 2.
+                zprc = np.percentile(zm.compressed(), nprc)
+                center_prc = [ np.percentile(zm.compressed(), center_nprc[i]) for i in zbinsrange ]
+                debug_var(debug, nprc = nprc)
+                debug_var(debug, zprc = zprc)
+                debug_var(debug, center_prc = center_prc)
             zbins_mask = [ (zm > zprc[i - 1]) & (zm <= zprc[i]) for i in zbinsrange ]
             zbins_mask[0] = (zm <= zprc[0])
             if zbins_labels is None:
@@ -595,6 +624,7 @@ def plot_zbins(**kwargs):
                 zbins_labels[0] = '%s <= %.2f' % (zname, zprc[0])
             if zbins_colors is None:
                 zbins_colors = [ zcmap.to_rgba(center_prc[i]) for i in zbinsrange ]
+
         if zbins_labels is None or zbins_colors is None:
             listrange = xrange(len(zbins_mask))
             zmsk = [ zm[np.where(np.asarray(np.asarray(zbins_mask[i])) == True)] for i in listrange ]
@@ -646,10 +676,26 @@ def plot_zbins(**kwargs):
                     m_gs = np.isnan(xM) | np.isnan(yM) 
                     Xs, Ys = gaussSmooth_YofX(xM[~m_gs], yM[~m_gs], FWHM)
                     ax.plot(Xs, Ys, c = zbins_colors[i], lw = 2, label = '%s' % zbins_labels[i])
-    x_major_locator = kwargs.get('x_major_locator', (xm.max() - xm.min()) / 6.)
-    x_minor_locator = kwargs.get('x_minor_locator', (xm.max() - xm.min()) / 30.)
-    y_major_locator = kwargs.get('y_major_locator', (ym.max() - ym.min()) / 6.)
-    y_minor_locator = kwargs.get('y_minor_locator', (ym.max() - ym.min()) / 30.)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    elif xlimprc is not None:
+        xlim = np.percentile(xm.compressed(), xlimprc)
+        debug_var(debug, xlim = xlim)
+        ax.set_xlim(xlim)
+    else:
+        xlim = [ xm.min(), xm.max() ]
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    elif ylimprc is not None:
+        ylim = np.percentile(ym.compressed(), ylimprc)
+        debug_var(debug, ylim = ylim)
+        ax.set_ylim(ylim)
+    else:
+        ylim = [ ym.min(), ym.max() ]
+    x_major_locator = kwargs.get('x_major_locator', (xlim[1] - xlim[0]) / 6.)
+    x_minor_locator = kwargs.get('x_minor_locator', (xlim[1] - xlim[0]) / 30.)
+    y_major_locator = kwargs.get('y_major_locator', (ylim[1] - ylim[0]) / 6.)
+    y_minor_locator = kwargs.get('y_minor_locator', (ylim[1] - ylim[0]) / 30.)
     debug_var(debug, x_major_locator = x_major_locator)
     debug_var(debug, x_minor_locator = x_minor_locator)
     debug_var(debug, y_major_locator = y_major_locator)
@@ -659,10 +705,6 @@ def plot_zbins(**kwargs):
     ax.yaxis.set_major_locator(MultipleLocator(y_major_locator))
     ax.yaxis.set_minor_locator(MultipleLocator(y_minor_locator))
     ax.grid(which = 'major')
-    if xlim is not None:
-        xlim = ax.set_xlim(xlim)
-    if ylim is not None:
-        xlim = ax.set_ylim(ylim)
     kwargs_legend = dict(loc = 'upper left', fontsize = 14)
     kwargs_legend.update(kwargs.get('kwargs_legend', {}))
     debug_var(debug, kwargs_legend = kwargs_legend)
@@ -670,14 +712,15 @@ def plot_zbins(**kwargs):
     kwargs_suptitle = dict(fontsize = 10)
     kwargs_suptitle.update(kwargs.get('kwargs_suptitle', {}))
     debug_var(debug, kwargs_suptitle = kwargs_suptitle)
-    f.suptitle(kwargs.get('suptitle'), **kwargs_suptitle)
-    filename = kwargs.get('filename')
-    debug_var(debug, filename = filename)
-    if filename is not None:
-        f.savefig(filename)
-    else:
-        f.show()
-    plt.close(f)  
+    if ax_kw is None:
+        f.suptitle(kwargs.get('suptitle'), **kwargs_suptitle)
+        filename = kwargs.get('filename')
+        debug_var(debug, filename = filename)
+        if filename is not None:
+            f.savefig(filename)
+        else:
+            f.show()
+        plt.close(f)  
 
 
 if __name__ == '__main__':
