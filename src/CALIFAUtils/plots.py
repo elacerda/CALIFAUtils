@@ -553,12 +553,13 @@ def plot_zbins(**kwargs):
     debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     zlabel = kwargs.get('zlabel', None)
-    if z is not None and zlabel is not None:
+    if z is not None:
         kwargs_tmp = {}
         if zticks is not None:
             kwargs_tmp.update(dict(ticks = zticks))
-        cb = ax.colorbar(sc, **kwargs_tmp)
-        cb.set_label(zlabel)
+        cb = f.colorbar(sc, **kwargs_tmp)
+        if zlabel is not None:
+            cb.set_label(zlabel)
         if zticklabels is not None:
             cb.ax.set_yticklabels(zticklabels)
     if kwargs.get('ols', False) is not False:
