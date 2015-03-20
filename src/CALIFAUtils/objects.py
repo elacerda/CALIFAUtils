@@ -15,6 +15,7 @@ class GasProp(object):
             
         if self._hdulist is not None:
             self.header = self._hdulist[0].header
+            self._excluded_hdus = [ 'FLINES', 'NAMEFILES', 'ICF' ]
             self._nobs = self.header['NOBS']
             self._create_attrs()
             self._dlcons = eval(self._hdulist[-1].header['DLCONS'])
@@ -23,12 +24,14 @@ class GasProp(object):
         
     def _iter_hdus(self):
         for i in xrange(1, len(self._hdulist)):
-            yield self._hdulist[i].name, self._hdulist[i].data
+            n = self._hdulist[i].name
+            if n in self._excluded_hdus:
+                continue
+            h = self._hdulist[i].data
+            yield n, h 
             
     def _create_attrs(self):
         for hname, h in self._iter_hdus():
-            if hname == 'FLINES':
-                continue
             setattr(self, hname, empty())
             tmp = getattr(self, hname)
             names = h.names
