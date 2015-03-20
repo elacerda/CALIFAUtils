@@ -3,6 +3,7 @@ import itertools
 import pyfits
 import h5py
 
+class empty: pass
 
 class GasProp(object):
     def __init__(self, filename = None):
@@ -18,27 +19,27 @@ class GasProp(object):
             self._create_attrs()
             self._dlcons = eval(self._hdulist[-1].header['DLCONS'])
             
-        self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.))) 
-
+        self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.)))
         
     def _iter_hdus(self):
         for i in xrange(1, len(self._hdulist)):
-            yield self._hdulist[i].data
+            yield self._hdulist[i].name, self._hdulist[i].data
             
     def _create_attrs(self):
-        for h in self._iter_hdus():
+        for hname, h in self._iter_hdus():
+            if hname == 'FLINES':
+                continue
+            setattr(self, hname, empty())
+            tmp = getattr(self, hname)
             names = h.names
             attrs = [ name.replace('[', '_').replace(']', '').replace('.', '_') for name in names ]
             for attr, k in zip(attrs, names):
                 if len(h[k]) == self._nobs:
                     data = h[k][1:]
-                    setattr(self, attr, data)
+                    setattr(tmp, attr, data)
                     int_attr = 'integrated_%s' % attr
                     int_data = h[k][0]
-                    setattr(self, int_attr, int_data)
-                else:
-                    data = h[k]
-                    setattr(self, attr, data)
+                    setattr(tmp, int_attr, int_data)
                     
     def AVtoTau(self, AV):
         return AV * self.cte_av_tau 
@@ -49,14 +50,12 @@ class GasProp(object):
     def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
         return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
     
-
 class read_kwargs(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs  
         
     def __getattr__(self, attr):
         return self.kwargs.get(attr)
-
             
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
@@ -123,9 +122,11 @@ class ALLGals(object):
         self.integrated_O_HIICHIM__g = np.ma.empty((N_gals))
         self.integrated_O_O3N2_M13__g = np.ma.empty((N_gals))
         self.integrated_O_O3N2_PP04__g = np.ma.empty((N_gals))
+        self.integrated_O_direct_O_23__g = np.ma.empty((N_gals))
         self.O_HIICHIM__rg = np.ma.empty((NRbins, N_gals))
         self.O_O3N2_M13__rg = np.ma.empty((NRbins, N_gals))
         self.O_O3N2_PP04__rg = np.ma.empty((NRbins, N_gals))
+        self.O_direct_O_23__rg = np.ma.empty((NRbins, N_gals))
         
     def _init_zones_temporary_lists(self):
         self._Mcor__g = []
@@ -184,6 +185,7 @@ class ALLGals(object):
         self._O_HIICHIM__g = []
         self._O_O3N2_M13__g = []
         self._O_O3N2_PP04__g = []
+        self._O_direct_O_23__g = []
             
     def stack_zones_data(self):
         self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
@@ -267,6 +269,8 @@ class ALLGals(object):
         self.O_O3N2_M13__g = np.ma.masked_array(aux, mask = np.isnan(aux))
         aux = np.hstack(self._O_O3N2_PP04__g)
         self.O_O3N2_PP04__g = np.ma.masked_array(aux, mask = np.isnan(aux))
+        aux = np.hstack(self._O_direct_O_23__g)
+        self.O_direct_O_23__g = np.ma.masked_array(aux, mask = np.isnan(aux))
             
     def create_dict_h5(self):
         D = {}
@@ -288,9 +292,8 @@ class ALLGals(object):
                         tmp_mask = {}
                 D.update(tmp_data)
                 D.update(tmp_mask)
-        return D                    
-
-
+        return D      
+                  
 class H5SFRData(object):
     def __init__(self, h5file):
         self.h5file = h5file
