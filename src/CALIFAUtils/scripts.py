@@ -267,16 +267,15 @@ def loop_cubes(gals, **kwargs):
 
 
 def debug_var(turn_on = False, **kwargs):
-    pref = kwargs.get('pref', '>>>')
+    pref = kwargs.pop('pref', '>>>')
     if turn_on == True:
-        name = kwargs.keys()[0]
-        var = kwargs.get(name)
-        if isinstance(var, dict):
-            print '%s' % pref, name
-            for k, v in var.iteritems():
-                print '\t%s' % pref, k, '=', v
-        else:
-            print '%s' % pref, '%s: ' % name, var
+        for kw, vw in kwargs.iteritems():
+            if isinstance(vw, dict):
+                print '%s' % pref, kw
+                for k, v in vw.iteritems():
+                    print '\t%s' % pref, k, '=', v
+            else:
+                print '%s' % pref, '%s: ' % kw, vw
 
 
 def sort_gals(gals, func = None, order = 1, **kwargs):

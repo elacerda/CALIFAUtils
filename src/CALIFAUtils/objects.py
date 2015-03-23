@@ -305,7 +305,7 @@ class H5SFRData(object):
             self.h5 = h5py.File(self.h5file, 'r')
         except IOError:
             print "%s: file does not exists" % h5file
-            pass
+            return None
         
         self.RbinIni = self.get_data_h5('RbinIni')
         self.RbinFin = self.get_data_h5('RbinFin')
