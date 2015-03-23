@@ -570,6 +570,8 @@ def plot_zbins(**kwargs):
         kwargs_ols.update(dict(kwargs_plot = kwargs_ols_plot))
         debug_var(debug, kwargs_ols = kwargs_ols)
         a, b, sa, sb = plotOLSbisectorAxis(ax, xm, ym, **kwargs_ols)
+
+    
     if kwargs.get('running_stats', False) is not False:
         nBox = 20
         dxBox = (xm.max() - xm.min()) / (nBox - 1.)
@@ -591,13 +593,39 @@ def plot_zbins(**kwargs):
             Xs, Ys = gaussSmooth_YofX(xM[~m_gs], yM[~m_gs], FWHM)
             ax.plot(Xs, Ys, **kwargs_plot_rs)
         if kwargs.get('rs_percentiles', None) is not None:
-            ax.plot(xPrc[0], yPrc[0], 'k--', label = '16 perc. (run. stats)')
-            ax.plot(xPrc[1], yPrc[1], 'k--', label = '84 perc. (run. stats)')
+            c = kwargs_plot_rs.get('c', 'k')
+            ax.plot(xPrc[0], yPrc[0], c = c, ls = '--', label = '16 perc. (run. stats)')
+            ax.plot(xPrc[1], yPrc[1], c = c, ls = '--', label = '84 perc. (run. stats)')
         if kwargs.get('ols_rs', False) is not False:
             kwargs_ols_rs = dict(pos_x = 0.98, pos_y = 0.03, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
             kwargs_ols_rs.update(kwargs.get('kwargs_ols_rs', {}))
             debug_var(debug, kwargs_ols_rs = kwargs_ols_rs)
             a, b, sa, sb = plotOLSbisectorAxis(ax, xMedian, yMedian, **kwargs_ols_rs)
+        if kwargs.get('rs_yx', False) is not False:
+            nBox = 20
+            dxBox = (ym.max() - ym.min()) / (nBox - 1.)
+            kwargs_rs_yx = dict(dxBox = dxBox, xbinIni = ym.min(), xbinFin = ym.max(), xbinStep = dxBox)
+            kwargs_rs_yx.update(kwargs.get('kwargs_rs_yx', {})) 
+            debug_var(debug, kwargs_rs_yx = kwargs_rs_yx)
+            xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(ym, xm, **kwargs_rs)
+            kwargs_plot_rs_yx = kwargs.get('kwargs_plot_rs_yx', dict(c = 'k', lw = 2))
+            if kwargs.get('rs_yx_errorbar', False) is not False:
+                kwargs_plot_rs_yx.update(dict(xerr = xStd, yerr = yStd))
+            debug_var(debug, kwargs_plot_rs_yx = kwargs_plot_rs_yx)
+            if kwargs.get('rs_yx_gaussian_smooth', None) is None:
+                plt.errorbar(xMedian, yMedian, **kwargs_plot_rs_yx)
+            else:
+                FWHM = kwargs.get('rs_yx_gs_fwhm', 0.4)
+                xM = np.ma.masked_array(xMedian)
+                yM = np.ma.masked_array(yMedian)
+                m_gs = np.isnan(xM) | np.isnan(yM) 
+                Xs, Ys = gaussSmooth_YofX(xM[~m_gs], yM[~m_gs], FWHM)
+                ax.plot(Xs, Ys, **kwargs_plot_rs_yx)
+            if kwargs.get('rs_yx_percentiles', None) is not None:
+                c = kwargs_plot_rs_yx.get('c', 'k')
+                ax.plot(xPrc[0], yPrc[0], c = c, ls = '--', label = '16 perc. (run. stats)')
+                ax.plot(xPrc[1], yPrc[1], c = c, ls = '--', label = '84 perc. (run. stats)')
+
     if zbins != False:
         if zbins_mask is None:
             if isinstance(zbins, list):
