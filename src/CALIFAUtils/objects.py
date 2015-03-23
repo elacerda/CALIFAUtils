@@ -409,7 +409,7 @@ class H5SFRData(object):
             ds = h5[node]
             return ds.value
         
-    def get_prop_gal(self, data, gal = None):
+    def get_prop_gal(self, data, gal = None, return_slice = False):
         if isinstance(data, str):
             data = self.get_data_h5(data)
         arr = None
@@ -437,6 +437,8 @@ class H5SFRData(object):
                     califaIDs = self.reply_arr_by_zones(self.califaIDs)
                     where_slice = np.where(califaIDs == gal)
                     arr = data[where_slice]
+        if return_slice:
+            return where_slice, arr
         return arr
     
     def sort_gal_by_prop(self, prop, order = 1):
@@ -454,3 +456,4 @@ class H5SFRData(object):
         sgals = np.asarray(gals)[iS]
         sdata = data__g[iS]
         return sgals, sdata
+    
