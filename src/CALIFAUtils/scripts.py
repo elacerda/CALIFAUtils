@@ -85,11 +85,16 @@ def calc_running_stats(x, y, **kwargs):
             xPrc16[ixBin], xPrc84[ixBin] = np.percentile(xx, [16, 84])
             yPrc16[ixBin], yPrc84[ixBin] = np.percentile(yy, [16, 84])
         else:
-            xPrc16[ixBin] = np.median(xx)
-            xPrc84[ixBin] = np.median(xx)
-            
-            yPrc16[ixBin] = np.median(yy)
-            yPrc84[ixBin] = np.median(yy)
+            if ixBin > 0:
+                xPrc16[ixBin] = xPrc16[ixBin - 1]
+                xPrc84[ixBin] = xPrc84[ixBin - 1]
+                yPrc16[ixBin] = yPrc16[ixBin - 1]
+                yPrc84[ixBin] = yPrc84[ixBin - 1]
+            else:
+                xPrc16[ixBin] = np.median(xx)
+                xPrc84[ixBin] = np.median(xx)
+                yPrc16[ixBin] = np.median(yy)
+                yPrc84[ixBin] = np.median(yy)
         nInBin[ixBin] = isInBin.sum()
     return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, \
            nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
@@ -569,3 +574,18 @@ def calc_agebins(ages, age):
     # Find index of age-bin corresponding to the last bin fully within < tSF
     age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
+
+
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# gals, _ = sort_gals('/Users/lacerda/CALIFA/listOf300GalPrefixes.txt')
+# nobs = np.zeros(len(gals), dtype = np.int)
+# nz = np.zeros(len(gals), dtype = np.int) 
+# for iGal, K in loop_cubes(gals, GP = True):
+#     if K is not None:
+#         nz[iGal] = K.N_zone
+#         if K.GP._hdulist is not None:
+#             nobs[iGal] = (nz[iGal] - np.isnan(K.GP.ELEMAB.O_direct_O_23).sum()) 
+#             del K.GP
+#         print K.califaID, 'zones:', nz[iGal], 'O_direct Obs:', nobs[iGal], 'sumobs:', nobs.sum()  
+#         K.close()
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
