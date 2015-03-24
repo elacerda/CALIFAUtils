@@ -6,7 +6,6 @@ import sys
 import types
 import numpy as np
 import CALIFAUtils as C
-from .objects import read_kwargs
 from pycasso import fitsQ3DataCube
 
 def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
@@ -249,8 +248,7 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
-    args = read_kwargs(**kwargs)
-    verbose = args.verbose
+    verbose = kwargs.get('verbose', None)
     if isinstance(gals, str):
         fname = gals
         f = open(fname, 'r')
@@ -361,10 +359,9 @@ def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     ax.add_artist(e2)
     
 def radialProfileWeighted(v__yx, w__yx, **kwargs): 
-    args = read_kwargs(**kwargs)
-    r_func = args.r_func
-    rad_scale = args.rad_scale
-    bin_r = args.bin_r
+    r_func = kwargs.get('r_func', None)
+    rad_scale = kwargs.get('rad_scale', None)
+    bin_r = kwargs.get('bin_r', None)
     
     v__r = None
 
@@ -527,20 +524,6 @@ def calc_agebins(ages, age):
     age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
 
-def z2dist(z, H0):
+def redshift_dist(z, H0):
     from pystarlight.util.constants import c
     return  z * c / H0
-
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# gals, _ = sort_gals('/Users/lacerda/CALIFA/listOf300GalPrefixes.txt')
-# nobs = np.zeros(len(gals), dtype = np.int)
-# nz = np.zeros(len(gals), dtype = np.int) 
-# for iGal, K in loop_cubes(gals, GP = True):
-#     if K is not None:
-#         nz[iGal] = K.N_zone
-#         if K.GP._hdulist is not None:
-#             nobs[iGal] = (nz[iGal] - np.isnan(K.GP.ELEMAB.O_direct_O_23).sum()) 
-#             del K.GP
-#         print K.califaID, 'zones:', nz[iGal], 'O_direct Obs:', nobs[iGal], 'sumobs:', nobs.sum()  
-#         K.close()
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE

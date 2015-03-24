@@ -3,7 +3,7 @@ import itertools
 import pyfits
 import h5py
 
-class empty: pass
+class tupperware: pass
 
 class GasProp(object):
     def __init__(self, filename = None):
@@ -32,7 +32,7 @@ class GasProp(object):
             
     def _create_attrs(self):
         for hname, h in self._iter_hdus():
-            setattr(self, hname, empty())
+            setattr(self, hname, tupperware())
             tmp = getattr(self, hname)
             names = h.names
             attrs = [ name.replace('[', '_').replace(']', '').replace('.', '_') for name in names ]
@@ -53,13 +53,6 @@ class GasProp(object):
     def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
         return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
     
-class read_kwargs(object):
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs  
-        
-    def __getattr__(self, attr):
-        return self.kwargs.get(attr)
-            
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
         self.N_gals = N_gals
