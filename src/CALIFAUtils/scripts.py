@@ -5,13 +5,9 @@
 import sys
 import types
 import numpy as np
-from .objects import GasProp
+import CALIFAUtils as C
 from .objects import read_kwargs
 from pycasso import fitsQ3DataCube
-from .globals import pycasso_cube_dir, pycasso_suffix
-from .globals import emlines_cube_dir, emlines_suffix
-from .globals import gasprop_cube_dir, gasprop_suffix
-
 
 def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
     # Morfologia, incluyendo tipo medio y +- error
@@ -44,10 +40,8 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
     
     return tipos, tipo, tipo_m, tipo_p
 
-
 def find_confidence_interval(x, pdf, confidence_level):
     return pdf[pdf > x].sum() - confidence_level
-
 
 def calc_running_stats(x, y, **kwargs):
     '''
@@ -99,7 +93,6 @@ def calc_running_stats(x, y, **kwargs):
     return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, \
            nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
 
-
 def gaussSmooth_YofX(x, y, FWHM):
     '''
     Sloppy function to return the gaussian-smoothed version of an y(x) relation.
@@ -120,7 +113,6 @@ def gaussSmooth_YofX(x, y, FWHM):
         yS[i] = (w__ij[i, :] * y).sum()
 
     return xS , yS
-
 
 def calcYofXStats_EqNumberBins(x, y, nPerBin = 25):
     '''
@@ -147,7 +139,6 @@ def calcYofXStats_EqNumberBins(x, y, nPerBin = 25):
         nInBin[ixBin] = len(xx)
     return xMedian, xMean, xStd, yMedian, yMean , yStd, nInBin
 
-
 def data_uniq(list_gal, data):
     list_uniq_gal = np.unique(list_gal)
     NGal = len(list_uniq_gal)
@@ -157,31 +148,7 @@ def data_uniq(list_gal, data):
         data__g[i] = np.unique(data[np.where(list_gal == g)])
         
     return NGal, list_uniq_gal, data__g        
-
         
-def list_gal_sorted_by_data(list_gal, data, type):
-    '''
-    type = 0 - sort asc
-    type = 1 - sort desc
-    type = -1 - receives list_gal and data as uniq
-                aka. only sorts, list_gal by data
-    
-    '''
-    if type >= 0:
-        NGal, list_uniq_gal, data__g = data_uniq(list_gal, data)
-    else:
-        NGal = len(list_gal)
-        list_uniq_gal = list_gal
-        data__g = data
-        
-    iS = np.argsort(data__g)
-    
-    if type != 0:
-        iS = iS[::-1]
-    
-    return list_uniq_gal[iS]
-
-
 def OLS_bisector(x, y):
     xdev = x - x.mean()
     ydev = y - y.mean()
@@ -226,19 +193,18 @@ def OLS_bisector(x, y):
     
     return slope, intercept, sigma_slope, sigma_intercept
 
-
 def read_one_cube(gal, **kwargs):
     EL = kwargs.get('EL', None)
     GP = kwargs.get('GP', None)
     verbose = kwargs.get('verbose', None)
-    pycasso_cube_filename = pycasso_cube_dir + gal + pycasso_suffix
+    pycasso_cube_filename = C.pycasso_cube_dir + gal + C.pycasso_suffix
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
         if verbose is not None:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
-            emlines_cube_filename = emlines_cube_dir + gal + emlines_suffix
+            emlines_cube_filename = C.emlines_cube_dir + gal + C.emlines_suffix
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -246,9 +212,9 @@ def read_one_cube(gal, **kwargs):
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
-            gasprop_cube_filename = gasprop_cube_dir + gal + gasprop_suffix
+            gasprop_cube_filename = C.gasprop_cube_dir + gal + C.gasprop_suffix
             try:
-                K.GP = GasProp(gasprop_cube_filename)
+                K.GP = C.GasProp(gasprop_cube_filename)
                 if verbose is not None:
                     print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
             except IOError:
@@ -257,14 +223,12 @@ def read_one_cube(gal, **kwargs):
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
 
-
 def loop_cubes(gals, **kwargs):
     imax = kwargs.get('imax', None)
     if isinstance(gals, np.ndarray):
         gals = gals.tolist()
     for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
-
 
 def debug_var(turn_on = False, **kwargs):
     pref = kwargs.pop('pref', '>>>')
@@ -276,7 +240,6 @@ def debug_var(turn_on = False, **kwargs):
                     print '\t%s' % pref, k, '=', v
             else:
                 print '%s' % pref, '%s: ' % kw, vw
-
 
 def sort_gals(gals, func = None, order = 1, **kwargs):
     '''
@@ -317,7 +280,6 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
     else:
         return sgals
 
-
 def create_dx(x):
     dx = np.empty_like(x)
     dx[1:] = (x[1:] - x[:-1]) / 2.   # dl/2 from right neighbor
@@ -326,7 +288,6 @@ def create_dx(x):
     dx[-1] = 2 * dx[-1]
     #dx[-1]      = x[-1]
     return dx
-
 
 def SFR_parametrize(flux, wl, ages, tSF):
     '''
@@ -354,7 +315,6 @@ def SFR_parametrize(flux, wl, ages, tSF):
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
-
 def SFR_parametrize_trapz(flux, wl, ages, tSF):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
@@ -381,7 +341,6 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF):
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
-
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba):
     from matplotlib.patches import Ellipse
     center = np.array([ 256 , 256])
@@ -392,7 +351,6 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba):
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = 'white', lw = 2, ls = 'dotted')
     ax.add_artist(e1)
     ax.add_artist(e2)
-
     
 def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
@@ -401,7 +359,6 @@ def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     ax.add_artist(e1)
     ax.add_artist(e2)
-    
     
 def radialProfileWeighted(v__yx, w__yx, **kwargs): 
     args = read_kwargs(**kwargs)
@@ -418,7 +375,6 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
     return v__r
 
-
 def calc_xY(K, tY):
     _, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
 
@@ -427,7 +383,6 @@ def calc_xY(K, tY):
     aux1__z = x__tZz[:indY, :, :].sum(axis = 1).sum(axis = 0)
     aux2__z = x__tZz[indY, :, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
     return (aux1__z + aux2__z)
-    
 
 def calc_SFR(K, tSF):
     '''
@@ -455,7 +410,6 @@ def calc_SFR(K, tSF):
     SFRSD__z = SFR__z / K.zoneArea_pc2
 
     return SFR__z, SFRSD__z
-
 
 def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
  #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
@@ -559,7 +513,6 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
            isOkFrac_GAL
 
-
 def calc_agebins(ages, age):
     # Define ranges for age-bins
     # ToDo: This age-bin-edges thing could be made more elegant & general.
@@ -574,6 +527,9 @@ def calc_agebins(ages, age):
     age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
 
+def z2dist(z, H0):
+    from pystarlight.util.constants import c
+    return  z * c / H0
 
 #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 # gals, _ = sort_gals('/Users/lacerda/CALIFA/listOf300GalPrefixes.txt')
