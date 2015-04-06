@@ -506,15 +506,18 @@ def plot_zbins(**kwargs):
     zticks = kwargs.get('zticks', None)
     ###### vars end ######
     mask = x.mask | y.mask
+    C.debug_var(debug, mask_xy = mask, mask_xy_len = len(mask), mask_xy_sum = mask.sum())
     if z is not None and zmask == True:
         mask |= z.mask
+        C.debug_var(debug, mask_xyz = mask, mask_xyz_len = len(mask), mask_xyz_sum = mask.sum())
     if z2 is not None and z2mask == True:
         mask |= z2.mask
-    xm = np.ma.masked_array(x, mask = mask)
-    ym = np.ma.masked_array(y, mask = mask)
+        C.debug_var(debug, mask_xyz2 = mask, mask_xyz2_sum = mask.sum())
+    xm = np.ma.masked_array(x, mask = mask, dtype = x.dtype)
+    ym = np.ma.masked_array(y, mask = mask, dtype = y.dtype)
     kwargs_scatter = {}
     if z is not None:
-        zm = np.ma.masked_array(z, mask = mask)
+        zm = np.ma.masked_array(z, mask = mask, dtype = np.float64)
         zcolor = zm
         if z2 is not None:
             z2m = np.ma.masked_array(z2, mask = mask)
@@ -593,11 +596,13 @@ def plot_zbins(**kwargs):
             c = kwargs_plot_rs.get('c', 'k')
             ax.plot(xPrc[0], yPrc[0], c = c, ls = '--', label = '16 perc. (run. stats)')
             ax.plot(xPrc[1], yPrc[1], c = c, ls = '--', label = '84 perc. (run. stats)')
-        if kwargs.get('ols_rs', False) is not False:
-            kwargs_ols_rs = dict(pos_x = 0.98, pos_y = 0.03, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
-            kwargs_ols_rs.update(kwargs.get('kwargs_ols_rs', {}))
-            C.debug_var(debug, kwargs_ols_rs = kwargs_ols_rs)
-            a, b, sa, sb = plotOLSbisectorAxis(ax, xMedian, yMedian, **kwargs_ols_rs)
+        if kwargs.get('rs_ols', False) is not False:
+            pos_x = kwargs_ols.get('pos_x', 0.99)
+            pos_y = kwargs_ols.get('pos_y', 0.) + 0.03
+            kwargs_rs_ols = dict(pos_x = pos_x, pos_y = pos_y, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
+            kwargs_rs_ols.update(kwargs.get('kwargs_rs_ols', {}))
+            C.debug_var(debug, kwargs_rs_ols = kwargs_rs_ols)
+            a, b, sa, sb = plotOLSbisectorAxis(ax, xMedian, yMedian, **kwargs_rs_ols)
         if kwargs.get('rs_yx', False) is not False:
             nBox = 20
             dxBox = (ym.max() - ym.min()) / (nBox - 1.)
@@ -649,10 +654,9 @@ def plot_zbins(**kwargs):
                 zbins_labels[0] = '%s <= %.2f' % (zname, zprc[0])
             if zbins_colors is None:
                 zbins_colors = [ zcmap.to_rgba(center_prc[i]) for i in zbinsrange ]
-
         if zbins_labels is None or zbins_colors is None:
             listrange = xrange(len(zbins_mask))
-            zmsk = [ zm[np.where(np.asarray(np.asarray(zbins_mask[i])) == True)] for i in listrange ]
+            zmsk = [ zm[np.where(np.asarray(zbins_mask[i]) == True)] for i in listrange ]
             if zbins_labels is None:
                 zbins_labels = []
                 for i in listrange:
@@ -705,7 +709,6 @@ def plot_zbins(**kwargs):
         ax.set_xlim(xlim)
     elif xlimprc is not None:
         xlim = np.percentile(xm.compressed(), xlimprc)
-        C.debug_var(debug, xlim = xlim)
         ax.set_xlim(xlim)
     else:
         xlim = [ xm.min(), xm.max() ]
@@ -713,14 +716,15 @@ def plot_zbins(**kwargs):
         ax.set_ylim(ylim)
     elif ylimprc is not None:
         ylim = np.percentile(ym.compressed(), ylimprc)
-        C.debug_var(debug, ylim = ylim)
         ax.set_ylim(ylim)
     else:
         ylim = [ ym.min(), ym.max() ]
-    x_major_locator = kwargs.get('x_major_locator', (xlim[1] - xlim[0]) / 6.)
-    x_minor_locator = kwargs.get('x_minor_locator', (xlim[1] - xlim[0]) / 30.)
-    y_major_locator = kwargs.get('y_major_locator', (ylim[1] - ylim[0]) / 6.)
-    y_minor_locator = kwargs.get('y_minor_locator', (ylim[1] - ylim[0]) / 30.)
+    C.debug_var(debug, xlim = xlim)
+    C.debug_var(debug, ylim = ylim)
+    x_major_locator = kwargs.get('x_major_locator', (xlim[1] - xlim[0]) / 5.)
+    x_minor_locator = kwargs.get('x_minor_locator', (xlim[1] - xlim[0]) / 25.)
+    y_major_locator = kwargs.get('y_major_locator', (ylim[1] - ylim[0]) / 5.)
+    y_minor_locator = kwargs.get('y_minor_locator', (ylim[1] - ylim[0]) / 25.)
     C.debug_var(debug, x_major_locator = x_major_locator)
     C.debug_var(debug, x_minor_locator = x_minor_locator)
     C.debug_var(debug, y_major_locator = y_major_locator)
@@ -746,7 +750,8 @@ def plot_zbins(**kwargs):
         else:
             f.show()
         plt.close(f)  
-
+    if kwargs.get('return_kwargs', None) is not None:
+        return kwargs
 
 if __name__ == '__main__':
     import sys
@@ -786,31 +791,30 @@ if __name__ == '__main__':
         'logSFRSDHa' : dict(v = np.ma.log10(H.SFRSD_Ha__g * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} kpc^{-2}]$'),
     }
     
-    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    # for Zname, Zval in Z.iteritems():
-    #     for tauname, tauval in tau.iteritems():
-    #         plot_zbins(
-    #                    debug = True,
-    #                    x = tauval['v'],
-    #                    xlabel = tauval['label'],
-    #                    y = Zval['v'],
-    #                    ylabel = Zval['label'],
-    #                    z = H.dist_zone__g,
-    #                    zlabel = r'zone distance [HLR]',
-    #                    kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
-    #                    running_stats = True,
-    #                    kwargs_plot_rs = dict(c = 'k', lw = 2),
-    #                    rs_errorbar = False,
-    #                    suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
-    #                    filename = '%s_%s_zoneDistance_%.2fMyr.png' % (tauname, Zname, tSF / 1e6),
-    #                    kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
-    #                    x_major_locator = 1.,
-    #                    x_minor_locator = 0.25,
-    #                    y_major_locator = 0.25,
-    #                    y_minor_locator = 0.05,
-    #                    kwargs_legend = dict(fontsize = 8),               
-    #         )
-    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    for Zname, Zval in Z.iteritems():
+        for tauname, tauval in tau.iteritems():
+            plot_zbins(
+                       debug = True,
+                       x = tauval['v'],
+                       xlabel = tauval['label'],
+                       y = Zval['v'],
+                       ylabel = Zval['label'],
+                       z = H.dist_zone__g,
+                       zlabel = r'zone distance [HLR]',
+                       kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
+                       running_stats = True,
+                       kwargs_plot_rs = dict(c = 'k', lw = 2),
+                       rs_errorbar = False,
+                       suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
+                       filename = '%s_%s_zoneDistance_%.2fMyr.png' % (tauname, Zname, tSF / 1e6),
+                       kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
+                       x_major_locator = 1.,
+                       x_minor_locator = 0.25,
+                       y_major_locator = 0.25,
+                       y_minor_locator = 0.05,
+                       kwargs_legend = dict(fontsize = 8),               
+            )
+            
     for sfrsdname, sfrsdval in SFRSD.iteritems():
         for tauname, tauval in logtau.iteritems():
             for Zname, Zval in Z.iteritems():
@@ -842,106 +846,324 @@ if __name__ == '__main__':
                            kwargs_legend = dict(fontsize = 8),
                 )
 
-    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    # plot_zbins(
-    #            debug = True,
-    #            x = np.ma.log10(H.tau_V__Tg[iT]),
-    #            xlim = [-1.5, 0.75],
-    #            xlabel = r'$\log\ \tau_V^\star$',
-    #            y = np.ma.log10(H.SFRSD__Tg[iT] * 1e6),
-    #            ylim = [-3.5, 1],
-    #            ylabel = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} kpc^{-2}]$',
-    #            z = H.alogZ_mass__Ug[iU],
-    #            zlabel = r'$\langle \log\ Z_\star \rangle_M (R)\ (t\ <\ %.2f\ Gyr)\ [Z_\odot]$' % (tZ / 1e9),
-    #            zmask = True,
-    #            zlimprc = [ 2, 98 ],
-    #            zbins = 5,
-    #            kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
-    #            ols_rs = False,
-    #            ols = True,
-    #            running_stats = True,
-    #            #kwargs_rs = dict(), 
-    #            kwargs_plot_rs = dict(c = 'k', lw = 2),
-    #            rs_errorbar = False,
-    #            suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
-    #            filename = 'logTauV_logSFRSD_alogZmass_%.2fMyr.png' % (tSF / 1e6),
-    #            kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
-    #            x_major_locator = 0.25,
-    #            x_minor_locator = 0.05,
-    #            y_major_locator = 0.25,
-    #            y_minor_locator = 0.05,
-    #            kwargs_legend = dict(fontsize = 8),               
-    # )
-    # plot_zbins(
-    #            debug = True,
-    #            x = H.tau_V__Tg[iT],
-    #            xlim = [0, 1.5],
-    #            xlabel = r'$\tau_V^\star$',
-    #            y = H.tau_V_neb__g,
-    #            ylim = [0, 2.5],
-    #            ylabel = r'$\tau_V^{neb}$',
-    #            z = H.alogZ_mass__Ug[iU],
-    #            zlabel = r'$\langle \log\ Z_\star \rangle_M (R)\ (t\ <\ %.2f\ Gyr)\ [Z_\odot]$' % (tZ / 1e9),
-    #            zlimprc = [5,95],
-    #            zmask = False,
-    #            kwargs_scatter = dict(marker = 'o', s = 6, edgecolor = 'none', alpha = 0.4, label = ''),
-    #            suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
-    #            filename = 'tauV_tauVneb_alogZmass_%.2fMyr.png' % (tSF / 1e6),
-    #            ols_rs = False,
-    #            ols = True,
-    #            running_stats = True,
-    #            kwargs_plot_rs = dict(c = 'k', lw = 2),
-    #            rs_errorbar = False,
-    #            zbins = 6,
-    #            kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
-    #            x_major_locator = 0.25,
-    #            x_minor_locator = 0.05,
-    #            y_major_locator = 0.25,
-    #            y_minor_locator = 0.05,
-    #            kwargs_legend = dict(fontsize = 8),
-    # )
-    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
- #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
- #    x = H.tau_V__Tg[iT]
- #    y = H.tau_V_neb__g
- #    z =  H.reply_arr_by_zones(H.morfType_GAL__g)
- #    mask = x.mask | y.mask
- #    zm = np.ma.masked_array(z, mask = mask)
- #    zticks_mask = [(zm > 8.9) & (zm <= 9.5), (zm == 10), (zm == 10.5), (zm >= 11.) & (zm > 9) & (zm <= 11.5)]
- #    zticks = [9., 9.5, 10, 10.5, 11., 11.5]
- #    zticklabels = ['Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd']
- #    #zbinsticklabels = ['Sa + Sab', 'Sb', 'Sbc', 'Sc + Scd']
- # 
- #    plot_zbins(
- #               zname ='morph',
- #               debug = True, 
- #               x = H.tau_V__Tg[iT],
- #               xlim = [0, 1.5],
- #               xlabel = r'$\tau_V^\star$',
- #               y = H.tau_V_neb__g,
- #               ylim = [0, 2.5],
- #               ylabel = r'$\tau_V^{neb}$',
- #               z =  H.reply_arr_by_zones(H.morfType_GAL__g),
- #               zlabel = 'morph. type',
- #               zbins = len(zticks_mask),
- #               zbins_mask = zticks_mask,
- #               zticks = zticks,  
- #               zticklabels = zticklabels,
- #               #zbinsticklabels = zbinsticklabels, 
- #               zlim = [9, 11.5],
- #               kwargs_scatter = dict(marker = 'o', s = 6, edgecolor = 'none', alpha = 0.4, label = ''),
- #               suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
- #               filename = 'tauV_tauVneb_morphType_%.2fMyr.png' % (tSF / 1e6),
- #               ols = True,
- #               running_stats = True,
- #               kwargs_plot_rs = dict(c = 'k', lw = 2),
- #               rs_errorbar = False,
- #               kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
- #               x_major_locator = 0.25,
- #               x_minor_locator = 0.05,
- #               y_major_locator = 0.25,
- #               y_minor_locator = 0.05,
- #               kwargs_legend = dict(fontsize = 8),
- #    )
- #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
 
+    plot_zbins(
+               debug = True,
+               x = np.ma.log10(H.tau_V__Tg[iT]),
+               xlim = [-1.5, 0.75],
+               xlabel = r'$\log\ \tau_V^\star$',
+               y = np.ma.log10(H.SFRSD__Tg[iT] * 1e6),
+               ylim = [-3.5, 1],
+               ylabel = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} kpc^{-2}]$',
+               z = H.alogZ_mass__Ug[iU],
+               zlabel = r'$\langle \log\ Z_\star \rangle_M (R)\ (t\ <\ %.2f\ Gyr)\ [Z_\odot]$' % (tZ / 1e9),
+               zmask = True,
+               zlimprc = [ 2, 98 ],
+               zbins = 5,
+               kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
+               ols_rs = False,
+               ols = True,
+               running_stats = True,
+               #kwargs_rs = dict(), 
+               kwargs_plot_rs = dict(c = 'k', lw = 2),
+               rs_errorbar = False,
+               suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
+               filename = 'logTauV_logSFRSD_alogZmass_%.2fMyr.png' % (tSF / 1e6),
+               kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
+               x_major_locator = 0.25,
+               x_minor_locator = 0.05,
+               y_major_locator = 0.25,
+               y_minor_locator = 0.05,
+               kwargs_legend = dict(fontsize = 8),               
+    )
+    
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+
+    
+    plot_zbins(
+               debug = True,
+               x = H.tau_V__Tg[iT],
+               xlim = [0, 1.5],
+               xlabel = r'$\tau_V^\star$',
+               y = H.tau_V_neb__g,
+               ylim = [0, 2.5],
+               ylabel = r'$\tau_V^{neb}$',
+               z = H.alogZ_mass__Ug[iU],
+               zlabel = r'$\langle \log\ Z_\star \rangle_M (R)\ (t\ <\ %.2f\ Gyr)\ [Z_\odot]$' % (tZ / 1e9),
+               zlimprc = [5,95],
+               zmask = False,
+               kwargs_scatter = dict(marker = 'o', s = 6, edgecolor = 'none', alpha = 0.4, label = ''),
+               suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
+               filename = 'tauV_tauVneb_alogZmass_%.2fMyr.png' % (tSF / 1e6),
+               ols_rs = False,
+               ols = True,
+               running_stats = True,
+               kwargs_plot_rs = dict(c = 'k', lw = 2),
+               rs_errorbar = False,
+               zbins = 6,
+               kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
+               x_major_locator = 0.25,
+               x_minor_locator = 0.05,
+               y_major_locator = 0.25,
+               y_minor_locator = 0.05,
+               kwargs_legend = dict(fontsize = 8),
+    )
+
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+
+    x = H.tau_V__Tg[iT]
+    y = H.tau_V_neb__g
+    z =  H.reply_arr_by_zones(H.morfType_GAL__g)
+    mask = x.mask | y.mask
+    zm = np.ma.masked_array(z, mask = mask)
+    zticks_mask = [(zm > 8.9) & (zm <= 9.5), (zm == 10), (zm == 10.5), (zm >= 11.) & (zm > 9) & (zm <= 11.5)]
+    zticks = [9., 9.5, 10, 10.5, 11., 11.5]
+    zticklabels = ['Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd']
+    #zbinsticklabels = ['Sa + Sab', 'Sb', 'Sbc', 'Sc + Scd']
+  
+    plot_zbins(
+               zname ='morph',
+               debug = True, 
+               x = H.tau_V__Tg[iT],
+               xlim = [0, 1.5],
+               xlabel = r'$\tau_V^\star$',
+               y = H.tau_V_neb__g,
+               ylim = [0, 2.5],
+               ylabel = r'$\tau_V^{neb}$',
+               z =  H.reply_arr_by_zones(H.morfType_GAL__g),
+               zlabel = 'morph. type',
+               zbins = len(zticks_mask),
+               zbins_mask = zticks_mask,
+               zticks = zticks,  
+               zticklabels = zticklabels,
+               #zbinsticklabels = zbinsticklabels, 
+               zlim = [9, 11.5],
+               kwargs_scatter = dict(marker = 'o', s = 6, edgecolor = 'none', alpha = 0.4, label = ''),
+               suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
+               filename = 'tauV_tauVneb_morphType_%.2fMyr.png' % (tSF / 1e6),
+               ols = True,
+               kwargs_ols_plot = dict(ls = '--', lw = 0.7, label = ''),
+               running_stats = True,
+               kwargs_plot_rs = dict(c = 'k', lw = 2),
+               rs_errorbar = False,
+               x_major_locator = 0.25,
+               x_minor_locator = 0.05,
+               y_major_locator = 0.25,
+               y_minor_locator = 0.05,
+               kwargs_legend = dict(fontsize = 8),
+    )
+    
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+    
+    suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax)
+
+    xaxis = {
+        'logtauV' : dict(
+                        v = np.ma.log10(H.tau_V__Tg[iT]),
+                        label = r'$\log\ \tau_V^\star$', 
+                        lim = [ -1.5, 0.5 ],  
+                        majloc = 0.5, 
+                        minloc = 0.1, 
+                    ), 
+        'logtauVNeb' : dict(
+                        v = np.ma.log10(H.tau_V_neb__g),
+                        label = r'$\log\ \tau_V^{neb}$', 
+                        lim = [ -1.5, 0.5 ],  
+                        majloc = 0.5, 
+                        minloc = 0.1, 
+                    ), 
+        'logZoneArea' : dict(
+                            v = np.ma.log10(H.zone_area_pc2__g),
+                            label = r'$\log\ A_{zone}$ [$pc^2$]', 
+                            lim = [ 3.5, 8.5 ],
+                            majloc = 1.0, 
+                            minloc = 0.2, 
+                        ),
+    }
+    yaxis = {
+        'logSFRSD' : dict(
+                        v = np.ma.log10(H.SFRSD__Tg[iT]),
+                        label = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} pc^{-2}]$', 
+                        lim = [-9.5, -5],  
+                        majloc = 0.5, 
+                        minloc = 0.1, 
+                    ), 
+        'logSFRSDHa' : dict(
+                        v = np.ma.log10(H.SFRSD_Ha__g),
+                        label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} pc^{-2}]$', 
+                        lim = [-9.5, -5],  
+                        majloc = 0.5, 
+                        minloc = 0.1, 
+                    ), 
+    }
+
+    x = H.tau_V__Tg[iT]
+    y = H.tau_V_neb__g
+    morfType =  H.reply_arr_by_zones(H.morfType_GAL__g)
+    mask = x.mask | y.mask
+    zm = np.ma.masked_array(morfType, mask = mask)
+    zticks_mask = [(zm > 8.9) & (zm <= 9.5), (zm == 10), (zm == 10.5), (zm >= 11.) & (zm > 9) & (zm <= 11.5)],
+    zticks = [9., 9.5, 10, 10.5, 11., 11.5]
+    zticklabels = ['Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd']
+
+    zaxis = {
+        'alogZmass' : dict(
+                        v = H.alogZ_mass__Ug[-1], 
+                        label = r'$\langle \log\ Z_\star \rangle_M$ (t < %.2f Gyr) [$Z_\odot$]' % (H.tZ__U[-1] / 1e9),
+                        lim = [-1.2, 0.22],
+                        majloc = 0.28,
+                        minloc = 0.056,
+                      ),
+        'logO3N2M13' : dict(
+                        v = H.O_O3N2_M13__g, 
+                        label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)',
+                        lim = [8.25, 8.6],
+                        majloc = 0.07,
+                        minloc = 0.014,
+                       ),
+        'xY' : dict(
+                v = H.x_Y__Tg[iT] * 100.,
+                label = r'$x_Y$ [%]',
+                lim = [0., 30],
+                majloc = 6,
+                minloc = 1.2,
+               ),
+        'morfType' : dict(
+                        v = H.reply_arr_by_zones(H.morfType_GAL__g),
+                        label = 'morph. type',
+                        mask = False,
+                        ticks_mask = [(zm > 8.9) & (zm <= 9.5), (zm == 10), (zm == 10.5), (zm >= 11.) & (zm > 9) & (zm <= 11.5)],
+                        ticks = zticks,
+                        ticklabels = zticklabels,
+                        bins = len(zticks_mask),
+                        bins_mask = zticks_mask,
+                        lim = [9, 11.5],
+                     ),
+    }
+
+    #Rmin = 0.1
+    #mask = (H.zone_dist_HLR__g > Rmin)
+
+    for xk, xv in xaxis.iteritems():
+        for yk, yv in yaxis.iteritems():
+            for zk, zv in zaxis.iteritems():
+                plot_zbins(
+                    debug = True,
+                    x = xv['v'],
+                    y = yv['v'],
+                    z = zv['v'], 
+                    zbins = zv.get('bins', 4),
+                    zbins_mask = zv.get('ticks_mask', None),
+                    zticklabels = zv.get('ticklabels', None),
+                    zticks = zv.get('ticks', None),
+                    zmask = zv.get('mask', None), 
+                    running_stats = True,
+                    rs_gaussian_smooth = True,
+                    rs_percentiles = True,
+                    rs_gs_fwhm = 0.4,
+                    zbins_rs_gaussian_smooth = True,
+                    zbins_rs_gs_fwhm = 0.4,
+                    kwargs_figure = dict(figsize=(10,8), dpi = 100),
+                    kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
+                    kwargs_plot_rs = dict(c = 'k', lw = 2, label = 'Median (xy) (run. stats)'),
+                    kwargs_legend = dict(loc = 'best'),
+                    kwargs_suptitle = dict(fontsize = 14),
+                    xlabel = xv['label'],
+                    ylabel = yv['label'],
+                    zlabel = zv['label'], 
+                    xlim = xv['lim'], 
+                    ylim = yv['lim'],
+                    zlim = zv['lim'], 
+                    x_major_locator = xv['majloc'], 
+                    x_minor_locator = xv['minloc'], 
+                    y_major_locator = yv['majloc'], 
+                    y_minor_locator = yv['minloc'], 
+                    suptitle = suptitle,
+                    filename = '%s_%s_%s_%.2fMyrs.png' % (xk, yk, zk, tSF / 1e6),
+                )
+
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+                
+    xaxis = {
+        'OHIICHIM' : dict(
+                        v = H.O_HIICHIM__g,
+                        label = r'12 + $\log\ O/H$ (HII-CHI-mistry, EPM, 2014)',
+                        lim = [7.5, 8.6],
+                     ),
+        'logO3N2S06' : dict(
+                        v = 12 + H.logZ_neb_S06__g + np.log10(4.9e-4),
+                        label = r'12 + $\log\ O/H$ (Stasinska, 2006)',
+                        lim = [8, 8.7],
+                       ),
+        'logO3N2PP04' : dict(
+                        v = H.O_O3N2_PP04__g,
+                        label = r'12 + $\log\ O/H$ (PP, 2004)',
+                        lim = [8, 8.6],
+                       ),
+        'logO3N2M13' : dict(
+                        v = H.O_O3N2_M13__g,
+                        label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)',
+                        lim = [8, 8.6],
+                       ),
+    }
+    y = 12. + np.ma.log10(H.O_direct_O_23__g)
+    ylim = [7.0, 8.6]
+    for xk, xv in xaxis.iteritems():
+        x = xv['v']
+        xlim = xv['lim']
+        mask = y.mask | x.mask
+        not_masked = len(y) - mask.sum() 
+        kw = plot_zbins(
+            return_kwargs = True,
+            x = x,
+            y = y,
+            xlabel = xv['label'],
+            xlim = xlim,
+            ylabel = r'12 + $\log\ O/H$ (O23Direct)',
+            ylim = ylim,
+            kwargs_figure = dict(figsize = (10, 8), dpi = 100),
+            kwargs_scatter = dict(marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = ''),
+            running_stats = True,
+            rs_percentiles = True,
+            #rs_errorbar = True,
+            #rs_gaussian_smooth = True,
+            #rs_gs_fwhm = 0.4,
+            kwargs_plot_rs = dict(c = 'k', lw = 2, label = 'Median (run. stats)'),
+            x_major_locator = (xlim[1] - xlim[0]) / 5,
+            x_minor_locator = (xlim[1] - xlim[0]) / 25,
+            y_major_locator = (ylim[1] - ylim[0]) / 5,
+            y_minor_locator = (ylim[1] - ylim[0]) / 25,
+            suptitle = 'zones: %d' % not_masked,
+            kwargs_suptitle = dict(fontsize = 12),
+            filename = '%s_%s.png' % (xk, 'O23direct'),
+            kwargs_legend = dict(fontsize = 12),
+        )
+        filetxt = kw['filename'].replace('.png', '.txt')
+        f = open(filetxt, 'w') 
+        f.write('CALIFAID\tZONE\tO/H\tOH_direct\n')
+        for g, z, OH, OHdir in zip(H.reply_arr_by_zones(H.califaIDs)[~mask], H.zones_map[~mask], xv['v'][~mask], y[~mask]):
+            f.write('%s\t%d\t%.4f\t%.4f' % (g, z, OH, OHdir))
+            if OH >= 8.1 and OHdir <= 7.9:
+                f.write('\t*\n')
+            else:
+                f.write('\n')
+        f.close()
+    
+    ##############################################################################
+    ##############################################################################
+    ##############################################################################
+    
+     
+        
+        

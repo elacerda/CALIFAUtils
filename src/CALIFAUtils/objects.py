@@ -99,6 +99,7 @@ class ALLGals(object):
         self.logZ_neb_S06__rg = np.ma.empty((NRbins, N_gals))
         self.at_flux__rg = np.ma.empty((NRbins, N_gals))
         self.at_mass__rg = np.ma.empty((NRbins, N_gals))
+        self.x_Y__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals))
         self.McorSD__Trg = np.ma.empty((N_T, NRbins, N_gals))
@@ -142,7 +143,8 @@ class ALLGals(object):
         self._L_int_Ha__g = []
         self._L_int_Ha_err__g = []
         self._L_int_Ha_mask__g = []
-        self._dist_zone__g = []
+        self._zone_area_pc2__g = []
+        self._zone_dist_HLR__g = []
         self._EW_Ha__g = []
         self._EW_Hb__g = []
         self._EW_Ha_mask__g = []
@@ -184,7 +186,8 @@ class ALLGals(object):
         self._O_direct_O_23__g = []
             
     def stack_zones_data(self):
-        self.dist_zone__g = np.ma.masked_array(np.hstack(np.asarray(self._dist_zone__g)))
+        self.zone_dist_HLR__g = np.ma.masked_array(np.hstack(np.asarray(self._zone_dist_HLR__g)))
+        self.zone_area_pc2__g = np.ma.masked_array(np.hstack(np.asarray(self._zone_area_pc2__g)))
         
         aux = np.hstack(self._tau_V_neb__g)
         auxMask = np.hstack(self._tau_V_neb_mask__g)
@@ -291,7 +294,7 @@ class ALLGals(object):
         return D      
                   
 class H5SFRData(object):
-    def __init__(self, h5file):
+    def __init__(self, h5file, create_attrs = False):
         self.h5file = h5file
     
         try:
@@ -326,7 +329,8 @@ class H5SFRData(object):
         self.N_zones__g = self.N_zones_all__g.compressed()
         self.zones_map = np.asarray([ i for j in xrange(self.N_gals) for i in xrange(self.N_zones__g[j]) ])
 
-        self._create_attrs()
+        if create_attrs is not False:
+            self._create_attrs()
         
     def _create_attrs(self):
         ds = self.h5['masked/data']
@@ -450,3 +454,85 @@ class H5SFRData(object):
         sdata = data__g[iS]
         return sgals, sdata
     
+    def get_plot_dict(self, iT = 11, iU = -1, key = None, mask = None):
+        pd = {
+            #########################  
+            ### GAL or Integrated ###
+            #########################
+            'logintMcor' : dict(v = np.ma.log10(self.Mcor_GAL__g), label = r'$\log\ M_\star$ [$M_\odot$]', lim = [8.5, 12.], majloc = 1., minloc = 0.2),
+            'logintSFRSD' : dict(v = np.ma.log10(self.integrated_SFRSD__Tg[iT]), label = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-12, -7.5], majloc = 0.5, minloc = 0.1),
+            'logintSFRSDHa' : dict(v = np.ma.log10(self.integrated_SFRSD_Ha__g), label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-12, -7.5], majloc = 0.5, minloc = 0.1),
+            #########################
+            ### zones ###############
+            #########################
+            'atflux' : dict(v = self.at_flux__g, label = r'$\langle \log\ t \rangle_L$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'alogZmass' : dict(v = self.alogZ_mass__Ug[-1], label = r'$\langle \log\ Z_\star \rangle_M$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
+            'OHIICHIM' : dict(v = self.O_HIICHIM__g, label = r'12 + $\log\ O/H$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
+            'logO3N2S06' : dict(v = self.logZ_neb_S06__g, label = r'$\log\ Z_{neb}$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
+            'logO3N2M13' : dict(v = self.O_O3N2_M13__g, label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
+            'logMcorSD' : dict(v = np.ma.log10(self.McorSD__g), label = r'$\log\ \mu_\star$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
+            'logMcor' : dict(v = np.ma.log10(self.Mcor__g), label = r'$\log\ M_\star$ [$M_\odot$]', lim = None, majloc = 1., minloc = 0.2),
+            'xY' : dict(v = 100. * self.x_Y__Tg[iT], label = '$x_Y$ [%]', lim = [0, 60], majloc = 12., minloc = 2.),
+            'tauVdiff' : dict(v = self.tau_V_neb__g - self.tau_V__Tg[iT], label = r'$\tau_V^{neb}\ -\ \tau_V^\star$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
+            'tauVRatio' : dict(v = self.tau_V_neb__g / self.tau_V__Tg[iT], label = r'$\frac{\tau_V^{neb}}{\tau_V^\star}$', lim = [0, 15], majloc = 3., minloc = 0.6),
+            'logWHaWHb' : dict(v = np.ma.log10(self.EW_Ha__g / self.EW_Hb__g), label = r'$\log\ \frac{W_{H\alpha}}{W_{H\beta}}$', lim = [0.2, 0.8], majloc = 0.12, minloc = 0.024,),
+            'logO3N2PP04' : dict(v = self.O_O3N2_PP04__g, label = r'12 + $\log\ O/H$ (PP, 2004)', lim = [8, 8.6]),
+            'logtauV' : dict(v = np.ma.log10(self.tau_V__Tg[iT]), label = r'$\log\ \tau_V^\star$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
+            'logtauVNeb' : dict(v = np.ma.log10(self.tau_V_neb__g), label = r'$\log\ \tau_V^{neb}$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
+            'tauV' : dict(v = self.tau_V__Tg[iT], label = r'$\tau_V^\star$', lim = [ 0., 2.5 ], majloc = 0.5, minloc = 0.1),
+            'tauVNeb' : dict(v = self.tau_V_neb__g, label = r'$\tau_V^{neb}$', lim = [ 0., 5. ], majloc = 1., minloc = 0.2),
+            'logZoneArea' : dict(v = np.ma.log10(self.zone_area_pc2__g), label = r'$\log\ A_{zone}$ [$pc^2$]', lim = [ 3.5, 8.5 ], majloc = 1.0, minloc = 0.2),
+            'logSFRSD' : dict(v = np.ma.log10(self.SFRSD__Tg[iT]), label = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-8.5, -6.0], majloc = 0.5, minloc = 0.1),
+            'logSFRSDHa' : dict(v = np.ma.log10(self.SFRSD_Ha__g), label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-8.5, -6.0], majloc = 0.5, minloc = 0.1),
+            'morfType' : dict(v = self.reply_arr_by_zones(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 11.5]),
+            'ba' : dict(v = self.reply_arr_by_zones(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
+            #########################
+            ### Radius ##############
+            #########################
+            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
+            'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
+            'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
+            'logO3N2M13R' : dict(v = self.O_O3N2_M13__rg, label = r'12 + $\log\ O/H (R)$ (logO3N2, Marino, 2013)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
+            'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
+            'tauVdiffR' : dict(v = self.tau_V_neb__rg - self.tau_V__Trg[iT], label = r'$\tau_V^{neb}\ -\ \tau_V^\star$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
+            'tauVRatioR' : dict(v = self.tau_V_neb__rg / self.tau_V__Trg[iT], label = r'$\frac{\tau_V^{neb}(R)}{\tau_V^\star(R)}$', lim = [0, 15], majloc = 3., minloc = 0.6),
+            'logO3N2PP04R' : dict(v = self.O_O3N2_PP04__rg, label = r'12 + $\log\ O/H (R)$ (PP, 2004)', lim = [8, 8.6]),
+            'logtauVR' : dict(v = np.ma.log10(self.tau_V__Trg[iT]), label = r'$\log\ \tau_V^\star (R)$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
+            'logtauVNebR' : dict(v = np.ma.log10(self.tau_V_neb__rg), label = r'$\log\ \tau_V^{neb} (R)$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
+            'tauVR' : dict(v = self.tau_V__Trg[iT], label = r'$\tau_V^\star (R)$', lim = [ 0., 2.5 ], majloc = 0.5, minloc = 0.1),
+            'tauVNebR' : dict(v = self.tau_V_neb__rg, label = r'$\tau_V^{neb} (R)$', lim = [ 0., 5. ], majloc = 1., minloc = 0.2),
+            'alogSFRSDR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT]), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
+            'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 11.5]),
+            'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
+        }
+        if key is not None:
+            try:
+                return key, pd.get(key)
+            except:
+                print '%s: key not found' % key
+                return None
+        return pd
+    
+    def plot_xyz_iter(self, xd, yd = None, zd = None):
+        for xk, xv in xd.iteritems():
+            for yk, yv in yd.iteritems():
+                if zd is not None:
+                    for zk, zv in zd.iteritems():
+                        yield '%s_%s_%s' % (xk, yk, zk), xv, yv, zv
+                else:
+                    yield '%s_%s' % (xk, yk), xv, yv
+
+    def plot_xyz_keys_iter(self, xkeys, ykeys = None, zkeys = None, iT = 11, iU = -1):
+        xd = { '%s' % k : self.get_plot_dict(iT = iT, iU = iU, key = k)[1] for k in xkeys }
+        yd = { '%s' % k : self.get_plot_dict(iT = iT, iU = iU, key = k)[1] for k in ykeys }
+        if zkeys is not None:
+            zd = { '%s' % k : self.get_plot_dict(iT = iT, iU = iU, key = k)[1] for k in zkeys }
+        for xk, xv in xd.iteritems():
+            for yk, yv in yd.iteritems():
+                if zkeys is not None:
+                    for zk, zv in zd.iteritems():
+                        yield '%s_%s_%s' % (xk, yk, zk), xv, yv, zv
+                else:
+                    yield '%s_%s' % (xk, yk), xv, yv
