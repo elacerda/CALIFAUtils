@@ -42,6 +42,20 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
 def find_confidence_interval(x, pdf, confidence_level):
     return pdf[pdf > x].sum() - confidence_level
 
+def ma_mask_xyz(x, y, z = None, mask = None):
+    m = np.zeros_like(x, dtype = np.bool)
+    if isinstance(x, np.ma.core.MaskedArray):
+        m |= np.copy(x.mask) | np.isnan(x)
+    if isinstance(y, np.ma.core.MaskedArray):
+        m |= np.copy(y.mask) | np.isnan(y)
+    if mask is not None:
+         m |= mask
+    if z is not None:
+        if isinstance(z, np.ma.core.MaskedArray):
+            m |= np.copy(z.mask) | np.isnan(z)
+        return np.ma.masked_array(x, mask = m, dtype = np.float_), np.ma.masked_array(y, mask = m, dtype = np.float_), np.ma.masked_array(z, mask = m, dtype = np.float_)
+    return np.ma.masked_array(x, mask = m, dtype = np.float_), np.ma.masked_array(y, mask = m, dtype = np.float_)
+
 def calc_running_stats(x, y, **kwargs):
     '''
     Statistics of x & y in equal size x-bins (dx-box).
@@ -195,15 +209,18 @@ def OLS_bisector(x, y):
 def read_one_cube(gal, **kwargs):
     EL = kwargs.get('EL', None)
     GP = kwargs.get('GP', None)
+    v_run = kwargs.get('v_run', -1)
     verbose = kwargs.get('verbose', None)
-    pycasso_cube_filename = C.pycasso_cube_dir + gal + C.pycasso_suffix
+    paths = C.CALIFAPaths()
+    paths.set_v_run(v_run)
+    pycasso_cube_filename = paths.get_pycasso_file(gal)
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
         if verbose is not None:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
-            emlines_cube_filename = C.emlines_cube_dir + gal + C.emlines_suffix
+            emlines_cube_filename = paths.get_emlines_file(gal)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -211,7 +228,7 @@ def read_one_cube(gal, **kwargs):
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
-            gasprop_cube_filename = C.gasprop_cube_dir + gal + C.gasprop_suffix
+            gasprop_cube_filename = paths.get_gasprop_file(gal)
             try:
                 K.GP = C.GasProp(gasprop_cube_filename)
                 if verbose is not None:
@@ -220,6 +237,7 @@ def read_one_cube(gal, **kwargs):
                 print >> sys.stderr, 'GP: File does not exists: %s' % gasprop_cube_filename
     except IOError:
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
+    del paths
     return K
 
 def loop_cubes(gals, **kwargs):
@@ -236,15 +254,15 @@ def debug_var(turn_on = False, **kwargs):
             if isinstance(vw, dict):
                 print '%s' % pref, kw
                 for k, v in vw.iteritems():
-                    print '\t%s' % pref, k, '=', v
+                    print '\t%s' % pref, k, ':\t', v
             else:
-                print '%s' % pref, '%s: ' % kw, vw
+                print '%s' % pref, '%s:\t' % kw, vw
 
 def sort_gals(gals, func = None, order = 1, **kwargs):
     '''
     Sort galaxies in txt GALS by some ATTRibute processed by MODE in ORDER order.
     If FUNC = None returns a list of galaxies without sort.
-    ORDER = 0 - sort asc, 1 - sort desc
+    ORDER = 0 - sort asc, 1 - sort desc, < 0 - no sort
     MODE can be any numpy array method such as sum, max, min, mean, median, etc...
 
     '''
@@ -253,6 +271,8 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
         fname = gals
         f = open(fname, 'r')
         gals = np.asarray([ l.strip() for l in f.readlines() ])
+    elif isinstance(gals, list):
+        gals = np.asarray(gals)
     Ng = len(gals)
     if isinstance(func, types.FunctionType):
         if verbose:
@@ -263,13 +283,17 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
             if verbose:
                 print K.califaID, data__g[i]
             K.close()
-        sgals = None
-        if data__g.mask.sum() < Ng:
-            iS = np.argsort(data__g)
-            if order != 0:
-                iS = iS[::-1]
-            sgals = gals[iS]
-            sdata = data__g[iS]
+        if order >= 0:
+            sgals = None
+            if data__g.mask.sum() < Ng:
+                iS = np.argsort(data__g)
+                if order != 0:
+                    iS = iS[::-1]
+                sgals = gals[iS]
+                sdata = data__g[iS]
+        else:
+            sgals = gals
+            sdata = data__g
     else:
         sgals = gals
         sdata = None
@@ -287,7 +311,7 @@ def create_dx(x):
     #dx[-1]      = x[-1]
     return dx
 
-def SFR_parametrize(flux, wl, ages, tSF):
+def SFR_parametrize(flux, wl, ages, tSF, wl_lum = 6562.8):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
     
@@ -299,7 +323,6 @@ def SFR_parametrize(flux, wl, ages, tSF):
     from pystarlight.util.constants import L_sun, h, c, yr_sec
     
     cmInAA = 1e-8             # cm / AA
-    lambda_Ha = 6562.8        # Angstrom
     mask_age = ages <= tSF
     
     y = flux * wl * cmInAA * L_sun / (h * c)
@@ -309,11 +332,11 @@ def SFR_parametrize(flux, wl, ages, tSF):
     Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis = 1) * yr_sec
     Nh__Zt = np.cumsum(qh__Zt * create_dx(ages), axis = 1) * yr_sec
          
-    k_SFR__Z = 2.226 * lambda_Ha * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
+    k_SFR__Z = 2.226 * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
-def SFR_parametrize_trapz(flux, wl, ages, tSF):
+def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
     
@@ -326,7 +349,6 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF):
     import scipy.integrate as spi
     
     cmInAA = 1e-8          # cm / AA
-    lambda_Ha = 6562.8        # Angstrom
     mask_age = ages <= tSF
     
     y = flux * wl * cmInAA * L_sun / (h * c)
@@ -335,7 +357,7 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF):
     Nh__Zt = spi.cumtrapz(y = qh__Zt, x = ages, initial = 0, axis = 1) * yr_sec
     Nh__Z = np.trapz(y = qh__Zt[:, mask_age], x = ages[mask_age], axis = 1) * yr_sec
 
-    k_SFR__Z = 2.226 * lambda_Ha * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
+    k_SFR__Z = 2.226 * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 

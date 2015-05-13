@@ -1,7 +1,58 @@
 #!/usr/bin/python
 import sys
 import numpy as np
-from califa_scripts import sort_gal, sort_gal_func
+from matplotlib import pyplot as plt
+import CALIFAUtils as C
+
+
+def sort_by_integrated_L_int_Ha(K, **kwargs):
+    from pystarlight.util.constants import L_sun
+    i_Ha = K.EL.lines.index('6563')
+    integrated_eHa = np.ma.exp(K.EL._qCCM['6563'] * K.EL.integrated_tau_V_neb)
+    integrated_L_obs_Ha__L = K.EL._F_to_L(K.EL.integrated_flux) / L_sun
+    return integrated_L_obs_Ha__L[i_Ha] * integrated_eHa
+
+
+def sort_by_integrated_SFR_Ha(K, **kwargs):
+    integrated_L_int_Ha = sort_by_integrated_L_int_Ha(K, **kwargs)
+    return 3.13 * integrated_L_int_Ha / 1e8
+
+
+def sort_by_integrated_sSFR_Ha(K, **kwargs):
+    integrated_SFR_Ha = sort_by_integrated_SFR_Ha(K, **kwargs)
+    return integrated_SFR_Ha / K.Mcor_tot.sum() 
+
+
+def sort_by_integrated_SFRSD_Ha(K, **kwargs):
+    integrated_SFR_Ha = sort_by_integrated_SFR_Ha(K, **kwargs)
+    return integrated_SFR_Ha / K.zoneArea_pc2.sum()
+
+
+def sort_by_integrated_sSFRSD_Ha(K, **kwargs):
+    integrated_SFRSD_Ha = sort_by_integrated_SFRSD_Ha(K, **kwargs)
+    return integrated_SFRSD_Ha / K.Mcor_tot.sum()
+
+
+def sort_by_integrated_SFR(K, **kwargs):
+    from CALIFAUtils.scripts import calc_SFR
+    tSF = kwargs.get('tSF', 31.8e6)
+    SFR, _ = calc_SFR(K, tSF)
+    return SFR.sum()
+
+
+def sort_by_integrated_sSFR(K, **kwargs):
+    integrated_SFR = sort_by_integrated_SFR(K, **kwargs)
+    return integrated_SFR / K.Mcor_tot.sum()
+
+
+def sort_by_integrated_SFRSD(K, **kwargs):
+    integrated_SFR = sort_by_integrated_SFR(K, **kwargs)
+    return integrated_SFR / K.zoneArea_pc2.sum()
+
+
+def sort_by_integrated_sSFRSD(K, **kwargs):
+    integrated_SFRSD = sort_by_integrated_SFRSD(K, **kwargs)
+    return integrated_SFRSD / K.Mcor_tot.sum()
 
 
 def sort_by_Mcor(K, **kwargs):
@@ -17,7 +68,7 @@ def sort_by_Mr(K, **kwargs):
 
 
 def sort_by_morph(K, **kwargs):
-    from get_morfologia import get_morfologia
+    from CALIFAUtils.scripts import get_morfologia
     return get_morfologia(K.califaID)[1]
 
 
@@ -44,13 +95,6 @@ def sort_by_integrated_Fobs_Ha(K, **kwargs):
     return K.EL.integrated_fluxmedian[K.EL.lines.index('6563')]
 
 
-def example(listfile, sortby, order, **kwargs):
-    #gals = sort_gal(listfile, mode = sort_funcs[sortby], order = 1)
-    gals = sort_gal_func(listfile, sort_funcs[sortby], order = order) #, **kwargs)
-
-    for i, g in enumerate(gals):
-        print g
-        
 def sort_by_WHa(K, **kwargs):
     try:
         nuc_R = kwargs.pop('nuc_R')
@@ -176,21 +220,6 @@ def sort_by_mask_tau_V_neb(K, **kwargs):
     return N_zones_tau_V / (1. * K.N_zone) 
 
 
-sort_funcs = {
-    'Mcor' : sort_by_Mcor,
-    'McorSD' : sort_by_McorSD,
-    'morph' : sort_by_morph,
-    'Mr' : sort_by_Mr,
-    'ba' : sort_by_ellipse_ba,
-    'dhubax' : sort_by_dhubax,
-    'FobsHa' : sort_by_integrated_Fobs_Ha,
-    'WHa_ratio': sort_by_WHa,
-    'FHa_ratio' : sort_by_fluxHaRatioNuc,
-    'tauVneb_zoneratio' : sort_by_mask_tau_V_neb, 
-    'integrated_tauVneb' : sort_by_integrated_tau_V_neb, 
-}
-
-
 def histogram_califa_remove(var__G, var__g, var_gal__r, xlabel, bins, fname):
     H = plt.hist(var__G, bins = bins, color = 'b')
     plt.hist(var__g, bins = H[1], color = 'g')
@@ -200,6 +229,7 @@ def histogram_califa_remove(var__G, var__g, var_gal__r, xlabel, bins, fname):
     plt.savefig(fname)
     plt.clf()
     
+    
 def histogram_califa(var__G, var__g, xlabel, bins, fname):
     H = plt.hist(var__G, bins = bins, color = 'b')
     plt.hist(var__g, bins = H[1], color = 'g')
@@ -208,15 +238,18 @@ def histogram_califa(var__G, var__g, xlabel, bins, fname):
     plt.savefig(fname)
     plt.clf()
 
-
-
         
 if __name__ == '__main__':
     try:
         listfile = sys.argv[1]
-        sortby = sys.argv[2]
+        try:
+            sortby = 'sort_by_%s' % sys.argv[2]
+            sort_f = eval(sortby)
+        except:
+            print 'Non existent sort method: %s' % sortby
+            exit(1)
     except IndexError:
-        print 'usage: %s FILE %s' % (sys.argv[0], sort_funcs.keys())
+        print 'usage: %s FILE sortby' % sys.argv[0]
         exit(1)
         
     #example(listfile, sortby, order = 1)
@@ -230,7 +263,9 @@ if __name__ == '__main__':
     f.close()
     listgals_zero = [ l[i].strip() for i in np.arange(len(l)) ]
 
-    gals, data__g = sort_gal_func(listfile, sort_funcs[sortby], order = 1, EL = True, nuc_R = 0.15)
+    kwargs = dict(EL = True, nuc_R = 0.15)
+    gals, data__g = C.sort_gals(gals = '/Users/lacerda/CALIFA/listOf298GalPrefixes.txt', 
+                                func = sort_f, order = 1, **kwargs)
     
     for i, g in enumerate(gals):
         j = -1
