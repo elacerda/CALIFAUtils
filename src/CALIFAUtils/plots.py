@@ -530,8 +530,10 @@ def plot_zbins(**kwargs):
         if zmask == True:
             mask |= z.mask
         xm, ym, zm = C.ma_mask_xyz(x = x, y = y, z = z, mask = mask)
+        kwargs.update(dict(zm = zm))
     else:  
         xm, ym = C.ma_mask_xyz(x = x, y = y, z = None, mask = mask)
+    kwargs.update(dict(xm = xm, ym = ym))
     mask |= np.copy(xm.mask)
     kwargs_scatter = {}
     if z is not None:
@@ -709,9 +711,13 @@ def plot_zbins(**kwargs):
                 zbins_labels[0] = '%s $\leq$ %.2f' % (zname, zprc[0])
             if zbins_colors is None:
                 zbins_colors = [ zcmap.to_rgba(center_prc[i]) for i in zbinsrange ]
+            kwargs.update(dict(zbins_mask = zbins_mask))
+            kwargs.update(dict(zbins_labels = zbins_labels))
+            kwargs.update(dict(zbins_colors = zbins_colors))
         if zbins_labels is None or zbins_colors is None:
             listrange = xrange(len(zbins_mask))
-            zmsk = [ zm[np.where(np.asarray(zbins_mask[i]) == True)] for i in listrange ]
+            #zmsk = [ zm[np.where(np.asarray(zbins_mask[i]) == True)] for i in listrange ]
+            zmsk = [ zm[zbins_mask[i]] for i in listrange ]
             if zbins_labels is None:
                 zbins_labels = []
                 for i in listrange:
@@ -722,7 +728,8 @@ def plot_zbins(**kwargs):
                     if zmskmin == zmskmax:
                         zbins_labels.append('%s = %.2f' % (zname, zmskmin))
                     else:
-                        zbins_labels.append('%.2f < %s $\leq$ %.2f' % (zmskmin, zname, zmskmax))         
+                        zbins_labels.append('%.2f < %s $\leq$ %.2f' % (zmskmin, zname, zmskmax))
+                kwargs.update(dict(zbins_labels = zbins_labels))         
             if zbins_colors is None:
                 zbins_colors = []
                 for i in listrange:
@@ -734,6 +741,7 @@ def plot_zbins(**kwargs):
                         zbins_colors.append(zcmap.to_rgba(zmskmax))
                     else:
                         zbins_colors.append(zcmap.to_rgba(0.5 * (zmskmax + zmskmin)))
+                kwargs.update(dict(zbins_colors = zbins_colors))
         C.debug_var(debug, zbins_labels = zbins_labels)
         C.debug_var(debug, zbins_colors = zbins_colors)
         for i, msk in enumerate(zbins_mask):
