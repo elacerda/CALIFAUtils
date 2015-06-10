@@ -270,9 +270,16 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
     if isinstance(gals, str):
         fname = gals
         f = open(fname, 'r')
-        gals = np.asarray([ l.strip() for l in f.readlines() ])
+        g = []
+        for line in f.xreadlines():
+            l = line.strip()
+            if l[0] == '#':
+                continue
+            g.append(l)
+        f.close()
+        gals = np.unique(np.asarray(g))
     elif isinstance(gals, list):
-        gals = np.asarray(gals)
+        gals = np.unique(np.asarray(gals))
     Ng = len(gals)
     if isinstance(func, types.FunctionType):
         if verbose:
