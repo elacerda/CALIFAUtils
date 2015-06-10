@@ -32,7 +32,7 @@ class GasProp(object):
             if n in self._excluded_hdus:
                 continue
             h = self._hdulist[i].data
-            yield n, h 
+            yield n, h
             
     def _create_attrs(self):
         for hname, h in self._iter_hdus():
@@ -561,38 +561,53 @@ class H5SFRData(object):
                     yield '%s_%s' % (xk, yk), xv, yv                    
                     
 class CALIFAPaths(object):
+    _versionSuffix = [
+        'v20_q043.d14a',
+        'px1_q043.d14a', 
+        'v20_q046.d15a', 
+        'v20_q050.d15a',
+    ]
+    _bases = [
+        'Bgsd6e',
+    ]
+    _othSuffix = [
+        '512.ps03.k1.mE.CCM.',
+    ]
+    _superfits_dir = 'gal_fits/'
+    _config = {
+        'v20_q043.d14a' : [ 0, 0 ], 
+        'px1_q043.d14a' : [ 0, 0 ],
+        'v20_q046.d15a' : [ 0, 0 ],
+        'v20_q050.d15a' : [ 0, 0 ],
+    }
     def __init__(self, work_dir = '/Users/lacerda/CALIFA/', v_run = -1):
         self.califa_work_dir = work_dir
-        self.config = [ 
-            dict(baseCode = 'Bgsd6e',
-                 versionSuffix = 'v20_q043.d14a',
-                 othSuffix = '512.ps03.k1.mE.CCM.',
-                 SuperFitsDir = 'gal_fits/'),
-            dict(baseCode = 'Bgsd6e',
-                 versionSuffix = 'px1_q043.d14a',
-                 othSuffix = '512.ps03.k1.mE.CCM.',
-                 SuperFitsDir = 'gal_fits/'),
-            dict(baseCode = 'Bgsd6e',
-                 versionSuffix = 'v20_q050.d15a',
-                 othSuffix = '512.ps03.k1.mE.CCM.',
-                 SuperFitsDir = 'gal_fits/'),                   
-        ]
         self.set_v_run(v_run)
         self.config_run()
     
     def set_v_run(self, v_run):
-        self.v_run = v_run
+        if isinstance(v_run, int):
+            self.v_run = self._versionSuffix[v_run]
+        else:
+            self.v_run = v_run
+        self.config_run()
         
+    def get_config(self):
+        v_conf = self._config[self.v_run]
+        return dict(versionSuffix = self.v_run, 
+                    baseCode = self._bases[v_conf[0]], 
+                    othSuffix = self._othSuffix[v_conf[0]])
+    
     def config_run(self):
-        v_conf = self.config[self.v_run]
-        tmp_suffix = '_synthesis_eBR_' + v_conf['versionSuffix'] + v_conf['othSuffix'] + v_conf['baseCode']
+        v_conf = self._config[self.v_run]
+        tmp_suffix = '_synthesis_eBR_' + self.v_run + self._othSuffix[v_conf[1]] + self._bases[v_conf[0]]
         self.pycasso_suffix = tmp_suffix + '.fits'
         self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
         self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
-        self.gasprop_cube_dir = self.califa_work_dir+ 'rgb-gas/' + v_conf['versionSuffix'] + '/prop/'
-        self.emlines_cube_dir = self.califa_work_dir + 'rgb-gas/' + v_conf['versionSuffix'] + '/'
-        self.pycasso_cube_dir = self.califa_work_dir + v_conf['SuperFitsDir'] + v_conf['versionSuffix'] + '/'
-        #pycasso_cube_dir += v_conf['baseCode'] + '/'
+        self.gasprop_cube_dir = self.califa_work_dir+ 'rgb-gas/' + self.v_run + '/prop/'
+        self.emlines_cube_dir = self.califa_work_dir + 'rgb-gas/' + self.v_run + '/'
+        self.pycasso_cube_dir = self.califa_work_dir + self._superfits_dir + self.v_run + '/'
+        #pyc2asso_cube_dir += v_conf['baseCode'] + '/'
     
     def get_emlines_file(self, gal):
         return self.emlines_cube_dir + gal + self.emlines_suffix
