@@ -230,13 +230,21 @@ def histogram_califa_remove(var__G, var__g, var_gal__r, xlabel, bins, fname):
     plt.clf()
     
     
-def histogram_califa(var__G, var__g, xlabel, bins, fname):
-    H = plt.hist(var__G, bins = bins, color = 'b')
-    plt.hist(var__g, bins = H[1], color = 'g')
-    plt.xlabel(xlabel)
-    plt.ylabel('number of galaxies')
-    plt.savefig(fname)
-    plt.clf()
+def histogram_califa(var__G, var__g, xlabel, bins, hatch, fname, **kwargs_hist):
+    f = plt.figure()
+    ax = f.gca()
+    n, bins, patches = ax.hist([var__G, var__g] , bins = bins, **kwargs_hist)
+    print len(patches)
+    if hatch is not None:
+        _ = [ p.set_hatch(hatch[0]) for p in patches[0] ]
+        _ = [ p.set_hatch(hatch[1]) for p in patches[1] ]
+        #patches[1].set_hatch(hatch[1])
+    ax.legend(fontsize = 10)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('number of galaxies')
+    f.savefig(fname)
+    plt.close(f)
+    return n, bins, patches
 
         
 if __name__ == '__main__':
