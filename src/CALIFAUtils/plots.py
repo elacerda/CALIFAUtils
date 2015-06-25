@@ -64,11 +64,12 @@ def plot_text_ax(ax, txt, xpos = 0.99, ypos = 0.01, fontsize = 10, va = 'bottom'
     va = kwargs.get('verticalalignment', kwargs.get('va', va))
     ha = kwargs.get('horizontalalignment', kwargs.get('ha', ha))
     color = kwargs.get('color', kwargs.get('c', color))
+    alpha = kwargs.get('alpha', 1.)
     textbox = dict(boxstyle = 'round', facecolor = 'wheat', alpha = 0.)
     ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
             transform = ax.transAxes,
             verticalalignment = va, horizontalalignment = ha,
-            bbox = textbox)
+            bbox = textbox, alpha = alpha)
 
 def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black', errorbar = True, nBox = 25):
     dxBox = (x.max() - x.min()) / (nBox - 1.)
@@ -149,11 +150,13 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
     txt = kwargs.get('text', True)
     kwargs_plot = dict(c = color, ls = '-', lw = 1.5, label = label)
     kwargs_plot.update(kwargs.get('kwargs_plot', {}))
+    x_rms = kwargs.get('x_rms', x)
+    y_rms = kwargs.get('y_rms', y)
     a, b, sigma_a, sigma_b = OLS_bisector(x, y)
     Yrms_str = ''
     if rms == True:
-        Yrms = (y - (a * x + b)).std()
-        Yrms_str = r'(rms:%.2f)' % Yrms
+        Yrms = (y_rms - (a * x_rms + b)).std()
+        Yrms_str = r'(rms:%.3f)' % Yrms
     ax.plot(ax.get_xlim(), a * np.asarray(ax.get_xlim()) + b, **kwargs_plot)
     if b > 0:
         txt_y = r'$y_{OLS}$ = %.2f$x$ + %.2f %s' % (a, b, Yrms_str)
