@@ -343,6 +343,26 @@ def SFR_parametrize(flux, wl, ages, tSF, wl_lum = 6562.8):
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
+def linearInterpol(x1, x2, y1, y2, x):
+    '''
+    Let S be the matrix:
+    
+        S = |x x1 x2|
+            |y y1 y2|
+    
+    Now we do:
+    
+        DET(S) = 0,
+    
+    to find the linear equation between the points (x1, y1) and (x2, y2). 
+    Hence we find the general equation Ax + By + C = 0 where:
+    
+        A = (y1 - y2)
+        B = (x2 - x1)
+        C = x1y2 - x2y1
+    '''
+    return (x2 * y1 - x1 * y2 - x * (y1 - y2)) / (x2 - x1)
+
 def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
