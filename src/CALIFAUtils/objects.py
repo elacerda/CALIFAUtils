@@ -608,6 +608,9 @@ class CALIFAPaths(object):
         self.emlines_cube_dir = self.califa_work_dir + 'rgb-gas/' + self.v_run + '/'
         self.pycasso_cube_dir = self.califa_work_dir + self._superfits_dir + self.v_run + '/'
         #pyc2asso_cube_dir += v_conf['baseCode'] + '/'
+        
+    def get_image_file(self, gal):
+        return self.califa_work_dir + 'images/' + gal + '.jpg'
     
     def get_emlines_file(self, gal):
         return self.emlines_cube_dir + gal + self.emlines_suffix
