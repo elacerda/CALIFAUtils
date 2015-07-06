@@ -15,11 +15,11 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
     Korder = int(galName[1:])
     # lee el numero de la galaxia, tipo y subtipo morfologico
     id, name, morf0, morf1, morf_m0, morf_m1, morf_p0, morf_p1, bar, bar_m, bar_p = \
-        np.loadtxt(morf_file, delimiter = ',', unpack = True, 
-                   usecols = (0, 2, 5, 6, 7, 8, 9, 10, 12, 13, 14), 
-                   skiprows = 23, 
+        np.loadtxt(morf_file, delimiter = ',', unpack = True,
+                   usecols = (0, 2, 5, 6, 7, 8, 9, 10, 12, 13, 14),
+                   skiprows = 23,
                    dtype = {
-                       'names': ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'), 
+                       'names': ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'),
                        'formats': ('I3', 'S15', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3')
                    })
     morf = [morf0[i].strip() + morf1[i].strip() for i in xrange(len(morf0))]
@@ -27,8 +27,8 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
     morf_p = [morf_p0[i].strip() + morf_p1[i].strip() for i in xrange(len(morf0))]
     # convierte tipo y subtipo morfologico a valor numerico T (-7:E0 -1:E7 0:S0 5:Sm) en array 'tipo'
     # este algoritmo es una verdadera chapuza, pero funciona.
-    gtype = [['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'S0', 'S0a', 'Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd', 'Sd', 'Sdm', 'Sm', 'Ir'], 
-             [   0,    1,    2,    3,    4,    5,    6,    7,    8,   8.5,    9,   9.5,   10,  10.5,   11,  11.5,   12,  12.5,   13,   14]]
+    gtype = [['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'S0', 'S0a', 'Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd', 'Sd', 'Sdm', 'Sm', 'Ir'],
+             [   0, 1, 2, 3, 4, 5, 6, 7, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 14]]
     tipos = morf[Korder - 1] # tipo medio ascii
     tipo = gtype[1][gtype[0].index(morf[Korder - 1])] # tipo medio
     tipo_m = gtype[1][gtype[0].index(morf_m[Korder - 1])] # tipo minimo
@@ -45,9 +45,9 @@ def find_confidence_interval(x, pdf, confidence_level):
 def ma_mask_xyz(x, y, z = None, mask = None):
     m = np.zeros_like(x, dtype = np.bool)
     if isinstance(x, np.ma.core.MaskedArray):
-        m |= np.copy(x.mask) | np.isnan(x)
+        m |= np.bitwise_or(x.mask, np.isnan(x))
     if isinstance(y, np.ma.core.MaskedArray):
-        m |= np.copy(y.mask) | np.isnan(y)
+        m |= np.bitwise_or(y.mask, np.isnan(y))
     if mask is not None:
          m |= mask
     if z is not None:
@@ -64,47 +64,85 @@ def calc_running_stats(x, y, **kwargs):
     Cid@Lagoa -
     '''
     # XXX Lacerda@IAA - masked array mess with the method
-    dxBox = kwargs.get('dxBox', 0.3)
-    xbinIni = kwargs.get('xbinIni', 8.5)
-    xbinFin = kwargs.get('xbinFin', 12)
-    xbinStep = kwargs.get('xbinStep', 0.05)
+    debug = kwargs.get('debug', False)
+    C.debug_var(debug, kwargs = kwargs)
+    overlap = kwargs.get('overlap', 0.2)
+    nBox_tmp = kwargs.get('nBox', np.floor(len(x) * 0.1)) 
+    xbinIni = kwargs.get('xbinIni', x.min())
+    xbinFin = kwargs.get('xbinFin', x.max())
+    xbinStep = kwargs.get('xbinStep', (x.max() - x.min()) / (nBox_tmp - 1.))
+    dxBox = kwargs.get('dxBox', xbinStep * (1 + overlap))
     if isinstance(x, np.ma.core.MaskedArray):
         x = x[~(x.mask)]
     if isinstance(y, np.ma.core.MaskedArray):
         y = y[~(y.mask)]
     # Def x-bins
     xbin = kwargs.get('xbin', np.arange(xbinIni, xbinFin + xbinStep, xbinStep))
-    xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
+    #xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
+    xbinCenter = np.diff(xbin) / 2.0 + xbin[:-1]
+    C.debug_var(debug, pref = 'OOO>',
+                dxBox = dxBox,
+                xbinIni = xbinIni,
+                xbinFin = xbinFin,
+                xbinStep = xbinStep,
+                xbin = xbin, 
+                xbinCenter = xbinCenter,
+    ) 
     Nbins = len(xbinCenter)
     # Reset in-bin stats arrays
-    xMedian , xMean , xStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
-    yMedian , yMean , yStd = np.zeros(Nbins) , np.zeros(Nbins) , np.zeros(Nbins)
-    xPrc16, yPrc16 = np.zeros(Nbins) , np.zeros(Nbins)
-    xPrc84, yPrc84 = np.zeros(Nbins) , np.zeros(Nbins)
+    xMedian = np.zeros(Nbins)
+    xMean = np.zeros(Nbins)
+    xStd = np.zeros(Nbins)
+    yMedian = np.zeros(Nbins)
+    yMean = np.zeros(Nbins)
+    yStd = np.zeros(Nbins)
+    xPrc16 = np.zeros(Nbins)
+    xPrc84 = np.zeros(Nbins)
+    yPrc16 = np.zeros(Nbins)
+    yPrc84 = np.zeros(Nbins)
     nInBin = np.zeros(Nbins)
     # fill up in x & y stats for each x-bin
+    bin_radius = dxBox / 2.
     for ixBin in xrange(Nbins):
-        isInBin = (np.abs(x - xbinCenter[ixBin]) <= dxBox / 2.)
+        #fix the borders
+        isInBin = (np.abs(x - xbinCenter[ixBin]) <= bin_radius)
         xx , yy = x[isInBin] , y[isInBin]
-        xMedian[ixBin] , xMean[ixBin] , xStd[ixBin] = np.median(xx) , xx.mean() , xx.std()
-        yMedian[ixBin] , yMean[ixBin] , yStd[ixBin] = np.median(yy) , yy.mean() , yy.std()
-        if (len(xx) > 2):
+        Np = isInBin.sum()
+        if (Np >= 2):
+            xMedian[ixBin] = np.median(xx)
+            xMean[ixBin] = xx.mean()
+            xStd[ixBin] = xx.std()
+            yMedian[ixBin] = np.median(yy)
+            yMean[ixBin] = yy.mean()
+            yStd[ixBin] = yy.std()
             xPrc16[ixBin], xPrc84[ixBin] = np.percentile(xx, [16, 84])
             yPrc16[ixBin], yPrc84[ixBin] = np.percentile(yy, [16, 84])
         else:
             if ixBin > 0:
+                xMedian[ixBin] = xMedian[ixBin - 1]
+                xMean[ixBin] = xMean[ixBin - 1]
+                xStd[ixBin] = xStd[ixBin - 1]
+                yMedian[ixBin] = yMedian[ixBin - 1]
+                yMean[ixBin] = yMean[ixBin - 1]
+                yStd[ixBin] = yStd[ixBin - 1]
                 xPrc16[ixBin] = xPrc16[ixBin - 1]
                 xPrc84[ixBin] = xPrc84[ixBin - 1]
                 yPrc16[ixBin] = yPrc16[ixBin - 1]
                 yPrc84[ixBin] = yPrc84[ixBin - 1]
             else:
-                xPrc16[ixBin] = np.median(xx)
-                xPrc84[ixBin] = np.median(xx)
-                yPrc16[ixBin] = np.median(yy)
-                yPrc84[ixBin] = np.median(yy)
-        nInBin[ixBin] = isInBin.sum()
-    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, \
-           nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
+                if Np == 1:
+                    xMedian[ixBin] = xx
+                    xMean[ixBin] = xx
+                    xStd[ixBin] = xx
+                    yMedian[ixBin] = yy
+                    yMean[ixBin] = yy
+                    yStd[ixBin] = yy
+                    xPrc16[ixBin] = xx
+                    xPrc84[ixBin] = xx
+                    yPrc16[ixBin] = yy
+                    yPrc84[ixBin] = yy
+        nInBin[ixBin] = Np
+    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
 
 def gaussSmooth_YofX(x, y, FWHM):
     '''
@@ -242,7 +280,9 @@ def read_one_cube(gal, **kwargs):
 
 def loop_cubes(gals, **kwargs):
     imax = kwargs.get('imax', None)
-    if isinstance(gals, np.ndarray):
+    if isinstance(gals, str):
+        gals = sort_gals(gals)[0].tolist()
+    elif isinstance(gals, np.ndarray):
         gals = gals.tolist()
     for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
@@ -388,14 +428,14 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
-def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba):
+def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
     center = np.array([ 256 , 256])
     a = HLR_pix * 512.0 / 75.0 
     b_a = ba
     theta = pa * 180 / np.pi 
-    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = 'white', lw = 2, ls = 'dotted')
-    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = 'white', lw = 2, ls = 'dotted')
+    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     ax.add_artist(e1)
     ax.add_artist(e2)
     
