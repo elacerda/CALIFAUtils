@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from matplotlib import pyplot as plt
-from lines import *
+from CALIFAUtils.lines import Lines
 import numpy as np
 
 
