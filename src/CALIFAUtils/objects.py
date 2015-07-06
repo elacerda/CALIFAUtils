@@ -1,3 +1,5 @@
+from scipy.ndimage.filters import gaussian_filter1d
+from CALIFAUtils.scripts import calc_running_stats
 import numpy as np
 import itertools
 import pyfits
@@ -620,3 +622,53 @@ class CALIFAPaths(object):
     
     def get_pycasso_file(self, gal):
         return self.pycasso_cube_dir + gal + self.pycasso_suffix
+    
+class runstats(object):
+    def __init__(self, x, y, **kwargs):
+        self.x = x
+        self.y = y
+        self._gsmooth = kwargs.get('smooth', None)
+        self.sigma = kwargs.get('sigma', None)
+        self.rstats(**kwargs)
+        
+    def rstats(self, **kwargs):
+        aux = calc_running_stats(self.x, self.y, **kwargs)
+        self.xbinCenter = aux[0]
+        self.xMedian = aux[1]
+        self.xMean = aux[2]
+        self.xStd = aux[3]
+        self.yMedian = aux[4]
+        self.yMean = aux[5]
+        self.yStd = aux[6]
+        self.nInBin = aux[7]
+        self.xPrc = aux[8]
+        self.yPrc = aux[9]
+        
+        if self._gsmooth is True:
+            self.gaussian_smooth()
+            
+    def rstats_yx(self, **kwargs):
+        aux = calc_running_stats(self.x, self.y, **kwargs)
+        self.xbinCenter = aux[0]
+        self.xMedian = aux[1]
+        self.xMean = aux[2]
+        self.xStd = aux[3]
+        self.yMedian = aux[4]
+        self.yMean = aux[5]
+        self.yStd = aux[6]
+        self.nInBin = aux[7]
+        self.xPrc = aux[8]
+        self.yPrc = aux[9]
+        
+        if self._gsmooth is True:
+            self.gaussian_smooth()
+
+    def gaussian_smooth(self, **kwargs):
+        if self.sigma is None:
+            self.sigma = self.y.std()
+        self.sigma = kwargs.get('sigma', self.sigma)
+        xM = np.ma.masked_array(self.xMedian)
+        yM = np.ma.masked_array(self.yMedian)
+        m_gs = np.isnan(xM) | np.isnan(yM) 
+        self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
+        self.yS = gaussian_filter1d(yM[~m_gs], self.sigma)
