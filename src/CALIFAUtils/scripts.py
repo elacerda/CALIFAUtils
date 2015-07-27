@@ -96,10 +96,14 @@ def calc_running_stats(x, y, **kwargs):
     yMedian = np.zeros(Nbins)
     yMean = np.zeros(Nbins)
     yStd = np.zeros(Nbins)
+    xPrc5 = np.zeros(Nbins)
     xPrc16 = np.zeros(Nbins)
     xPrc84 = np.zeros(Nbins)
+    xPrc95 = np.zeros(Nbins)
+    yPrc5 = np.zeros(Nbins)
     yPrc16 = np.zeros(Nbins)
     yPrc84 = np.zeros(Nbins)
+    yPrc95 = np.zeros(Nbins)
     nInBin = np.zeros(Nbins)
     # fill up in x & y stats for each x-bin
     bin_radius = dxBox / 2.
@@ -115,8 +119,8 @@ def calc_running_stats(x, y, **kwargs):
             yMedian[ixBin] = np.median(yy)
             yMean[ixBin] = yy.mean()
             yStd[ixBin] = yy.std()
-            xPrc16[ixBin], xPrc84[ixBin] = np.percentile(xx, [16, 84])
-            yPrc16[ixBin], yPrc84[ixBin] = np.percentile(yy, [16, 84])
+            xPrc5[ixBin], xPrc16[ixBin], xPrc84[ixBin], xPrc95[ixBin] = np.percentile(xx, [5, 16, 84, 95])
+            yPrc5[ixBin], yPrc16[ixBin], yPrc84[ixBin], yPrc95[ixBin] = np.percentile(yy, [5, 16, 84, 95])
         else:
             if ixBin > 0:
                 xMedian[ixBin] = xMedian[ixBin - 1]
@@ -125,10 +129,14 @@ def calc_running_stats(x, y, **kwargs):
                 yMedian[ixBin] = yMedian[ixBin - 1]
                 yMean[ixBin] = yMean[ixBin - 1]
                 yStd[ixBin] = yStd[ixBin - 1]
+                xPrc5[ixBin] = xPrc5[ixBin - 1]
                 xPrc16[ixBin] = xPrc16[ixBin - 1]
                 xPrc84[ixBin] = xPrc84[ixBin - 1]
+                xPrc95[ixBin] = xPrc95[ixBin - 1]
+                yPrc5[ixBin] = yPrc5[ixBin - 1]
                 yPrc16[ixBin] = yPrc16[ixBin - 1]
                 yPrc84[ixBin] = yPrc84[ixBin - 1]
+                yPrc95[ixBin] = yPrc95[ixBin - 1]
             else:
                 if Np == 1:
                     xMedian[ixBin] = xx
@@ -137,12 +145,16 @@ def calc_running_stats(x, y, **kwargs):
                     yMedian[ixBin] = yy
                     yMean[ixBin] = yy
                     yStd[ixBin] = yy
+                    xPrc5[ixBin] = xx
                     xPrc16[ixBin] = xx
                     xPrc84[ixBin] = xx
+                    xPrc95[ixBin] = xx
+                    yPrc5[ixBin] = yy
                     yPrc16[ixBin] = yy
                     yPrc84[ixBin] = yy
+                    yPrc95[ixBin] = yy
         nInBin[ixBin] = Np
-    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, [xPrc16, xPrc84], [yPrc16, yPrc84]
+    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, [xPrc5, xPrc16, xPrc84, xPrc95], [yPrc5, yPrc16, yPrc84, yPrc95]
 
 def gaussSmooth_YofX(x, y, FWHM):
     '''
@@ -428,25 +440,6 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
     
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
-def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
-    from matplotlib.patches import Ellipse
-    center = np.array([ 256 , 256])
-    a = HLR_pix * 512.0 / 75.0 
-    b_a = ba
-    theta = pa * 180 / np.pi 
-    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    ax.add_artist(e1)
-    ax.add_artist(e2)
-    
-def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
-    from matplotlib.patches import Ellipse
-    center , a , b_a , theta = np.array([ K.x0 , K.y0]) , K.HLR_pix , K.ba , K.pa * 180 / np.pi 
-    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    ax.add_artist(e1)
-    ax.add_artist(e2)
-    
 def radialProfileWeighted(v__yx, w__yx, **kwargs): 
     r_func = kwargs.get('r_func', None)
     rad_scale = kwargs.get('rad_scale', None)
@@ -466,9 +459,12 @@ def calc_xY(K, tY):
 
     # Compute xY__z
     x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+    integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
     aux1__z = x__tZz[:indY, :, :].sum(axis = 1).sum(axis = 0)
     aux2__z = x__tZz[indY, :, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
-    return (aux1__z + aux2__z)
+    integrated_aux1 = integrated_x__tZ[:indY, :].sum()
+    integrated_aux2 = integrated_x__tZ[indY, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
 
 def calc_SFR(K, tSF):
     '''

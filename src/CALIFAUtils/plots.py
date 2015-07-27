@@ -17,8 +17,26 @@ from CALIFAUtils.scripts import gaussSmooth_YofX
 from CALIFAUtils.scripts import calc_running_stats
 from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import find_confidence_interval
-from CALIFAUtils.scripts import DrawHLRCircleInSDSSImage
 
+def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
+    from matplotlib.patches import Ellipse
+    center = np.array([ 256 , 256])
+    a = HLR_pix * 512.0 / 75.0 
+    b_a = ba
+    theta = pa * 180 / np.pi 
+    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    ax.add_artist(e1)
+    ax.add_artist(e2)
+    
+def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
+    from matplotlib.patches import Ellipse
+    center , a , b_a , theta = np.array([ K.x0 , K.y0]) , K.HLR_pix , K.ba , K.pa * 180 / np.pi 
+    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    ax.add_artist(e1)
+    ax.add_artist(e2)
+    
 def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fontsize = 12):
     y = param
     xm = x
@@ -164,7 +182,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         txt_y = r'$y_{OLS}$ = %.2f$x$ - %.2f %s' % (a, b * -1., Yrms_str)
     C.debug_var(True, y_OLS = txt_y)
     if txt == True:
-        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'bottom', 'right', color = color)
+        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'top', 'right', color = color)
     else:
         print txt_y
     return a, b, sigma_a, sigma_b

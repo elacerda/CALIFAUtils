@@ -1,5 +1,6 @@
 from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import calc_running_stats
+from CALIFAUtils.scripts import OLS_bisector
 import numpy as np
 import itertools
 import pyfits
@@ -54,7 +55,7 @@ class GasProp(object):
         return AV * self.cte_av_tau 
     
     def TautoAV(self, tau):
-        return tau * 1./self.cte_av_tau 
+        return tau * 1. / self.cte_av_tau 
     
     def CtoAV(self, c, Rv = 3.1, extlaw = 1.443):
         return c * (Rv / extlaw)
@@ -68,6 +69,8 @@ class ALLGals(object):
         self.NRbins = NRbins
         self.N_T = N_T
         self.N_U = N_U
+        self.range_T = xrange(self.N_T)
+        self.range_U = xrange(self.N_U)
         self._init_arrays()
         self._init_zones_temporary_lists()
         
@@ -91,6 +94,9 @@ class ALLGals(object):
         self.ba_PyCASSO_GAL__g = np.ma.empty((N_gals), dtype = np.float_)
         self.Mr_GAL__g = np.ma.empty((N_gals), dtype = np.float_)
         self.ur_GAL__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_x_Y__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.integrated_EW_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_EW_Hb__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_tau_V__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_tau_V_neb__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_tau_V_neb_err__g = np.ma.empty((N_gals), dtype = np.float_)
@@ -166,21 +172,22 @@ class ALLGals(object):
         self._EW_Hb_mask__g = []
         self._at_flux__g = []
         self._at_mass__g = []
-        self._tau_V__Tg = [[] for _ in xrange(self.N_T)]
-        self._tau_V_mask__Tg = [[] for _ in xrange(self.N_T)]
-        self._SFR__Tg = [[] for _ in xrange(self.N_T)]
-        self._SFR_mask__Tg = [[] for _ in xrange(self.N_T)]
-        self._SFRSD__Tg = [[] for _ in xrange(self.N_T)]
-        self._SFRSD_mask__Tg = [[] for _ in xrange(self.N_T)]
-        self._x_Y__Tg = [[] for _ in xrange(self.N_T)]
-        self._Mcor__Tg = [[] for _ in xrange(self.N_T)]
-        self._McorSD__Tg = [[] for _ in xrange(self.N_T)]
-        self._at_flux__Tg = [[] for _ in xrange(self.N_T)]
-        self._at_mass__Tg = [[] for _ in xrange(self.N_T)]
-        self._alogZ_mass__Ug = [[] for _ in xrange(self.N_U)]
-        self._alogZ_mass_mask__Ug = [[] for _ in xrange(self.N_U)]
-        self._alogZ_flux__Ug = [[] for _ in xrange(self.N_U)]
-        self._alogZ_flux_mask__Ug = [[] for _ in xrange(self.N_U)]
+        self._maskOkRadius__g = []
+        self._tau_V__Tg = [[] for _ in self.range_T]
+        self._tau_V_mask__Tg = [[] for _ in self.range_T]
+        self._SFR__Tg = [[] for _ in self.range_T]
+        self._SFR_mask__Tg = [[] for _ in self.range_T]
+        self._SFRSD__Tg = [[] for _ in self.range_T]
+        self._SFRSD_mask__Tg = [[] for _ in self.range_T]
+        self._x_Y__Tg = [[] for _ in self.range_T]
+        self._Mcor__Tg = [[] for _ in self.range_T]
+        self._McorSD__Tg = [[] for _ in self.range_T]
+        self._at_flux__Tg = [[] for _ in self.range_T]
+        self._at_mass__Tg = [[] for _ in self.range_T]
+        self._alogZ_mass__Ug = [[] for _ in self.range_U]
+        self._alogZ_mass_mask__Ug = [[] for _ in self.range_U]
+        self._alogZ_flux__Ug = [[] for _ in self.range_U]
+        self._alogZ_flux_mask__Ug = [[] for _ in self.range_U]
         #final Tg and Ug zone-by-zone lists
         self.tau_V__Tg = [] 
         self.SFR__Tg = []
@@ -242,11 +249,11 @@ class ALLGals(object):
         self.EW_Hb__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
         
         aux = np.hstack(self._at_flux__g)
-        auxMask = np.zeros_like(aux, dtype = np.bool)
+        auxMask = np.zeros_like(aux, dtype = np.bool_)
         self.at_flux__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
         aux = np.hstack(self._at_mass__g)
         self.at_mass__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
-        for iT in xrange(self.N_T):
+        for iT in self.range_T:
             aux = np.hstack(self._SFR__Tg[iT])
             auxMask = np.hstack(self._SFR_mask__Tg[iT])        
             self.SFR__Tg.append(np.ma.masked_array(aux, mask = auxMask, dtype = np.float_))
@@ -267,7 +274,7 @@ class ALLGals(object):
             self.at_flux__Tg.append(np.ma.masked_array(aux, mask = auxMask, dtype = np.float_))
             aux = np.hstack(self._at_mass__Tg[iT])
             self.at_mass__Tg.append(np.ma.masked_array(aux, mask = auxMask, dtype = np.float_))
-        for iU in np.arange(self.N_U):
+        for iU in self.range_U:
             aux = np.hstack(self._alogZ_mass__Ug[iU])
             self.alogZ_mass__Ug.append(np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_))
             aux = np.hstack(self._alogZ_flux__Ug[iU])
@@ -296,11 +303,11 @@ class ALLGals(object):
                     tmp_mask = {'masked/mask/%s' % v : self.__dict__[v].mask}
                 else:
                     if suffix == 'Tg':
-                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in xrange(self.N_T)}
-                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in xrange(self.N_T)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in self.range_T}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in self.range_T}
                     elif suffix == 'Ug':
-                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in xrange(self.N_U)}
-                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in xrange(self.N_U)}
+                        tmp_data = {'masked/data/%s/%d' % (v, i) : self.__dict__[v][i].data for i in self.range_U}
+                        tmp_mask = {'masked/mask/%s/%d' % (v, i) : self.__dict__[v][i].mask for i in self.range_U}
                     else:
                         tmp_data = {}
                         tmp_mask = {}
@@ -370,18 +377,32 @@ class H5SFRData(object):
         return np.asarray(list(itertools.chain.from_iterable(laux1)))
 
     def reply_arr_by_radius(self, p, N_dim = None):
-        if isinstance(p, str):
-            p = self.get_data_h5(p)
-        if isinstance(p, np.ndarray):
-            p = p.tolist()
-        if N_dim:
-            Nloop = N_dim * self.NRbins
-            output_shape = (N_dim, self.NRbins, self.N_gals_all)
+        if isinstance(p, np.ma.core.MaskedArray):
+            if N_dim:
+                Nloop = N_dim * self.NRbins
+                output_shape = (N_dim, self.NRbins, self.N_gals_all)
+            else:
+                Nloop = self.NRbins
+                output_shape = (self.NRbins, self.N_gals_all)
+            ld = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p.data ]]
+            lm = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p.mask ]]
+            od = np.asarray([list(i) for i in zip(*ld)]).reshape(output_shape)
+            om = np.asarray([list(i) for i in zip(*lm)]).reshape(output_shape)
+            o = np.ma.masked_array(od, mask = om)
         else:
-            Nloop = self.NRbins
-            output_shape = (self.NRbins, self.N_gals_all)
-        l = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p ]]
-        return np.asarray([list(i) for i in zip(*l)]).reshape(output_shape)
+            if isinstance(p, str):
+                p = self.get_data_h5(p)
+            elif isinstance(p, np.ndarray):
+                p = p.tolist()
+            if N_dim:
+                Nloop = N_dim * self.NRbins
+                output_shape = (N_dim, self.NRbins, self.N_gals_all)
+            else:
+                Nloop = self.NRbins
+                output_shape = (self.NRbins, self.N_gals_all)
+            l = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p ]]
+            o = np.asarray([list(i) for i in zip(*l)]).reshape(output_shape) 
+        return o
 
     def __getattr__(self, attr):
         a = attr.split('_')
@@ -433,7 +454,14 @@ class H5SFRData(object):
         if isinstance(data, list):
             califaIDs = self.reply_arr_by_zones(self.califaIDs)
             where_slice = np.where(califaIDs == gal)
-            arr = [ data[iU][where_slice] for iU in xrange(len(data)) ]
+            range_data = xrange(len(data))
+            if isinstance(data[0], np.ma.core.MaskedArray):
+                arr_data = [ data[i][where_slice].data for i in range_data ]
+                arr_mask = [ data[i][where_slice].mask if isinstance(data[i][where_slice].mask, np.ndarray) else np.ones(data[i][where_slice].shape, dtype = np.bool_) for i in range_data ] 
+                arr = np.ma.masked_array(arr_data, mask = arr_mask)
+            else:
+                arr_data = [ data[i][where_slice] for i in range_data ]
+                arr = np.asarray(arr_data)
         else:
             d_shape = data.shape
             if len(d_shape) == 3:
@@ -491,7 +519,7 @@ class H5SFRData(object):
             'logO3N2S06' : dict(v = self.logZ_neb_S06__g, legendname = r'$\log\ Z_{neb}$', label = r'$\log\ Z_{neb}$ [$Z_\odot$] (Stasinska, 2006)', lim = [-0.5, 0.1], majloc = 0.5, minloc = 0.1),
             'logO3N2M13' : dict(v = self.O_O3N2_M13__g, legendname = r'12 + $\log\ O/H$', label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)', lim = [8.2, 8.7], majloc = 0.25, minloc = 0.05),
             'logMcorSD' : dict(v = np.ma.log10(self.McorSD__g), legendname = r'$\log\ \mu_\star$', label = r'$\log\ \mu_\star$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
-            'logMcor' : dict(v = np.ma.log10(self.Mcor__g), legendname = r'$\log\ M_\star$',label = r'$\log\ M_\star$ [$M_\odot$]', lim = None, majloc = 1., minloc = 0.2),
+            'logMcor' : dict(v = np.ma.log10(self.Mcor__g), legendname = r'$\log\ M_\star$', label = r'$\log\ M_\star$ [$M_\odot$]', lim = None, majloc = 1., minloc = 0.2),
             'xY' : dict(v = 100. * self.x_Y__Tg[iT], legendname = r'$x_Y$', label = r'$x_Y$ [%]', lim = [0, 50], majloc = 10., minloc = 2.),
             'tauVdiff' : dict(v = self.tau_V_neb__g - self.tau_V__Tg[iT], legendname = '$\tau_V^{neb}\ -\ \tau_V^\star$', label = r'$\tau_V^{neb}\ -\ \tau_V^\star$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
             'tauVRatio' : dict(v = self.tau_V_neb__g / self.tau_V__Tg[iT], legendname = r'$\frac{\tau_V^{neb}}{\tau_V^\star}$', label = r'$\frac{\tau_V^{neb}}{\tau_V^\star}$', lim = [0, 6], majloc = 1., minloc = 0.2),
@@ -565,8 +593,8 @@ class H5SFRData(object):
 class CALIFAPaths(object):
     _versionSuffix = [
         'v20_q043.d14a',
-        'px1_q043.d14a', 
-        'v20_q046.d15a', 
+        'px1_q043.d14a',
+        'v20_q046.d15a',
         'v20_q050.d15a',
     ]
     _bases = [
@@ -577,7 +605,7 @@ class CALIFAPaths(object):
     ]
     _superfits_dir = 'gal_fits/'
     _config = {
-        'v20_q043.d14a' : [ 0, 0 ], 
+        'v20_q043.d14a' : [ 0, 0 ],
         'px1_q043.d14a' : [ 0, 0 ],
         'v20_q046.d15a' : [ 0, 0 ],
         'v20_q050.d15a' : [ 0, 0 ],
@@ -591,13 +619,15 @@ class CALIFAPaths(object):
         if isinstance(v_run, int):
             self.v_run = self._versionSuffix[v_run]
         else:
+            if v_run == 'last':
+                v_run = self._versionSuffix[-1]
             self.v_run = v_run
         self.config_run()
         
     def get_config(self):
         v_conf = self._config[self.v_run]
-        return dict(versionSuffix = self.v_run, 
-                    baseCode = self._bases[v_conf[0]], 
+        return dict(versionSuffix = self.v_run,
+                    baseCode = self._bases[v_conf[0]],
                     othSuffix = self._othSuffix[v_conf[0]])
     
     def config_run(self):
@@ -606,7 +636,7 @@ class CALIFAPaths(object):
         self.pycasso_suffix = tmp_suffix + '.fits'
         self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
         self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
-        self.gasprop_cube_dir = self.califa_work_dir+ 'rgb-gas/' + self.v_run + '/prop/'
+        self.gasprop_cube_dir = self.califa_work_dir + 'rgb-gas/' + self.v_run + '/prop/'
         self.emlines_cube_dir = self.califa_work_dir + 'rgb-gas/' + self.v_run + '/'
         self.pycasso_cube_dir = self.califa_work_dir + self._superfits_dir + self.v_run + '/'
         #pyc2asso_cube_dir += v_conf['baseCode'] + '/'
@@ -672,3 +702,11 @@ class runstats(object):
         m_gs = np.isnan(xM) | np.isnan(yM) 
         self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
         self.yS = gaussian_filter1d(yM[~m_gs], self.sigma)
+        
+    def OLS_bisector(self):
+        a, b, sa, sb = OLS_bisector(self.xS, self.yS)
+        self.median_OLS_slope = a
+        self.median_OLS_intercept = b
+        self.median_OLS_slope_sigma = sa
+        self.median_OLS_intercept_sigma = sb
+        
