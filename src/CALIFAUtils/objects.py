@@ -103,6 +103,7 @@ class ALLGals(object):
         self.integrated_logZ_neb_S06__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_logZ_neb_S06_err__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_L_int_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_L_obs_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_SFR_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_SFRSD_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_SFR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
@@ -164,6 +165,9 @@ class ALLGals(object):
         self._L_int_Ha__g = []
         self._L_int_Ha_err__g = []
         self._L_int_Ha_mask__g = []
+        self._L_obs_Ha__g = []
+        self._L_obs_Ha_err__g = []
+        self._L_obs_Ha_mask__g = []
         self._zone_area_pc2__g = []
         self._zone_dist_HLR__g = []
         self._EW_Ha__g = []
@@ -224,6 +228,12 @@ class ALLGals(object):
         aux = np.hstack(self._L_int_Ha__g)
         auxMask = np.hstack(self._L_int_Ha_mask__g)
         self.L_int_Ha__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
+        self.L_int_Ha_err__g = np.ma.masked_array(np.hstack(self._L_int_Ha_err__g), mask = auxMask, dtype = np.float_)
+
+        aux = np.hstack(self._L_obs_Ha__g)
+        auxMask = np.hstack(self._L_obs_Ha_mask__g)
+        self.L_obs_Ha__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
+        self.L_obs_Ha_err__g = np.ma.masked_array(np.hstack(self._L_obs_Ha_err__g), mask = auxMask, dtype = np.float_)
 
         aux = np.hstack(self._F_obs_Ha__g)
         auxMask = np.hstack(self._F_obs_Ha_mask__g)
@@ -662,7 +672,7 @@ class runstats(object):
         self.rstats(**kwargs)
         
     def rstats(self, **kwargs):
-        aux = calc_running_stats(self.x, self.y, **kwargs)
+        aux = self.calc_running_stats(**kwargs)
         self.xbinCenter = aux[0]
         self.xMedian = aux[1]
         self.xMean = aux[2]
@@ -678,7 +688,7 @@ class runstats(object):
             self.gaussian_smooth()
             
     def rstats_yx(self, **kwargs):
-        aux = calc_running_stats(self.x, self.y, **kwargs)
+        aux = self.calc_running_stats(**kwargs)
         self.xbinCenter = aux[0]
         self.xMedian = aux[1]
         self.xMean = aux[2]
@@ -710,3 +720,69 @@ class runstats(object):
         self.median_OLS_slope_sigma = sa
         self.median_OLS_intercept_sigma = sb
         
+    def calc_running_stats(self, **kwargs):
+        '''
+        Statistics of x & y in equal size x-bins (dx-box).
+        Note the mery small default xbinStep, so we have overlapping boxes.. so running stats..
+    
+        Cid@Lagoa -
+        '''
+        x = self.x
+        y = self.y
+        # XXX Lacerda@IAA - masked array mess with the method
+        nBox_tmp = kwargs.get('nBox', np.floor(len(x) * 0.1)) 
+        xbinIni = kwargs.get('xbinIni', x.min())
+        xbinFin = kwargs.get('xbinFin', x.max())
+        xbinStep = kwargs.get('xbinStep', (x.max() - x.min()) / (nBox_tmp - 1.))
+        if isinstance(x, np.ma.core.MaskedArray):
+            x = x[~(x.mask)]
+        if isinstance(y, np.ma.core.MaskedArray):
+            y = y[~(y.mask)]
+        # Def x-bins
+        xbin = kwargs.get('xbin', np.arange(xbinIni, xbinFin + xbinStep, xbinStep))
+        self.xbin = xbin
+        #xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
+        xbinCenter = np.diff(xbin) / 2.0 + xbin[:-1]
+        Nbins = len(xbinCenter)
+        # Reset in-bin stats arrays
+        xbinCenter_out = []
+        xbin_out = []
+        xMedian_out = []
+        xMean_out = []
+        xStd_out = []
+        yMedian_out = []
+        yMean_out = []
+        yStd_out = []
+        xPrc_out = []
+        yPrc_out = []
+        nInBin_out = []
+        ixBin = 0 
+        while ixBin < Nbins:
+            left = xbin[ixBin]
+            xbin_out.append(left)
+            minNp = len(x) / Nbins
+            Np = 0
+            while Np < minNp and ixBin < Nbins:
+                right = xbin[ixBin + 1]
+                isInBin = np.bitwise_and(np.greater_equal(x, left), np.less(x, right))
+                xx , yy = x[isInBin] , y[isInBin]
+                Np = isInBin.sum()
+                ixBin += 1
+            xbin_out.append(right)
+            xbinCenter_out.append((right+left)/2.)
+            xMedian_out.append(np.median(xx))
+            xMean_out.append(xx.mean())
+            xStd_out.append(xx.std())
+            yMedian_out.append(np.median(yy))
+            yMean_out.append(yy.mean())
+            yStd_out.append(yy.std())
+            nInBin_out.append(Np)
+            if Np >= 2:
+                xPrc_out.append(np.percentile(xx, [5, 16, 84, 95]))
+                yPrc_out.append(np.percentile(yy, [5, 16, 84, 95]))
+            else:
+                xPrc_out.append(xPrc_out[-1])
+                yPrc_out.append(xPrc_out[-1])
+        return np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
+            np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \
+            np.array(xPrc_out).T, np.array(yPrc_out).T
