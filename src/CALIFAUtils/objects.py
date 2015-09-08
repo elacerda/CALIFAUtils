@@ -1,6 +1,7 @@
 from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import OLS_bisector
+from CALIFAUtils.scripts import sort_gals
 import numpy as np
 import itertools
 import pyfits
@@ -395,7 +396,11 @@ class H5SFRData(object):
                 Nloop = self.NRbins
                 output_shape = (self.NRbins, self.N_gals_all)
             ld = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p.data ]]
-            lm = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in p.mask ]]
+            if not isinstance(p.mask, np.ndarray):
+                mask = np.zeros_like(p.data, dtype = np.bool_)
+            else:
+                mask = p.mask
+            lm = [ list(v) for v in [ itertools.repeat(prop, Nloop) for prop in mask ]]
             od = np.asarray([list(i) for i in zip(*ld)]).reshape(output_shape)
             om = np.asarray([list(i) for i in zip(*lm)]).reshape(output_shape)
             o = np.ma.masked_array(od, mask = om)
@@ -456,6 +461,38 @@ class H5SFRData(object):
             node = '%s/%s' % (folder_nomask, prop)
             ds = h5[node]
             return ds.value
+        
+    # this method only works if self.califaIDs is sorted also
+    def get_mask_zones_list(self, l_gals, return_ngals = False):
+        if isinstance(l_gals, str):
+            l_gals, _ = sort_gals(l_gals)
+        l_gals = sorted(l_gals)
+        maskOKGals = np.zeros(self.N_zones__g.sum(), dtype = np.bool_)
+        for g in l_gals:
+            i = self.califaIDs.tolist().index(g)
+            N_zones = self.N_zones__g[i]
+            N_zones_before = self.N_zones__g[:i].sum()
+            N_zones_step = N_zones_before + N_zones
+            maskOKGals[N_zones_before:N_zones_step] = True
+        if return_ngals is False:
+            return maskOKGals
+        else:
+            return maskOKGals, len(l_gals)
+
+    # this method only works if self.califaIDs is sorted also
+    def get_mask_radius_list(self, l_gals, return_ngals = False):
+        if isinstance(l_gals, str):
+            l_gals, _ = sort_gals(l_gals)
+        l_gals = sorted(l_gals)
+        shape = self.NRbins, self.N_gals_all
+        maskOKGals = np.zeros((shape), dtype = np.bool_)
+        for g in l_gals:
+            i = self.califaIDs_all.data.tolist().index(g)
+            maskOKGals[:, i] = True
+        if return_ngals is False:
+            return maskOKGals
+        else:
+            return maskOKGals, len(l_gals)
         
     def get_prop_gal(self, data, gal = None, return_slice = False):
         if isinstance(data, str):
@@ -552,7 +589,7 @@ class H5SFRData(object):
             'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1., 0.2], majloc = 0.5, minloc = 0.1),
             'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
-            'logO3N2M13R' : dict(v = np.ma.masked_array(self.O_O3N2_M13__rg, mask = np.isnan(self.O_O3N2_M13__rg)), label = r'12 + $\log\ O/H (R)$ (logO3N2, Marino, 2013)', lim = [8.2, 8.7], majloc = 0.5, minloc = 0.1),
+            'logO3N2M13R' : dict(v = np.ma.masked_array(self.O_O3N2_M13__rg, mask = np.isnan(self.O_O3N2_M13__rg)), label = r'12 + $\log\ O/H (R)$', lim = [8.2, 8.7], majloc = 0.5, minloc = 0.1),
             'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
             'xYR' : dict(v = 100. * self.x_Y__Trg[iT], label = '$x_Y (R)$ [%]', lim = [0, 50], majloc = 10., minloc = 2.),
             'tauVdiffR' : dict(v = self.tau_V_neb__rg - self.tau_V__Trg[iT], label = r'$\tau_V^{neb} (R)\ -\ \tau_V^\star (R)$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
@@ -565,8 +602,8 @@ class H5SFRData(object):
             'tauVNebR' : dict(v = self.tau_V_neb__rg, label = r'$\tau_V^{neb} (R)$', lim = [ 0., 3. ], majloc = 1., minloc = 0.2),
             'alogSFRSDR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT]), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
             'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, -2], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 1], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 2], majloc = 0.5, minloc = 0.1),
             'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 11.5]),
             'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
         }
@@ -672,33 +709,57 @@ class runstats(object):
         self.rstats(**kwargs)
         
     def rstats(self, **kwargs):
-        aux = self.calc_running_stats(**kwargs)
-        self.xbinCenter = aux[0]
-        self.xMedian = aux[1]
-        self.xMean = aux[2]
-        self.xStd = aux[3]
-        self.yMedian = aux[4]
-        self.yMean = aux[5]
-        self.yStd = aux[6]
-        self.nInBin = aux[7]
-        self.xPrc = aux[8]
-        self.yPrc = aux[9]
+        if len(self.x) > kwargs.get('nBox'):
+            aux = self.calc_running_stats(**kwargs)
+            self.xbinCenter = aux[0]
+            self.xMedian = aux[1]
+            self.xMean = aux[2]
+            self.xStd = aux[3]
+            self.yMedian = aux[4]
+            self.yMean = aux[5]
+            self.yStd = aux[6]
+            self.nInBin = aux[7]
+            self.xPrc = aux[8]
+            self.yPrc = aux[9]
+        else:
+            self.xbinCenter = self.x
+            self.xMedian = self.x
+            self.xMean = self.x
+            self.xStd = self.x
+            self.yMedian = self.y
+            self.yMean = self.y
+            self.yStd = self.y
+            self.nInBin = np.ones_like(self.x, dtype = np.int)
+            self.xPrc = -1
+            self.yPrc = -1
         
         if self._gsmooth is True:
             self.gaussian_smooth()
             
     def rstats_yx(self, **kwargs):
-        aux = self.calc_running_stats(**kwargs)
-        self.xbinCenter = aux[0]
-        self.xMedian = aux[1]
-        self.xMean = aux[2]
-        self.xStd = aux[3]
-        self.yMedian = aux[4]
-        self.yMean = aux[5]
-        self.yStd = aux[6]
-        self.nInBin = aux[7]
-        self.xPrc = aux[8]
-        self.yPrc = aux[9]
+        if len(self.x) > kwargs.get('nBox'):
+            aux = self.calc_running_stats(**kwargs)
+            self.xbinCenter = aux[0]
+            self.xMedian = aux[1]
+            self.xMean = aux[2]
+            self.xStd = aux[3]
+            self.yMedian = aux[4]
+            self.yMean = aux[5]
+            self.yStd = aux[6]
+            self.nInBin = aux[7]
+            self.xPrc = aux[8]
+            self.yPrc = aux[9]
+        else:
+            self.xbinCenter = self.x
+            self.xMedian = self.x
+            self.xMean = self.x
+            self.xStd = self.x
+            self.yMedian = self.y
+            self.yMean = self.y
+            self.yStd = self.y
+            self.nInBin = np.ones_like(self.x, dtype = np.int)
+            self.xPrc = -1
+            self.yPrc = -1
         
         if self._gsmooth is True:
             self.gaussian_smooth()
@@ -710,8 +771,10 @@ class runstats(object):
         xM = np.ma.masked_array(self.xMedian)
         yM = np.ma.masked_array(self.yMedian)
         m_gs = np.isnan(xM) | np.isnan(yM) 
-        self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
+        #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
+        self.xS = self.xMedian[~m_gs]
         self.yS = gaussian_filter1d(yM[~m_gs], self.sigma)
+        #print '>X>X>X>', len(self.xMedian[~m_gs]), len(self.xS)
         
     def OLS_bisector(self):
         a, b, sa, sb = OLS_bisector(self.xS, self.yS)
@@ -759,15 +822,18 @@ class runstats(object):
         ixBin = 0 
         while ixBin < Nbins:
             left = xbin[ixBin]
+            right = xbin[ixBin]
             xbin_out.append(left)
             minNp = len(x) / Nbins
             Np = 0
+            #print Nbins, ixBin, minNp, len(x)
             while Np < minNp and ixBin < Nbins:
                 right = xbin[ixBin + 1]
                 isInBin = np.bitwise_and(np.greater_equal(x, left), np.less(x, right))
                 xx , yy = x[isInBin] , y[isInBin]
                 Np = isInBin.sum()
                 ixBin += 1
+            #print '>>>', Np, ixBin
             xbin_out.append(right)
             xbinCenter_out.append((right+left)/2.)
             xMedian_out.append(np.median(xx))

@@ -310,13 +310,24 @@ def debug_var(turn_on = False, **kwargs):
             else:
                 print '%s' % pref, '%s:\t' % kw, vw
 
-def sort_gals(gals, func = None, order = 1, **kwargs):
+def sort_gals(gals, func = None, order = 0, **kwargs):
     '''
-    Sort galaxies in txt GALS by some ATTRibute processed by MODE in ORDER order.
-    If FUNC = None returns a list of galaxies without sort.
-    ORDER = 0 - sort asc, 1 - sort desc, < 0 - no sort
-    MODE can be any numpy array method such as sum, max, min, mean, median, etc...
-
+    Sort galaxies inside GALS in ORDER order.
+    
+    GALS can be a list or a string with a text file direction. 
+    
+    
+    If FUNC = None the function should return a list of galaxies sorted by 
+    name following ORDER order. Otherwise pass by each CALIFA fits file 
+    executing function FUNC that should return a number (or text) that will
+    be used to the sort process. 
+    After pass by each datacube (fits file) the list of galaxies names is 
+    sorted by this data retrieved by FUNC. 
+    
+    ORDER
+    > 0 - sort desc
+      0 - no sort
+    < 0 - sort asc
     '''
     verbose = kwargs.get('verbose', None)
     if isinstance(gals, str):
@@ -342,11 +353,11 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
             if verbose:
                 print K.califaID, data__g[i]
             K.close()
-        if order >= 0:
+        if order != 0:
             sgals = None
             if data__g.mask.sum() < Ng:
                 iS = np.argsort(data__g)
-                if order != 0:
+                if order < 0:
                     iS = iS[::-1]
                 sgals = gals[iS]
                 sdata = data__g[iS]
@@ -354,7 +365,13 @@ def sort_gals(gals, func = None, order = 1, **kwargs):
             sgals = gals
             sdata = data__g
     else:
-        sgals = gals
+        reverse = False
+        if order != 0:
+            if order < 0:
+                reverse = True
+            sgals = np.asarray(sorted(gals.tolist(), reverse = reverse))
+        else:
+            sgals = gals
         sdata = None
     if kwargs.get('return_data_sort', True) == True:
         return sgals, sdata
