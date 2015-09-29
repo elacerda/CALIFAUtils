@@ -303,7 +303,21 @@ class ALLGals(object):
         self.O_O3N2_PP04__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_direct_O_23__g)
         self.O_direct_O_23__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
-            
+        
+    def integrated_mask_nan(self):
+        aux = np.isnan(self.integrated_chb_in__g)
+        self.integrated_chb_in__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_c_Ha_Hb__g)
+        self.integrated_c_Ha_Hb__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_O_HIICHIM__g)
+        self.integrated_O_HIICHIM__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_O_O3N2_M13__g)
+        self.integrated_O_O3N2_M13__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_O_O3N2_PP04__g)
+        self.integrated_O_O3N2_PP04__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_O_direct_O_23__g)
+        self.integrated_O_direct_O_23__g[aux] = np.ma.masked
+
     def create_dict_h5(self):
         D = {}
         for v in self.__dict__.keys():
@@ -585,7 +599,7 @@ class H5SFRData(object):
             #########################
             ### Radius ##############
             #########################
-            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7.5, 10], majloc = 0.6, minloc = 0.12,),
             'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1., 0.2], majloc = 0.5, minloc = 0.1),
             'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
@@ -602,8 +616,8 @@ class H5SFRData(object):
             'tauVNebR' : dict(v = self.tau_V_neb__rg, label = r'$\tau_V^{neb} (R)$', lim = [ 0., 3. ], majloc = 1., minloc = 0.2),
             'alogSFRSDR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT]), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
             'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 1], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 2], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
             'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 11.5]),
             'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
         }
@@ -657,6 +671,7 @@ class CALIFAPaths(object):
         'v20_q046.d15a' : [ 0, 0 ],
         'v20_q050.d15a' : [ 0, 0 ],
     }
+    _masterlist_file = 'califa_master_list_rgb.txt'
     def __init__(self, work_dir = '/Users/lacerda/CALIFA/', v_run = -1):
         self.califa_work_dir = work_dir
         self.set_v_run(v_run)
@@ -671,6 +686,9 @@ class CALIFAPaths(object):
             self.v_run = v_run
         self.config_run()
         
+    def get_masterlist_file(self):
+        return self.califa_work_dir + self._masterlist_file
+    
     def get_config(self):
         v_conf = self._config[self.v_run]
         return dict(versionSuffix = self.v_run,
