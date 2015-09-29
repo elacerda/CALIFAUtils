@@ -8,6 +8,47 @@ import numpy as np
 import CALIFAUtils as C
 from pycasso import fitsQ3DataCube
 
+def get_CALIFAID_by_NEDName(nedname):
+    import atpy
+    from califa import masterlist
+    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type = 'califa_masterlist')
+    if isinstance(nedname, str):
+        nedlist = [ nedname ]
+    else:
+        nedlist = nedname
+    i_ned = []
+    for nn in nedlist:
+        try:
+            i_ned.append(t['ned_name'].tolist().index(nn))
+        except:
+            print nedname, ': not found'
+            #t.close()
+            return False
+    
+    rval = np.copy(t['CALIFA_ID'][i_ned])
+    #t.close()
+    return rval
+
+def get_NEDName_by_CALIFAID(califaID):
+    import atpy
+    from califa import masterlist
+    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type = 'califa_masterlist')
+    if isinstance(califaID, str):
+        califalist = [ califaID ]
+    else:
+        califalist = califaID
+    i_cal = []
+    for ci in califalist:
+        try:
+            i_cal.append(t['CALIFA_ID'].tolist().index(ci))
+        except:
+            print califaID, ': not found'
+            #t.close()
+            return False
+    rval = np.copy(t['ned_name'][i_cal])    
+    #t.close()
+    return rval
+
 def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
     # Morfologia, incluyendo tipo medio y +- error
     # ES.Enrique . DF . 20120808
@@ -481,6 +522,16 @@ def calc_xY(K, tY):
     aux2__z = x__tZz[indY, :, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
     integrated_aux1 = integrated_x__tZ[:indY, :].sum()
     integrated_aux2 = integrated_x__tZ[indY, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
+
+def calc_xO(K, tO):
+    _, aLow__t, aUpp__t, indO = calc_agebins(K.ageBase, tO)
+    x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+    integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
+    aux1__z = x__tZz[(indO + 1):, :, :].sum(axis = 1).sum(axis = 0)
+    aux2__z = x__tZz[indO, :, :].sum(axis = 0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO]) 
+    integrated_aux1 = integrated_x__tZ[(indO + 1):, :].sum()
+    integrated_aux2 = integrated_x__tZ[indO, :].sum(axis = 0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
     return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
 
 def calc_SFR(K, tSF):

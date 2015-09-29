@@ -182,7 +182,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         txt_y = r'$y_{OLS}$ = %.2f$x$ - %.2f %s' % (a, b * -1., Yrms_str)
     C.debug_var(True, y_OLS = txt_y)
     if txt == True:
-        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'top', 'right', color = color)
+        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'bottom', 'right', color = color)
     else:
         print txt_y
     return a, b, sigma_a, sigma_b
