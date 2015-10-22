@@ -29,7 +29,7 @@ x = np.linspace(-2.0, 2.0, 20)
 l.addLine('MyLineType', someFuncLine, const, x)
 '''
 class Lines:
-    def __init__(self, xn = 1000):
+    def __init__(self, xn = 1000, create_BPT = True):
         self.xn = xn
         self.lines = []
         self.x = {}
@@ -44,8 +44,9 @@ class Lines:
         '''
         self._removable = {} 
         
-        self.linesbpt = []
-        self.linesbpt_init(self)
+        if create_BPT is True:
+            self.linesbpt = []
+            self.linesbpt_init(self)
 
     def linesbpt_init(self, linename):
         x = {
@@ -124,7 +125,7 @@ class Lines:
         else:
             print 'line %s doesn\'t exist' % linename
 
-    def addLine(self, linename, lfunc, lconst, x):
+    def addLine(self, linename, lfunc, lconst, x, removable = True):
         if not self.lines.__contains__(linename):
             self.addType(self, linename)
             self.addMethod(self, linename, lfunc)
@@ -133,7 +134,7 @@ class Lines:
             self.x[linename] = x
             self.y[linename] = self.get_yfromx(linename, x)
             
-            self._removable[linename] = True
+            self._removable[linename] = removable
         else:
             print 'line %s exists, try another name' % linename
 
@@ -167,7 +168,8 @@ class Lines:
     
     @staticmethod
     def lline(c, x):
-        return c[0] * x + c[1]
+        return np.polyval(c, x)
+        #return c[0] * x + c[1]
 
     def get_yfromx(self, linename, x):
         return self.methods[linename](self.consts[linename], np.array(x))

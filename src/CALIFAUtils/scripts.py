@@ -247,10 +247,8 @@ def data_uniq(list_gal, data):
     list_uniq_gal = np.unique(list_gal)
     NGal = len(list_uniq_gal)
     data__g = np.ones((NGal))
-    
     for i, g in enumerate(list_uniq_gal):
         data__g[i] = np.unique(data[np.where(list_gal == g)])
-        
     return NGal, list_uniq_gal, data__g        
         
 def OLS_bisector(x, y):
@@ -264,37 +262,28 @@ def OLS_bisector(x, y):
     var1 = 1. / Sxx ** 2.
     var1 *= (xdev ** 2.0 * (ydev - b1 * xdev) ** 2.0).sum()
     var2 = 1. / Sxy ** 2.
-    var2 *= (ydev ** 2.0 * (ydev - b2 * xdev) ** 2.0).sum()
-    
+    var2 *= (ydev ** 2.0 * (ydev - b2 * xdev) ** 2.0).sum()    
     cov12 = 1. / (b1 * Sxx ** 2.0)
     cov12 *= (xdev * ydev * (ydev - b1 * ydev) * (ydev - b2 * ydev)).sum() 
-    
     bb1 = (1 + b1 ** 2.)
     bb2 = (1 + b2 ** 2.)
-
     b3 = 1. / (b1 + b2) * (b1 * b2 - 1 + (bb1 * bb2) ** .5)
-    
     var = b3 ** 2.0 / ((b1 + b2) ** 2.0 * bb1 * bb2) 
     var *= (bb2 ** 2.0 * var1 + 2. * bb1 * bb2 * cov12 + bb1 ** 2. * var2)
-        
     slope = b3
     intercept = y.mean() - slope * x.mean()
     var_slope = var
-    
     try: 
-        n = (~x.mask).sum()
+        n = x.count()
     except AttributeError:
         n = len(x)
-    
     gamma1 = b3 / ((b1 + b2) * (bb1 * bb2) ** 0.5)
     gamma13 = gamma1 * bb2
     gamma23 = gamma1 * bb1
     var_intercept = 1. / n ** 2.0
     var_intercept *= ((ydev - b3 * xdev - n * x.mean() * (gamma13 / Sxx * xdev * (ydev - b1 * xdev) + gamma23 / Sxy * ydev * (ydev - b2 * xdev))) ** 2.0).sum() 
-    
     sigma_slope = var_slope ** 0.5
     sigma_intercept = var_intercept ** 0.5
-    
     return slope, intercept, sigma_slope, sigma_intercept
 
 def read_one_cube(gal, **kwargs):
@@ -514,7 +503,6 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
 def calc_xY(K, tY):
     _, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
-
     # Compute xY__z
     x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
     integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()

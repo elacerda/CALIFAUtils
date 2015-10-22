@@ -11,6 +11,7 @@ from scipy import stats as st
 from matplotlib.pyplot import cm
 #from sklearn import linear_model
 from matplotlib import pyplot as plt
+from CALIFAUtils.objects import runstats
 from CALIFAUtils.scripts import OLS_bisector
 from matplotlib.pyplot import MultipleLocator
 from CALIFAUtils.scripts import gaussSmooth_YofX
@@ -417,6 +418,30 @@ def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
     f.savefig(fname)
     plt.close(f)
 
+def ax_scatterXYrunstats(ax, x, y, **kwargs):
+    from CALIFAUtils.objects import runstats
+    mask = kwargs.get('mask', np.zeros_like(x, dtype = np.bool))
+    xm, ym = C.ma_mask_xyz(x, y, mask = mask)
+    rs_kwargs = dict(smooth = True, sigma = 1.2)
+    rs_kwargs.update(kwargs.get('rs_kwargs', {}))
+    rs = runstats(xm.compressed(), ym.compressed(), **rs_kwargs)
+    sc_kwargs = dict(marker = 'o', s = 3, alpha = 0.9, edgecolor = 'none', label = '')
+    sc_kwargs.update(kwargs.get('sc_kwargs', {}))
+    ax.set_title('N = %d elliptical bins' % len(xm.compressed()))
+    ax.scatter(xm, ym, **sc_kwargs)
+    ax.plot(rs.xS, rs.yS, '--k', lw = 2., label = 'gauss. smooth runstats')
+    xlabel = kwargs.get('xlabel', None)
+    ylabel = kwargs.get('ylabel', None)
+    xlim = kwargs.get('xlim', None)
+    ylim = kwargs.get('ylim', None)
+    legend_kwargs = kwargs.get('legend_kwargs', None)
+    if xlabel is not None: ax.set_xlabel(xlabel)
+    if ylabel is not None: ax.set_ylabel(ylabel)
+    if xlim is not None: ax.set_xlim(xlim)
+    if ylim is not None: ax.set_ylim(ylim)
+    if legend_kwargs is not None: ax.legend(**legend_kwargs)
+    return ax
+
 def plotLinRegAge(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     f = plt.figure()
     f.set_dpi(100)
@@ -543,8 +568,8 @@ def plot_zbins(**kwargs):
     zbins_colors = kwargs.get('zbins_colors', None)
     zticklabels = kwargs.get('zticklabels', None)
     zticks = kwargs.get('zticks', None)
+    mask = kwargs.get('add_mask', np.zeros_like(x, dtype = np.bool))
     ###### vars end ######
-    mask = np.zeros_like(x, dtype = np.bool)
     if z2 is not None and z2mask == True:
         mask |= z2.mask
     if z is not None:
@@ -563,15 +588,19 @@ def plot_zbins(**kwargs):
             z2m = np.ma.masked_array(z2, mask = mask)
         kwargs_scatter = dict(c = zcolor)
         zcmap = cm.ScalarMappable()
-        zcmap.set_cmap(kwargs.get('cmap', cm.spectral_r))
+        zcmap.set_cmap(kwargs.get('cmap', 'spectral_r'))
         kwargs_scatter.update(dict(cmap = zcmap.cmap))
         if zticks is not None:
             zlim = [ zticks[0], zticks[-1] ]
         else:
             if zlim is None:
                 zlim = [ zm.compressed().min(), zm.compressed().max() ]
+                kwargs_scatter.update(dict(vmin = zlim[0]))
+                kwargs_scatter.update(dict(vmax = zlim[1]))
         if zlimprc is not None:
             zlim = np.percentile(zm.compressed(), zlimprc)
+            kwargs_scatter.update(dict(vmin = zlim[0]))
+            kwargs_scatter.update(dict(vmax = zlim[1]))
         C.debug_var(debug, zlim = zlim)
         C.debug_var(debug, zticks = zticks)
         norm = mpl.colors.Normalize(vmin = zlim[0], vmax = zlim[1])
@@ -593,18 +622,22 @@ def plot_zbins(**kwargs):
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
-    kwargs_scatter.update(kwargs.get('kwargs_scatter', dict(figsize = (10, 8), dpi = 100)))    
+    kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))    
     C.debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     kwargs.update(dict(sc = sc))
     zlabel = kwargs.get('zlabel', None)
     if z is not None:
         if kwargs.get('cb', None) is not (None or False):
-            kwargs_tmp = {}
+            kwargs_sc_cb = {}
             if zticks is not None:
-                kwargs_tmp.update(dict(ticks = zticks))
-            C.debug_var(debug, kwargs_cb = kwargs_tmp)
-            cb = f.colorbar(sc, **kwargs_tmp)
+                kwargs_sc_cb.update(dict(ticks = zticks))
+            sc_cb_newaxis = kwargs.get('sc_cb_newaxis', None)
+            if sc_cb_newaxis is not None:
+                kwargs_sc_cb.update(cax = f.add_axes(sc_cb_newaxis))
+            kwargs_sc_cb.update(kwargs.get('kwargs_sc_cb', {}))
+            C.debug_var(debug, kwargs_sc_cb = kwargs_sc_cb)
+            cb = f.colorbar(sc, **kwargs_sc_cb)
             if zlabel is not None:
                 cb.set_label(zlabel)
             if zticklabels is not None:
@@ -618,93 +651,70 @@ def plot_zbins(**kwargs):
         C.debug_var(debug, kwargs_ols = kwargs_ols)
         a, b, sa, sb = plotOLSbisectorAxis(ax, xm, ym, **kwargs_ols)
     if kwargs.get('running_stats', False) is not False:
-        nBox = len(xm.compressed()) / kwargs.get('rs_frac_box', 20.)
-        C.debug_var(debug, nBox = nBox)
-        dxBox = (xm.max() - xm.min()) / (nBox - 1.)
-        kwargs_rs = dict(dxBox = dxBox, xbinIni = xm.min(), xbinFin = xm.max(), xbinStep = dxBox)
+        #nBox = len(xm.compressed()) / kwargs.get('rs_frac_box', 20.)
+        #C.debug_var(debug, nBox = nBox)
+        #dxBox = (xm.max() - xm.min()) / (nBox - 1.)
+        #kwargs_rs = dict(dxBox = dxBox, xbinIni = xm.min(), xbinFin = xm.max(), xbinStep = dxBox)
+        kwargs_rs = {}
         kwargs_rs.update(kwargs.get('kwargs_rs', {})) 
         C.debug_var(debug, kwargs_rs = kwargs_rs)
-        xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(xm, ym, **kwargs_rs)
+        rs = runstats(xm.compressed(), ym.compressed(), **kwargs_rs)
+        #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(xm, ym, **kwargs_rs)
         kwargs_plot_rs = kwargs.get('kwargs_plot_rs', dict(c = 'k', lw = 2))
         if kwargs.get('rs_errorbar', False) is not False:
-            kwargs_plot_rs.update(dict(xerr = xStd, yerr = yStd))
+            kwargs_plot_rs.update(dict(xerr = rs.xStd, yerr = rs.yStd))
         C.debug_var(debug, kwargs_plot_rs = kwargs_plot_rs)
         rs_gs = kwargs.get('rs_gaussian_smooth', None)
         if rs_gs is None:
-            plt.errorbar(xMedian, yMedian, **kwargs_plot_rs)
+            plt.errorbar(rs.xMedian, rs.yMedian, **kwargs_plot_rs)
         else:
-            FWHM = kwargs.get('rs_gs_fwhm', 4.)
-            sig = FWHM / np.sqrt(8. * np.log(2))
-            xM = np.ma.masked_array(xMedian)
-            yM = np.ma.masked_array(yMedian)
-            m_gs = np.isnan(xM) | np.isnan(yM) 
-            xS = gaussian_filter1d(xM[~m_gs], sig)
-            yS = gaussian_filter1d(yM[~m_gs], sig)
-            ax.plot(xS, yS, **kwargs_plot_rs)
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            # FWHM = kwargs.get('rs_gs_fwhm', 4.)
+            # sig = FWHM / np.sqrt(8. * np.log(2))
+            # xM = np.ma.masked_array(xMedian)
+            # yM = np.ma.masked_array(yMedian)
+            # m_gs = np.isnan(xM) | np.isnan(yM) 
+            # xS = gaussian_filter1d(xM[~m_gs], sig)
+            # yS = gaussian_filter1d(yM[~m_gs], sig)
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            ax.plot(rs.xS, rs.yS, **kwargs_plot_rs)
         if kwargs.get('rs_percentiles', None) is not None:
             c = kwargs_plot_rs.get('c', 'k')
-            if rs_gs is None:
-                ax.plot(xPrc[0], yPrc[0], c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
-                ax.plot(xPrc[1], yPrc[1], c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
-            else:
-                xPrc16 = np.ma.masked_array(xPrc[0])
-                yPrc16 = np.ma.masked_array(yPrc[0])
-                xPrc84 = np.ma.masked_array(xPrc[1])
-                yPrc84 = np.ma.masked_array(yPrc[1])
-                m_gs_16 = np.isnan(xPrc16) | np.isnan(yPrc16)
-                m_gs_84 = np.isnan(xPrc84) | np.isnan(yPrc84) 
-                xPrc16S = gaussian_filter1d(xPrc16[~m_gs_16], sig)
-                yPrc16S = gaussian_filter1d(yPrc16[~m_gs_16], sig)
-                xPrc84S = gaussian_filter1d(xPrc84[~m_gs_84], sig)
-                yPrc84S = gaussian_filter1d(yPrc84[~m_gs_84], sig)
-                ax.plot(xPrc16S, yPrc16S, c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
-                ax.plot(xPrc84S, yPrc84S, c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
-        if kwargs.get('rs_ols', False) is not False:
+            ax.plot(rs.xPrc[0], rs.yPrc[0], c = c, ls = '--', lw = 2, label = '5 perc. (run. stats)')
+            ax.plot(rs.xPrc[1], rs.yPrc[1], c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
+            ax.plot(rs.xPrc[2], rs.yPrc[2], c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
+            ax.plot(rs.xPrc[3], rs.yPrc[3], c = c, ls = '--', lw = 2, label = '95 perc. (run. stats)')
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+            # if rs_gs is None:
+            #     ax.plot(rs.xPrc[0], rs.yPrc[0], c = c, ls = '--', lw = 2, label = '5 perc. (run. stats)')
+            #     ax.plot(rs.xPrc[1], rs.yPrc[1], c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
+            #     ax.plot(rs.xPrc[2], rs.yPrc[2], c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
+            #     ax.plot(rs.xPrc[3], rs.yPrc[3], c = c, ls = '--', lw = 2, label = '95 perc. (run. stats)')
+            # else:
+            #     xPrc16 = np.ma.masked_array(xPrc[0])
+            #     yPrc16 = np.ma.masked_array(yPrc[0])
+            #     xPrc84 = np.ma.masked_array(xPrc[1])
+            #     yPrc84 = np.ma.masked_array(yPrc[1])
+            #     m_gs_16 = np.isnan(xPrc16) | np.isnan(yPrc16)
+            #     m_gs_84 = np.isnan(xPrc84) | np.isnan(yPrc84) 
+            #     xPrc16S = gaussian_filter1d(xPrc16[~m_gs_16], sig)
+            #     yPrc16S = gaussian_filter1d(yPrc16[~m_gs_16], sig)
+            #     xPrc84S = gaussian_filter1d(xPrc84[~m_gs_84], sig)
+            #     yPrc84S = gaussian_filter1d(yPrc84[~m_gs_84], sig)
+            #     ax.plot(xPrc16S, yPrc16S, c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
+            #     ax.plot(xPrc84S, yPrc84S, c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
+            #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+        rs_ols =  kwargs.get('rs_ols', None)
+        if rs_ols is not None:
             pos_x = kwargs_ols.get('pos_x', 0.99)
             pos_y = kwargs_ols.get('pos_y', 0.) + 0.03
             kwargs_rs_ols = dict(pos_x = pos_x, pos_y = pos_y, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
             kwargs_rs_ols.update(kwargs.get('kwargs_rs_ols', {}))
             C.debug_var(debug, kwargs_rs_ols = kwargs_rs_ols)
-            a, b, sa, sb = plotOLSbisectorAxis(ax, xMedian, yMedian, **kwargs_rs_ols)
-        if kwargs.get('rs_yx', False) is not False:
-            nBox = len(xm.compressed()) / kwargs.get('rs_yx_frac_box', 20.)
-            dxBox = (ym.max() - ym.min()) / (nBox - 1.)
-            kwargs_rs_yx = dict(dxBox = dxBox, xbinIni = ym.min(), xbinFin = ym.max(), xbinStep = dxBox)
-            kwargs_rs_yx.update(kwargs.get('kwargs_rs_yx', {})) 
-            C.debug_var(debug, kwargs_rs_yx = kwargs_rs_yx)
-            xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(ym, xm, **kwargs_rs)
-            kwargs_plot_rs_yx = kwargs.get('kwargs_plot_rs_yx', dict(c = 'k', lw = 2))
-            if kwargs.get('rs_yx_errorbar', False) is not False:
-                kwargs_plot_rs_yx.update(dict(xerr = xStd, yerr = yStd))
-            C.debug_var(debug, kwargs_plot_rs_yx = kwargs_plot_rs_yx)
-            rs_yx_gs = kwargs.get('rs_yx_gaussian_smooth', None)
-            if rs_yx_gs is None:
-                plt.errorbar(xMedian, yMedian, **kwargs_plot_rs_yx)
-            else:
-                FWHM = kwargs.get('rs_yx_gs_fwhm', 4.)
-                xM = np.ma.masked_array(xMedian)
-                yM = np.ma.masked_array(yMedian)
-                m_gs = np.isnan(xM) | np.isnan(yM) 
-                Xs, Ys = gaussSmooth_YofX(xM[~m_gs], yM[~m_gs], FWHM)
-                ax.plot(Xs, Ys, **kwargs_plot_rs_yx)
-            if kwargs.get('rs_yx_percentiles', None) is not None:
-                c = kwargs_plot_rs_yx.get('c', 'k')
-                if rs_yx_gs is None:
-                    ax.plot(xPrc[0], yPrc[0], c = c, ls = '--', label = '16 perc. (run. stats)')
-                    ax.plot(xPrc[1], yPrc[1], c = c, ls = '--', label = '84 perc. (run. stats)')
-                else:
-                    xPrc16 = np.ma.masked_array(xPrc[0])
-                    yPrc16 = np.ma.masked_array(yPrc[0])
-                    xPrc84 = np.ma.masked_array(xPrc[1])
-                    yPrc84 = np.ma.masked_array(yPrc[1])
-                    m_gs_16 = np.isnan(xPrc16) | np.isnan(yPrc16)
-                    m_gs_84 = np.isnan(xPrc84) | np.isnan(yPrc84) 
-                    xPrc16S = gaussian_filter1d(xPrc16[~m_gs_16], sig)
-                    yPrc16S = gaussian_filter1d(yPrc16[~m_gs_16], sig)
-                    xPrc84S = gaussian_filter1d(xPrc84[~m_gs_84], sig)
-                    yPrc84S = gaussian_filter1d(yPrc84[~m_gs_84], sig)
-                    ax.plot(xPrc16S, yPrc16S, c = c, ls = '--', label = '16 perc. (run. stats)')
-                    ax.plot(xPrc84S, yPrc84S, c = c, ls = '--', label = '84 perc. (run. stats)')
+            if rs_ols == 'median':
+                a, b, sa, sb = plotOLSbisectorAxis(ax, rs.xMedian, rs.yMedian, **kwargs_rs_ols)
+            elif rs_ols == 'smoothed':
+                a, b, sa, sb = plotOLSbisectorAxis(ax, rs.xS, rs.yS, **kwargs_rs_ols)
     if zbins != False:
         if zbins_mask is None:
             if isinstance(zbins, list):
@@ -767,31 +777,30 @@ def plot_zbins(**kwargs):
         C.debug_var(debug, zbins_colors = zbins_colors)
         for i, msk in enumerate(zbins_mask):
             y_pos = (0.03 * i) + 0.03
-            X = xm[msk]
-            Y = ym[msk]
-            NX = len(X)
-            NY = len(Y)
+            tmp_mask = (xm[msk].mask | ym[msk].mask)
+            X = np.ma.masked_array(xm[msk], mask = tmp_mask)
+            Y = np.ma.masked_array(ym[msk], mask = tmp_mask)
+            #X = xm[msk]
+            #Y = ym[msk]
+            NX = X.count()
+            NY = y.count()
             C.debug_var(debug, bin = i)
             C.debug_var(debug, N = (~(X.mask | Y.mask)).sum())
+            C.debug_var(debug, N_sanity = X.count())
             if NX > 3 and NY > 3:
                 nBox = len(xm.compressed()) / kwargs.get('zbins_rs_frac_box', 20.)
                 dxBox = (X.max() - X.min()) / (nBox - 1.)
-                kwargs_zbins_rs = dict(dxBox = dxBox, xbinIni = X.min(), xbinFin = X.max(), xbinStep = dxBox)
+                #kwargs_zbins_rs = dict(dxBox = dxBox, xbinIni = X.min(), xbinFin = X.max(), xbinStep = dxBox)
+                kwargs_zbins_rs = {}
                 kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', {})) 
                 C.debug_var(debug, kwargs_zbins_rs = kwargs_zbins_rs)
-                xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(X, Y, **kwargs_zbins_rs)
+                rsbins = runstats(X.compressed(), Y.compressed(), **kwargs_zbins_rs)
+                #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(X, Y, **kwargs_zbins_rs)
                 zbins_rs_gs = kwargs.get('zbins_rs_gaussian_smooth', None) 
                 if zbins_rs_gs is None:
-                    plt.errorbar(xMedian, yMedian, c = zbins_colors[i], lw = 2, label = r'%s' % zbins_labels[i])
+                    plt.errorbar(rsbins.xMedian, rsbins.yMedian, c = zbins_colors[i], lw = 2, label = r'%s' % zbins_labels[i])
                 else:
-                    FWHM = kwargs.get('zbins_rs_gs_fwhm', 4.)
-                    sig = FWHM / np.sqrt(8. * np.log(2))
-                    xM = np.ma.masked_array(xMedian)
-                    yM = np.ma.masked_array(yMedian)
-                    m_gs = np.isnan(xM) | np.isnan(yM) 
-                    xS = gaussian_filter1d(xM[~m_gs], sig)
-                    yS = gaussian_filter1d(yM[~m_gs], sig)
-                    ax.plot(xS, yS, c = zbins_colors[i], lw = 2, label = '%s' % zbins_labels[i])
+                    ax.plot(rs.xS, rs.yS, c = zbins_colors[i], lw = 2, label = '%s' % zbins_labels[i])
                 ### XXX: TODO
                 #if kwargs.get('zbins_showpoints', None) is not None:
     if kwargs.get('spearmanr', None) is not None:
@@ -829,7 +838,9 @@ def plot_zbins(**kwargs):
     ax.yaxis.set_major_locator(MultipleLocator(y_major_locator))
     ax.yaxis.set_minor_locator(MultipleLocator(y_minor_locator))
     ax.grid(which = 'major')
-    if kwargs.get('legend', True) is True:
+    if kwargs.get('write_N', False) is True:
+        plot_text_ax(ax, 'N:%d' % xm.count() , 0.98, 0.98, 8, 'top', 'right', 'k')
+    if kwargs.get('legend', False) is True:
         kwargs_legend = dict(loc = 'upper left', fontsize = 14)
         kwargs_legend.update(kwargs.get('kwargs_legend', {}))
         C.debug_var(debug, kwargs_legend = kwargs_legend)

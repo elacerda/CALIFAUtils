@@ -103,6 +103,14 @@ class ALLGals(object):
         self.integrated_tau_V_neb_err__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_logZ_neb_S06__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_logZ_neb_S06_err__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_obs_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_obs_Hb__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_obs_O3__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_obs_N2__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_int_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_int_Hb__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_int_O3__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_F_int_N2__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_L_int_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_L_obs_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_SFR_Ha__g = np.ma.empty((N_gals), dtype = np.float_)
@@ -122,6 +130,14 @@ class ALLGals(object):
         self.at_mass__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.EW_Ha__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.EW_Hb__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_obs_Ha__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_obs_Hb__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_obs_O3__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_obs_N2__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_int_Ha__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_int_Hb__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_int_O3__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.F_int_N2__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.x_Y__Trg = np.ma.empty((N_T, NRbins, N_gals), dtype = np.float_)
         self.aSFRSD__Trg = np.ma.empty((N_T, NRbins, N_gals), dtype = np.float_)
         self.tau_V__Trg = np.ma.empty((N_T, NRbins, N_gals), dtype = np.float_)
@@ -139,11 +155,13 @@ class ALLGals(object):
         #GasProp
         self.integrated_chb_in__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_c_Ha_Hb__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.integrated_O3N2__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_O_HIICHIM__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_O_O3N2_M13__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_O_O3N2_PP04__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_O_direct_O_23__g = np.ma.empty((N_gals), dtype = np.float_)
         self.O_HIICHIM__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.O3N2__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.O_O3N2_M13__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.O_O3N2_PP04__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.O_direct_O_23__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
@@ -163,6 +181,18 @@ class ALLGals(object):
         self._SFRSD_Ha_mask__g = []
         self._F_obs_Ha__g = []
         self._F_obs_Ha_mask__g = []
+
+        self._F_obs_Hb__g = []
+        self._F_obs_Hb_mask__g = []
+        self._F_obs_N2__g = []
+        self._F_obs_N2_mask__g = []
+        self._F_obs_O3__g = []
+        self._F_obs_O3_mask__g = []
+        self._F_int_Ha__g = []
+        self._F_int_Hb__g = []
+        self._F_int_N2__g = []
+        self._F_int_O3__g = []
+
         self._L_int_Ha__g = []
         self._L_int_Ha_err__g = []
         self._L_int_Ha_mask__g = []
@@ -207,6 +237,7 @@ class ALLGals(object):
         #GasProp
         self._chb_in__g = []
         self._c_Ha_Hb__g = []
+        self._O3N2__g = []
         self._O_HIICHIM__g = []
         self._O_O3N2_M13__g = []
         self._O_O3N2_PP04__g = []
@@ -240,6 +271,27 @@ class ALLGals(object):
         auxMask = np.hstack(self._F_obs_Ha_mask__g)
         self.F_obs_Ha__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
 
+        aux = np.hstack(self._F_obs_Hb__g)
+        auxMask = np.hstack(self._F_obs_Hb_mask__g)
+        self.F_obs_Hb__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
+
+        aux = np.hstack(self._F_obs_O3__g)
+        auxMask = np.hstack(self._F_obs_O3_mask__g)
+        self.F_obs_O3__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
+
+        aux = np.hstack(self._F_obs_N2__g)
+        auxMask = np.hstack(self._F_obs_N2_mask__g)
+        self.F_obs_N2__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
+
+        aux = np.hstack(self._F_int_Ha__g)
+        self.F_int_Ha__g = np.ma.masked_array(aux, dtype = np.float_)
+        aux = np.hstack(self._F_int_Hb__g)
+        self.F_int_Hb__g = np.ma.masked_array(aux, dtype = np.float_)
+        aux = np.hstack(self._F_int_O3__g)
+        self.F_int_O3__g = np.ma.masked_array(aux, dtype = np.float_)
+        aux = np.hstack(self._F_int_N2__g)
+        self.F_int_N2__g = np.ma.masked_array(aux, dtype = np.float_)
+        
         aux = np.hstack(self._SFR_Ha__g)
         auxMask = np.hstack(self._SFR_Ha_mask__g)
         self.SFR_Ha__g = np.ma.masked_array(aux, mask = auxMask, dtype = np.float_)
@@ -297,6 +349,8 @@ class ALLGals(object):
         self.c_Ha_Hb__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_HIICHIM__g)
         self.O_HIICHIM__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
+        aux = np.hstack(self._O3N2__g)
+        self.O3N2__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_O3N2_M13__g)
         self.O_O3N2_M13__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_O3N2_PP04__g)
@@ -311,6 +365,8 @@ class ALLGals(object):
         self.integrated_c_Ha_Hb__g[aux] = np.ma.masked
         aux = np.isnan(self.integrated_O_HIICHIM__g)
         self.integrated_O_HIICHIM__g[aux] = np.ma.masked
+        aux = np.isnan(self.integrated_O3N2__g)
+        self.integrated_O3N2__g[aux] = np.ma.masked
         aux = np.isnan(self.integrated_O_O3N2_M13__g)
         self.integrated_O_O3N2_M13__g[aux] = np.ma.masked
         aux = np.isnan(self.integrated_O_O3N2_PP04__g)
@@ -444,7 +500,7 @@ class H5SFRData(object):
                 x = self.get_prop_gal(prop, gal)
             else:
                 x = self.get_data_h5(attr)
-                setattr(self, attr, x)
+                if x is not None: setattr(self, attr, x)
             return x
 
     def get_data_h5(self, prop, dtype = np.float_):
@@ -475,6 +531,8 @@ class H5SFRData(object):
             node = '%s/%s' % (folder_nomask, prop)
             ds = h5[node]
             return ds.value
+        else:
+            return None
         
     # this method only works if self.califaIDs is sorted also
     def get_mask_zones_list(self, l_gals, return_ngals = False):
@@ -739,6 +797,8 @@ class runstats(object):
             self.nInBin = aux[7]
             self.xPrc = aux[8]
             self.yPrc = aux[9]
+            self.xPrcS = []
+            self.yPrcS = []
         else:
             self.xbinCenter = self.x
             self.xMedian = self.x
@@ -750,6 +810,8 @@ class runstats(object):
             self.nInBin = np.ones_like(self.x, dtype = np.int)
             self.xPrc = -1
             self.yPrc = -1
+            self.xPrcS = -1
+            self.yPrcS = -1
         
         if self._gsmooth is True:
             self.gaussian_smooth()
@@ -767,6 +829,8 @@ class runstats(object):
             self.nInBin = aux[7]
             self.xPrc = aux[8]
             self.yPrc = aux[9]
+            self.xPrcS = []
+            self.yPrcS = []
         else:
             self.xbinCenter = self.x
             self.xMedian = self.x
@@ -778,6 +842,8 @@ class runstats(object):
             self.nInBin = np.ones_like(self.x, dtype = np.int)
             self.xPrc = -1
             self.yPrc = -1
+            self.xPrcS = -1
+            self.yPrcS = -1
         
         if self._gsmooth is True:
             self.gaussian_smooth()
@@ -793,6 +859,14 @@ class runstats(object):
         self.xS = self.xMedian[~m_gs]
         self.yS = gaussian_filter1d(yM[~m_gs], self.sigma)
         #print '>X>X>X>', len(self.xMedian[~m_gs]), len(self.xS)
+        if kwargs.get('gs_prc', None) is not None:
+            for i in xrange(self.xPrc):
+                xM = np.ma.masked_array(self.xPrc[i])
+                yM = np.ma.masked_array(self.yPrc[i])
+                m_gs = np.isnan(xM) | np.isnan(yM) 
+                #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
+                self.xPrcS.append(self.xPrc[~m_gs])
+                self.yPrcS.append(gaussian_filter1d(yM[~m_gs], self.sigma))
         
     def OLS_bisector(self):
         a, b, sa, sb = OLS_bisector(self.xS, self.yS)
