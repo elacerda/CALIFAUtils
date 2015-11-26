@@ -50,16 +50,16 @@ class Lines:
 
     def linesbpt_init(self, linename):
         x = {
-            'K01' : np.linspace(-2.0, 0.47, self.xn + 1),
-            'K03' : np.linspace(-2.0, 0.05, self.xn + 1),
-            'S06' : np.linspace(-2.0, -0.2, self.xn + 1)
+            'K01' : np.linspace(-10.0, 0.47, self.xn + 1),
+            'K03' : np.linspace(-10.0, 0.05, self.xn + 1),
+            'S06' : np.linspace(-10.0, -0.2, self.xn + 1)
         }
 
         self.addLine('K01', self.linebpt, (1.19, 0.61, -0.47), x['K01'][:-1])
         self.addLine('K03', self.linebpt, (1.30, 0.61, -0.05), x['K03'][:-1])
         self.addLine('S06', self.linebpt, (0.96, 0.29, 0.2), x['S06'][:-1])
 
-        x['K06'] = np.linspace(-2.0, 2.0, self.xn)
+        x['K06'] = np.linspace(-10.0, 10.0, self.xn)
         self.addLine('K06', self.lline, (1.01, 0.48), x['K06'])
         self.fixK06(self)
 
@@ -73,24 +73,12 @@ class Lines:
         '''
         self.removable_init(self)
 
-    def maskAbovelinebpt(self, linename, x, y):
+    def belowlinebpt(self, linename, x, y):
         if self.lines.__contains__(linename):
-            mask = (y > self.get_yfromx(linename, x)) 
-
+            mask = (y <= self.get_yfromx(linename, x)) 
             if linename != 'K06':
                 c = self.consts[linename]
                 mask &= (x < -1.0*c[-1])
-
-        return mask
-        
-    def maskBelowlinebpt(self, linename, x, y):
-        if self.lines.__contains__(linename):
-            mask = (y < self.get_yfromx(linename, x)) 
-
-            if linename != 'K06':
-                c = self.consts[linename]
-                mask &= (x < -1.0*c[-1])
-
         return mask
 
     @staticmethod
