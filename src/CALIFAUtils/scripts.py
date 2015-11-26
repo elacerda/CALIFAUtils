@@ -8,6 +8,37 @@ import numpy as np
 import CALIFAUtils as C
 from pycasso import fitsQ3DataCube
 
+def my_morf(morf_in = None):
+    mtype = {
+        'Sa' : 0,
+        'Sab' : 1,
+        'Sb' : 2,
+        'Sbc' : 3,
+        'Sc' : 4,
+        'Scd' : 5,
+        'Sd' : 6,
+        'Sdm' : -3,
+        'Sm' : -3,
+        'Ir' : -3,
+        'E0' : -2,
+        'E1' : -2,
+        'E2' : -2,
+        'E3' : -2,
+        'E4' : -2,
+        'E5' : -2,
+        'E6' : -2,
+        'E7' : -2,
+        'S0' : -1,
+        'S0a' : -1,
+    }
+    morf_out = mtype[morf_in]
+    return morf_out  
+
+def get_h5_data_masked(h5, prop_str, h5_root = '', **ma_kwargs):
+     return np.ma.masked_array(h5['%sdata/%s' % (h5_root, prop_str)].value, 
+                               mask = h5['%smask/%s' % (h5_root, prop_str)].value, 
+                               **ma_kwargs) 
+
 def get_CALIFAID_by_NEDName(nedname):
     import atpy
     from califa import masterlist
@@ -61,7 +92,7 @@ def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.c
                    skiprows = 23,
                    dtype = {
                        'names': ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'),
-                       'formats': ('I3', 'S15', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3')
+                       'formats': ('S3', 'S15', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3')
                    })
     morf = [morf0[i].strip() + morf1[i].strip() for i in xrange(len(morf0))]
     morf_m = [morf_m0[i].strip() + morf_m1[i].strip() for i in xrange(len(morf0))]
@@ -634,11 +665,17 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
     alogZ_flux_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
     
+    # this bin_step only works if bins equally spaced 
+    binstep = Rbin__r[1] - Rbin__r[0]
+    Rbin_oneHLR = [1. - binstep, 1. + binstep]
+    
     #radial profiles
     alogZ_mass__yx = K.zoneToYX(alogZ_mass__z, extensive = False, surface_density = False)
     alogZ_flux__yx = K.zoneToYX(alogZ_flux__z, extensive = False, surface_density = False)
     alogZ_mass__r = K.radialProfile(alogZ_mass__yx, Rbin__r, rad_scale = K.HLR_pix)
     alogZ_flux__r = K.radialProfile(alogZ_flux__yx, Rbin__r, rad_scale = K.HLR_pix)
+    alogZ_mass_oneHLR = K.radialProfile(alogZ_mass__yx, Rbin_oneHLR, rad_scale = K.HLR_pix)
+    alogZ_flux_oneHLR = K.radialProfile(alogZ_flux__yx, Rbin_oneHLR, rad_scale = K.HLR_pix)
     
     Mcor__z = np.ma.masked_array(K.Mcor__z, mask = ~isOk__z)
     Lobn__z = np.ma.masked_array(K.Lobn__z, mask = ~isOk__z)
@@ -649,7 +686,7 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
 
     return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, \
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
-           isOkFrac_GAL
+           isOkFrac_GAL, alogZ_mass_oneHLR, alogZ_flux_oneHLR
 
 def calc_agebins(ages, age):
     # Define ranges for age-bins
@@ -665,6 +702,11 @@ def calc_agebins(ages, age):
     age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
 
-def redshift_dist(z, H0):
-    from pystarlight.util.constants import c
+def redshift_dist_Mpc(z, H0):
+    from pystarlight.util.constants import c # m/s
+    c /= 1e5
     return  z * c / H0
+
+def spaxel_size_pc(z, H0):
+    arc2rad = 0.0000048481368111
+    return arc2rad * redshift_dist_Mpc(z, H0) * 1e6 

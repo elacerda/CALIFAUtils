@@ -1,4 +1,5 @@
 from scipy.ndimage.filters import gaussian_filter1d
+from CALIFAUtils.scripts import get_h5_data_masked
 from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import OLS_bisector
 from CALIFAUtils.scripts import sort_gals
@@ -152,6 +153,33 @@ class ALLGals(object):
         self.alogZ_flux__Urg = np.ma.empty((N_U, NRbins, N_gals), dtype = np.float_)
         self.alogZ_mass_wei__Urg = np.ma.empty((N_U, NRbins, N_gals), dtype = np.float_)
         self.alogZ_flux_wei__Urg = np.ma.empty((N_U, NRbins, N_gals), dtype = np.float_)
+        self.tau_V_neb_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.aSFRSD_Ha_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.aSFRSD_Ha_masked_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.McorSD_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.logZ_neb_S06_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.at_flux_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.at_mass_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.EW_Ha_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.EW_Hb_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_obs_Ha_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_obs_Hb_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_obs_O3_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_obs_N2_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_int_Ha_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_int_Hb_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_int_O3_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.F_int_N2_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.x_Y_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.aSFRSD_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.tau_V_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.McorSD_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.at_flux_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.at_mass_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.at_flux_dezon_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.at_mass_dezon_oneHLR__Tg = np.ma.empty((N_T, N_gals), dtype = np.float_)
+        self.alogZ_mass_oneHLR__Ug = np.ma.empty((N_U, N_gals), dtype = np.float_)
+        self.alogZ_flux_oneHLR__Ug = np.ma.empty((N_U, N_gals), dtype = np.float_)
         #GasProp
         self.integrated_chb_in__g = np.ma.empty((N_gals), dtype = np.float_)
         self.integrated_c_Ha_Hb__g = np.ma.empty((N_gals), dtype = np.float_)
@@ -165,6 +193,12 @@ class ALLGals(object):
         self.O_O3N2_M13__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.O_O3N2_PP04__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
         self.O_direct_O_23__rg = np.ma.empty((NRbins, N_gals), dtype = np.float_)
+        self.O_HIICHIM_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.O3N2_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.O_O3N2_M13_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.O_O3N2_PP04_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+        self.O_direct_O_23_oneHLR__g = np.ma.empty((N_gals), dtype = np.float_)
+
         
     def _init_zones_temporary_lists(self):
         self._Mcor__g = []
@@ -358,7 +392,9 @@ class ALLGals(object):
         aux = np.hstack(self._O_direct_O_23__g)
         self.O_direct_O_23__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         
-    def integrated_mask_nan(self):
+    def integrated_mask(self):
+        aux = np.less(self.integrated_tau_V_neb__g, 0)
+        self.integrated_tau_V_neb__g[aux] = np.ma.masked 
         aux = np.isnan(self.integrated_chb_in__g)
         self.integrated_chb_in__g[aux] = np.ma.masked
         aux = np.isnan(self.integrated_c_Ha_Hb__g)
@@ -494,7 +530,7 @@ class H5SFRData(object):
         x = None
         if a[0]:
             # somestr.find(str) returns 0 if str is found in somestr.
-            if not a[0].find('K0'):
+            if a[0].find('K0') == 0:
                 gal = a[0]
                 prop = '_'.join(a[1:])
                 x = self.get_prop_gal(prop, gal)
@@ -505,25 +541,26 @@ class H5SFRData(object):
 
     def get_data_h5(self, prop, dtype = np.float_):
         h5 = self.h5
-        folder_data = 'masked/data'
-        folder_mask = 'masked/mask'
+        h5_root = 'masked/'
+        folder_data = '%sdata' % h5_root
+        folder_mask = '%smask' % h5_root
         folder_nomask = 'data'
         if prop in h5[folder_mask].keys():
             node = '%s/%s' % (folder_data, prop)
-            node_m = '%s/%s' % (folder_mask, prop)
             ds = h5[node]
-            if isinstance(ds, h5py.Dataset):
-                arr = np.ma.masked_array(ds.value, mask = h5[node_m].value, dtype = dtype)
+            if isinstance(h5[node], h5py.Dataset):
+                arr = get_h5_data_masked(h5, prop, h5_root = h5_root, **dict(dtype = dtype))
             else:
                 suffix = prop[-2:]
                 if suffix[0] == 'U':
-                    arr = [ 
-                        np.ma.masked_array(h5['%s/%d' % (node, iU)].value, mask = h5['%s/%d' % (node_m, iU)].value, dtype = dtype) 
+                    arr = [
+                        get_h5_data_masked(h5, '%s/%d' % (prop, iU), h5_root = h5_root, **dict(dtype = dtype))    
                         for iU in xrange(self.N_U) 
                     ]
                 elif suffix[0] == 'T':
                     arr = [ 
-                        np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value, dtype = dtype) 
+                        get_h5_data_masked(h5, '%s/%d' % (prop, iT), h5_root = h5_root, **dict(dtype = dtype))   
+                        #np.ma.masked_array(h5['%s/%d' % (node, iT)].value, mask = h5['%s/%d' % (node_m, iT)].value, dtype = dtype) 
                         for iT in xrange(self.N_T) 
                     ]
             return arr
@@ -676,7 +713,7 @@ class H5SFRData(object):
             'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
             'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
             'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
-            'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 11.5]),
+            'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 12]),
             'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
         }
         if key is not None:
@@ -925,22 +962,41 @@ class runstats(object):
                 xx , yy = x[isInBin] , y[isInBin]
                 Np = isInBin.sum()
                 ixBin += 1
-            #print '>>>', Np, ixBin
+            center = (right+left)/2.
+            #print '>>>', Np, ixBin, Nbins, right, center, left, xx
             xbin_out.append(right)
-            xbinCenter_out.append((right+left)/2.)
-            xMedian_out.append(np.median(xx))
-            xMean_out.append(xx.mean())
-            xStd_out.append(xx.std())
-            yMedian_out.append(np.median(yy))
-            yMean_out.append(yy.mean())
-            yStd_out.append(yy.std())
+            xbinCenter_out.append(center)
             nInBin_out.append(Np)
             if Np >= 2:
+                xMedian_out.append(np.median(xx))
+                xMean_out.append(xx.mean())
+                xStd_out.append(xx.std())
+                yMedian_out.append(np.median(yy))
+                yMean_out.append(yy.mean())
+                yStd_out.append(yy.std())
                 xPrc_out.append(np.percentile(xx, [5, 16, 84, 95]))
                 yPrc_out.append(np.percentile(yy, [5, 16, 84, 95]))
             else:
-                xPrc_out.append(xPrc_out[-1])
-                yPrc_out.append(xPrc_out[-1])
+                if len(xMedian_out) > 0:
+                    xMedian_out.append(xMedian_out[-1])
+                    xMean_out.append(xMean_out[-1])
+                    xStd_out.append(xStd_out[-1])
+                    yMedian_out.append(yMedian_out[-1])
+                    yMean_out.append(yMean_out[-1])
+                    yStd_out.append(yStd_out[-1])
+                else:
+                    xMedian_out.append(0.)
+                    xMean_out.append(0.)
+                    xStd_out.append(0.)
+                    yMedian_out.append(0.)
+                    yMean_out.append(0.)
+                    yStd_out.append(0.)
+                if len(xPrc_out) > 0:
+                    xPrc_out.append(xPrc_out[-1])
+                    yPrc_out.append(xPrc_out[-1])
+                else:
+                    xPrc_out.append(np.asarray([0., 0., 0., 0.]))
+                    yPrc_out.append(np.asarray([0., 0., 0., 0.]))
         return np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
             np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \
             np.array(xPrc_out).T, np.array(yPrc_out).T

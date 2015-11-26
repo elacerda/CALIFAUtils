@@ -2,15 +2,10 @@
 #
 # Lacerda@Granada - 24/Mar/2015
 #
-from .objects import GasProp
-from .plots import plot_zbins
-from .scripts import sort_gals
-from .scripts import debug_var
-from .objects import H5SFRData
-from .scripts import loop_cubes
-from .objects import CALIFAPaths
-from .scripts import ma_mask_xyz
-from .scripts import read_one_cube
-from .scripts import get_morfologia
+from .objects import GasProp, runstats, H5SFRData, CALIFAPaths
+from .plots import plot_zbins, plotOLSbisectorAxis
+from .scripts import sort_gals, debug_var, loop_cubes, \
+                     ma_mask_xyz, OLS_bisector, read_one_cube, \
+                     get_morfologia, my_morf
 
 paths = CALIFAPaths(work_dir = '/Users/lacerda/CALIFA/', v_run = -1)

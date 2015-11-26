@@ -183,6 +183,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         txt_y = r'$y_{OLS}$ = %.2f$x$ - %.2f %s' % (a, b * -1., Yrms_str)
     C.debug_var(True, y_OLS = txt_y)
     if txt == True:
+        txt_y = 'ols (%.3f, %.3f, %.3f)' % (a, b, Yrms)
         plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'bottom', 'right', color = color)
     else:
         print txt_y
@@ -622,13 +623,28 @@ def plot_zbins(**kwargs):
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    elif xlimprc is not None:
+        xlim = np.percentile(xm.compressed(), xlimprc)
+        ax.set_xlim(xlim)
+    else:
+        xlim = [ xm.min(), xm.max() ]
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    elif ylimprc is not None:
+        ylim = np.percentile(ym.compressed(), ylimprc)
+        ax.set_ylim(ylim)
+    else:
+        ylim = [ ym.min(), ym.max() ]
+    ##### scatter #####
     kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))    
     C.debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     kwargs.update(dict(sc = sc))
     zlabel = kwargs.get('zlabel', None)
     if z is not None:
-        if kwargs.get('cb', None) is not (None or False):
+        if kwargs.get('cb', kwargs.get('colorbar', None)) is not (None or False):
             kwargs_sc_cb = {}
             if zticks is not None:
                 kwargs_sc_cb.update(dict(ticks = zticks))
@@ -650,6 +666,7 @@ def plot_zbins(**kwargs):
         kwargs_ols.update(dict(kwargs_plot = kwargs_ols_plot))
         C.debug_var(debug, kwargs_ols = kwargs_ols)
         a, b, sa, sb = plotOLSbisectorAxis(ax, xm, ym, **kwargs_ols)
+        kwargs.update(dict(ols = [a, b, sa, sb]))
     if kwargs.get('running_stats', False) is not False:
         #nBox = len(xm.compressed()) / kwargs.get('rs_frac_box', 20.)
         #C.debug_var(debug, nBox = nBox)
@@ -659,6 +676,7 @@ def plot_zbins(**kwargs):
         kwargs_rs.update(kwargs.get('kwargs_rs', {})) 
         C.debug_var(debug, kwargs_rs = kwargs_rs)
         rs = runstats(xm.compressed(), ym.compressed(), **kwargs_rs)
+        kwargs['rs'] = rs
         #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(xm, ym, **kwargs_rs)
         kwargs_plot_rs = kwargs.get('kwargs_plot_rs', dict(c = 'k', lw = 2))
         if kwargs.get('rs_errorbar', False) is not False:
@@ -720,10 +738,14 @@ def plot_zbins(**kwargs):
             if isinstance(zbins, list):
                 ### XXX: TODO
                 zbinsrange = xrange(len(zbins))
-                zprc = np.asarray(zbins, dtype = np.double)
-                center_prc = (zprc[1:] + zprc[0:-1]) / 2
-                C.debug_var(debug, zprc = zprc)
-                C.debug_var(debug, center_prc = center_prc)
+                C.debug_var(debug, zbins = zbins)
+                zbins_mask = [ (zm > zbins[i-1]) & (zm <= zbins[i]) for i in zbinsrange ]
+                zbins_mask[0] = (zm <= zbins[0])
+                if zbins_labels is None:
+                    zbins_labels = [ '%.2f < %s $\leq$ %.2f' % (zbins[i - 1], zname, zbins[i]) for i in zbinsrange ]
+                    zbins_labels[0] = '%s $\leq$ %.2f' % (zname, zbins[0])
+                if zbins_colors is None:
+                    zbins_colors = [ zcmap.to_rgba(v/(norm.vmax - norm.vmin)) for v in [norm.vmin] + zbins[0:-1] ]
             else:
                 zbinsrange = xrange(zbins)
                 nprc = kwargs.get('zbinsprc', [ (i + 1) * (100 / zbins) for i in zbinsrange ])
@@ -735,18 +757,19 @@ def plot_zbins(**kwargs):
                 C.debug_var(debug, nprc = nprc)
                 C.debug_var(debug, zprc = zprc)
                 C.debug_var(debug, center_prc = center_prc)
-            zbins_mask = [ (zm > zprc[i - 1]) & (zm <= zprc[i]) for i in zbinsrange ]
-            zbins_mask[0] = (zm <= zprc[0])
-            if zbins_labels is None:
-                zbins_labels = [ '%.2f < %s $\leq$ %.2f' % (zprc[i - 1], zname, zprc[i]) for i in zbinsrange ]
-                zbins_labels[0] = '%s $\leq$ %.2f' % (zname, zprc[0])
-            if zbins_colors is None:
-                zbins_colors = [ zcmap.to_rgba(center_prc[i]) for i in zbinsrange ]
+                zbins_mask = [ (zm > zprc[i - 1]) & (zm <= zprc[i]) for i in zbinsrange ]
+                zbins_mask[0] = (zm <= zprc[0])
+                if zbins_labels is None:
+                    zbins_labels = [ '%.2f < %s $\leq$ %.2f' % (zprc[i - 1], zname, zprc[i]) for i in zbinsrange ]
+                    zbins_labels[0] = '%s $\leq$ %.2f' % (zname, zprc[0])
+                if zbins_colors is None:
+                    zbins_colors = [ zcmap.to_rgba(center_prc[i]) for i in zbinsrange ]
             kwargs.update(dict(zbins_mask = zbins_mask))
             kwargs.update(dict(zbins_labels = zbins_labels))
             kwargs.update(dict(zbins_colors = zbins_colors))
         if zbins_labels is None or zbins_colors is None:
             listrange = xrange(len(zbins_mask))
+            print len(zbins_mask)
             #zmsk = [ zm[np.where(np.asarray(zbins_mask[i]) == True)] for i in listrange ]
             zmsk = [ zm[zbins_mask[i]] for i in listrange ]
             if zbins_labels is None:
@@ -773,8 +796,9 @@ def plot_zbins(**kwargs):
                     else:
                         zbins_colors.append(zcmap.to_rgba(0.5 * (zmskmax + zmskmin)))
                 kwargs.update(dict(zbins_colors = zbins_colors))
-        C.debug_var(debug, zbins_labels = zbins_labels)
+        C.debug_var(debug, zbins_mask = zbins_mask)
         C.debug_var(debug, zbins_colors = zbins_colors)
+        C.debug_var(debug, zbins_labels = zbins_labels)
         for i, msk in enumerate(zbins_mask):
             y_pos = (0.03 * i) + 0.03
             tmp_mask = (xm[msk].mask | ym[msk].mask)
@@ -792,7 +816,7 @@ def plot_zbins(**kwargs):
                 dxBox = (X.max() - X.min()) / (nBox - 1.)
                 #kwargs_zbins_rs = dict(dxBox = dxBox, xbinIni = X.min(), xbinFin = X.max(), xbinStep = dxBox)
                 kwargs_zbins_rs = {}
-                kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', {})) 
+                kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', dict(smooth = True, sigma = 1.2, overlap = 0.4, nBox = 30))) 
                 C.debug_var(debug, kwargs_zbins_rs = kwargs_zbins_rs)
                 rsbins = runstats(X.compressed(), Y.compressed(), **kwargs_zbins_rs)
                 #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(X, Y, **kwargs_zbins_rs)
@@ -803,26 +827,17 @@ def plot_zbins(**kwargs):
                     ax.plot(rs.xS, rs.yS, c = zbins_colors[i], lw = 2, label = '%s' % zbins_labels[i])
                 ### XXX: TODO
                 #if kwargs.get('zbins_showpoints', None) is not None:
+    ##spearmann
+    from scipy import stats as st
+    Rs, Pvals = st.spearmanr(xm.compressed(), ym.compressed())
+    update_tmp = dict(Rs = Rs, Pvals = Pvals)
+    kwargs.update(update_tmp)
     if kwargs.get('spearmanr', None) is not None:
-        from scipy import stats as st
-        Rs, Pvals = st.spearmanr(xm.compressed(), ym.compressed())
-        C.debug_var(debug, Rs = Rs, Pvals = Pvals)
+        C.debug_var(debug, **update_tmp)
         txt = r'Rs %.4f' % Rs
-        plot_text_ax(ax, txt, 0.01, 0.01, 12 , 'bottom', 'left', 'k')
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    elif xlimprc is not None:
-        xlim = np.percentile(xm.compressed(), xlimprc)
-        ax.set_xlim(xlim)
-    else:
-        xlim = [ xm.min(), xm.max() ]
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    elif ylimprc is not None:
-        ylim = np.percentile(ym.compressed(), ylimprc)
-        ax.set_ylim(ylim)
-    else:
-        ylim = [ ym.min(), ym.max() ]
+        #fs = 20
+        fs = 8
+        plot_text_ax(ax, txt, 0.01, 0.99, fs , 'top', 'left', 'k')
     C.debug_var(debug, xlim = xlim)
     C.debug_var(debug, ylim = ylim)
     x_major_locator = kwargs.get('x_major_locator', (xlim[1] - xlim[0]) / 5.)
@@ -839,9 +854,11 @@ def plot_zbins(**kwargs):
     ax.yaxis.set_minor_locator(MultipleLocator(y_minor_locator))
     ax.grid(which = 'major')
     if kwargs.get('write_N', False) is True:
-        plot_text_ax(ax, 'N:%d' % xm.count() , 0.98, 0.98, 8, 'top', 'right', 'k')
+        #fs = 20
+        fs = 8
+        plot_text_ax(ax, 'N:%d' % xm.count() , 0.98, 0.98, fs, 'top', 'right', 'k')
     if kwargs.get('legend', False) is True:
-        kwargs_legend = dict(loc = 'upper left', fontsize = 14)
+        kwargs_legend = dict(loc = 'upper left', fontsize = 8)
         kwargs_legend.update(kwargs.get('kwargs_legend', {}))
         C.debug_var(debug, kwargs_legend = kwargs_legend)
         ax.legend(**kwargs_legend)
