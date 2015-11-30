@@ -613,7 +613,11 @@ class H5SFRData(object):
             range_data = xrange(len(data))
             if isinstance(data[0], np.ma.core.MaskedArray):
                 arr_data = [ data[i][where_slice].data for i in range_data ]
-                arr_mask = [ data[i][where_slice].mask if isinstance(data[i][where_slice].mask, np.ndarray) else np.ones(data[i][where_slice].shape, dtype = np.bool_) for i in range_data ] 
+                arr_mask = [ 
+                    data[i][where_slice].mask if isinstance(data[i][where_slice].mask, np.ndarray) 
+                    else np.zeros(data[i][where_slice].shape, dtype = np.bool_) 
+                    for i in range_data 
+                ] 
                 arr = np.ma.masked_array(arr_data, mask = arr_mask)
             else:
                 arr_data = [ data[i][where_slice] for i in range_data ]
