@@ -2,7 +2,9 @@ from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import get_h5_data_masked
 from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import OLS_bisector
+from CALIFAUtils.scripts import ma_mask_xyz
 from CALIFAUtils.scripts import sort_gals
+from CALIFAUtils.scripts import debug_var
 import numpy as np
 import itertools
 import pyfits
@@ -274,9 +276,11 @@ class ALLGals(object):
         self._O3N2__g = []
         self._O_HIICHIM__g = []
         self._O_O3N2_M13__g = []
+        self._my_O_O3N2_M13__g = []
+        self._my_O_O3N2_M13_mask__g = []
         self._O_O3N2_PP04__g = []
         self._O_direct_O_23__g = []
-            
+                    
     def stack_zones_data(self):
         self.zone_dist_HLR__g = np.ma.masked_array(np.hstack(np.asarray(self._zone_dist_HLR__g)), dtype = np.float_)
         self.zone_area_pc2__g = np.ma.masked_array(np.hstack(np.asarray(self._zone_area_pc2__g)), dtype = np.float_)
@@ -387,6 +391,11 @@ class ALLGals(object):
         self.O3N2__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_O3N2_M13__g)
         self.O_O3N2_M13__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
+
+        aux = np.hstack(self._my_O_O3N2_M13__g)
+        auxmask = np.hstack(self._my_O_O3N2_M13_mask__g)
+        self.my_O_O3N2_M13__g = np.ma.masked_array(aux, mask = auxmask, dtype = np.float_)
+        
         aux = np.hstack(self._O_O3N2_PP04__g)
         self.O_O3N2_PP04__g = np.ma.masked_array(aux, mask = np.isnan(aux), dtype = np.float_)
         aux = np.hstack(self._O_direct_O_23__g)
@@ -759,6 +768,7 @@ class CALIFAPaths(object):
     ]
     _bases = [
         'Bgsd6e',
+        'Bzca6e'
     ]
     _othSuffix = [
         '512.ps03.k1.mE.CCM.',
@@ -771,10 +781,10 @@ class CALIFAPaths(object):
         'v20_q050.d15a' : [ 0, 0 ],
     }
     _masterlist_file = 'califa_master_list_rgb.txt'
-    def __init__(self, work_dir = '/Users/lacerda/CALIFA/', v_run = -1):
+    def __init__(self, work_dir = '/Users/lacerda/CALIFA/', v_run = -1, baseCode = None):
         self.califa_work_dir = work_dir
         self.set_v_run(v_run)
-        self.config_run()
+        self.config_run(baseCode = baseCode)
     
     def set_v_run(self, v_run):
         if isinstance(v_run, int):
@@ -788,15 +798,19 @@ class CALIFAPaths(object):
     def get_masterlist_file(self):
         return self.califa_work_dir + self._masterlist_file
     
-    def get_config(self):
+    def get_config(self, baseCode = None):
         v_conf = self._config[self.v_run]
+        if baseCode is None:
+            baseCode = self._bases[v_conf[0]]
         return dict(versionSuffix = self.v_run,
-                    baseCode = self._bases[v_conf[0]],
-                    othSuffix = self._othSuffix[v_conf[0]])
+                    baseCode = baseCode,
+                    othSuffix = self._othSuffix[v_conf[1]])
     
-    def config_run(self):
+    def config_run(self, baseCode = None):
         v_conf = self._config[self.v_run]
-        tmp_suffix = '_synthesis_eBR_' + self.v_run + self._othSuffix[v_conf[1]] + self._bases[v_conf[0]]
+        if baseCode is None:
+            baseCode = self._bases[v_conf[0]]
+        tmp_suffix = '_synthesis_eBR_' + self.v_run + self._othSuffix[v_conf[1]] + baseCode
         self.pycasso_suffix = tmp_suffix + '.fits'
         self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
         self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
@@ -816,31 +830,49 @@ class CALIFAPaths(object):
     
     def get_pycasso_file(self, gal):
         return self.pycasso_cube_dir + gal + self.pycasso_suffix
-    
+
 class runstats(object):
     def __init__(self, x, y, **kwargs):
         self.x = x
         self.y = y
+        self.x_inv = y
+        self.y_inv = x
+        self.xbin = None
         self._gsmooth = kwargs.get('smooth', None)
         self.sigma = kwargs.get('sigma', None)
+        self._tendency = kwargs.get('tendency', None)
+        self._inverse = kwargs.get('inverse', None)
         self.rstats(**kwargs)
+        if self._inverse is not None:
+            self.rstats_yx(**kwargs)
         
     def rstats(self, **kwargs):
-        if len(self.x) > kwargs.get('nBox'):
-            aux = self.calc_running_stats(**kwargs)
-            self.xbinCenter = aux[0]
-            self.xMedian = aux[1]
-            self.xMean = aux[2]
-            self.xStd = aux[3]
-            self.yMedian = aux[4]
-            self.yMean = aux[5]
-            self.yStd = aux[6]
-            self.nInBin = aux[7]
-            self.xPrc = aux[8]
-            self.yPrc = aux[9]
-            self.xPrcS = []
-            self.yPrcS = []
+        nx = len(self.x)
+        nBox = kwargs.get('nBox', nx * kwargs.get('binfrac', 0.1))
+        if len(self.x) > nBox:
+            aux = calc_running_stats(self.x, self.y, **kwargs)
+            self.xbin = aux[0]
+            self.xbinCenter = aux[1]
+            self.xMedian = aux[2]
+            self.xMean = aux[3]
+            self.xStd = aux[4]
+            self.yMedian = aux[5]
+            self.yMean = aux[6]
+            self.yStd = aux[7]
+            self.nInBin = aux[8]
+            self.xPrc = aux[9]
+            self.yPrc = aux[10]
+            self.xPrcS = None
+            self.yPrcS = None
+            
+            if self._tendency is True:
+                aux = self.tendency(self.x, self.y, **kwargs)
+                self.xT = aux[0]
+                self.yT = aux[1]
+                self.xbin = aux[2]
+                self.spline = aux[3]
         else:
+            self.xbin = self.x
             self.xbinCenter = self.x
             self.xMedian = self.x
             self.xMean = self.x
@@ -849,47 +881,64 @@ class runstats(object):
             self.yMean = self.y
             self.yStd = self.y
             self.nInBin = np.ones_like(self.x, dtype = np.int)
-            self.xPrc = -1
-            self.yPrc = -1
-            self.xPrcS = -1
-            self.yPrcS = -1
-        
+            self.xPrc = None
+            self.yPrc = None
+            self.xPrcS = None
+            self.yPrcS = None
+
         if self._gsmooth is True:
-            self.gaussian_smooth()
+            aux = self.gaussian_smooth()
+            self.xS = aux[0]
+            self.yS = aux[1]
+            self.xPrcS = aux[2]
+            self.yPrcS = aux[2]
             
     def rstats_yx(self, **kwargs):
         if len(self.x) > kwargs.get('nBox'):
-            aux = self.calc_running_stats(**kwargs)
-            self.xbinCenter = aux[0]
-            self.xMedian = aux[1]
-            self.xMean = aux[2]
-            self.xStd = aux[3]
-            self.yMedian = aux[4]
-            self.yMean = aux[5]
-            self.yStd = aux[6]
-            self.nInBin = aux[7]
-            self.xPrc = aux[8]
-            self.yPrc = aux[9]
-            self.xPrcS = []
-            self.yPrcS = []
+            aux = calc_running_stats(self.y, self.x, **kwargs)
+            self.inv_xbin = aux[0]
+            self.inv_xbinCenter = aux[0]
+            self.inv_xMedian = aux[1]
+            self.inv_xMean = aux[2]
+            self.inv_xStd = aux[3]
+            self.inv_yMedian = aux[4]
+            self.inv_yMean = aux[5]
+            self.inv_yStd = aux[6]
+            self.inv_nInBin = aux[7]
+            self.inv_xPrc = aux[8]
+            self.inv_yPrc = aux[9]
+            self.inv_xPrcS = []
+            self.inv_yPrcS = []
+            if self._tendency is True:
+                aux = self.tendency(self.y, self.x, **kwargs)
+                self.inv_xT = aux[0]
+                self.inv_yT = aux[1]
+                self.inv_xbin = aux[2]
+                self.inv_spline = aux[3]
         else:
-            self.xbinCenter = self.x
-            self.xMedian = self.x
-            self.xMean = self.x
-            self.xStd = self.x
-            self.yMedian = self.y
-            self.yMean = self.y
-            self.yStd = self.y
-            self.nInBin = np.ones_like(self.x, dtype = np.int)
-            self.xPrc = -1
-            self.yPrc = -1
-            self.xPrcS = -1
-            self.yPrcS = -1
-        
+            self.inv_xbinCenter = self.x
+            self.inv_xMedian = self.x
+            self.inv_xMean = self.x
+            self.inv_xStd = self.x
+            self.inv_yMedian = self.y
+            self.inv_yMean = self.y
+            self.inv_yStd = self.y
+            self.inv_nInBin = np.ones_like(self.y, dtype = np.int)
+            self.inv_xPrc = -1
+            self.inv_yPrc = -1
+            self.inv_xPrcS = -1
+            self.inv_yPrcS = -1
+            
         if self._gsmooth is True:
-            self.gaussian_smooth()
+            aux = self.gaussian_smooth()
+            self.inv_xS = aux[0]
+            self.inv_yS = aux[1]
+            self.inv_xPrcS = aux[2]
+            self.inv_yPrcS = aux[2]
 
     def gaussian_smooth(self, **kwargs):
+        xPrcS = []
+        yPrcS = []
         if self.sigma is None:
             self.sigma = self.y.std()
         self.sigma = kwargs.get('sigma', self.sigma)
@@ -897,8 +946,8 @@ class runstats(object):
         yM = np.ma.masked_array(self.yMedian)
         m_gs = np.isnan(xM) | np.isnan(yM) 
         #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
-        self.xS = self.xMedian[~m_gs]
-        self.yS = gaussian_filter1d(yM[~m_gs], self.sigma)
+        xS = self.xMedian[~m_gs]
+        yS = gaussian_filter1d(yM[~m_gs], self.sigma)
         #print '>X>X>X>', len(self.xMedian[~m_gs]), len(self.xS)
         if kwargs.get('gs_prc', None) is not None:
             for i in xrange(self.xPrc):
@@ -906,8 +955,9 @@ class runstats(object):
                 yM = np.ma.masked_array(self.yPrc[i])
                 m_gs = np.isnan(xM) | np.isnan(yM) 
                 #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
-                self.xPrcS.append(self.xPrc[~m_gs])
-                self.yPrcS.append(gaussian_filter1d(yM[~m_gs], self.sigma))
+                xPrcS.append(self.xPrc[~m_gs])
+                yPrcS.append(gaussian_filter1d(yM[~m_gs], self.sigma))
+        return xS, yS, xPrcS, yPrcS
         
     def OLS_bisector(self):
         a, b, sa, sb = OLS_bisector(self.xS, self.yS)
@@ -915,92 +965,34 @@ class runstats(object):
         self.median_OLS_intercept = b
         self.median_OLS_slope_sigma = sa
         self.median_OLS_intercept_sigma = sb
-        
-    def calc_running_stats(self, **kwargs):
-        '''
-        Statistics of x & y in equal size x-bins (dx-box).
-        Note the mery small default xbinStep, so we have overlapping boxes.. so running stats..
     
-        Cid@Lagoa -
-        '''
-        x = self.x
-        y = self.y
-        # XXX Lacerda@IAA - masked array mess with the method
-        nBox_tmp = kwargs.get('nBox', np.floor(len(x) * 0.1)) 
-        xbinIni = kwargs.get('xbinIni', x.min())
-        xbinFin = kwargs.get('xbinFin', x.max())
-        xbinStep = kwargs.get('xbinStep', (x.max() - x.min()) / (nBox_tmp - 1.))
-        if isinstance(x, np.ma.core.MaskedArray):
-            x = x[~(x.mask)]
-        if isinstance(y, np.ma.core.MaskedArray):
-            y = y[~(y.mask)]
-        # Def x-bins
-        xbin = kwargs.get('xbin', np.arange(xbinIni, xbinFin + xbinStep, xbinStep))
-        self.xbin = xbin
-        #xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
-        xbinCenter = np.diff(xbin) / 2.0 + xbin[:-1]
-        Nbins = len(xbinCenter)
-        # Reset in-bin stats arrays
-        xbinCenter_out = []
-        xbin_out = []
-        xMedian_out = []
-        xMean_out = []
-        xStd_out = []
-        yMedian_out = []
-        yMean_out = []
-        yStd_out = []
-        xPrc_out = []
-        yPrc_out = []
-        nInBin_out = []
-        ixBin = 0 
-        while ixBin < Nbins:
-            left = xbin[ixBin]
-            right = xbin[ixBin]
-            xbin_out.append(left)
-            minNp = len(x) / Nbins
-            Np = 0
-            #print Nbins, ixBin, minNp, len(x)
-            while Np < minNp and ixBin < Nbins:
-                right = xbin[ixBin + 1]
-                isInBin = np.bitwise_and(np.greater_equal(x, left), np.less(x, right))
-                xx , yy = x[isInBin] , y[isInBin]
-                Np = isInBin.sum()
-                ixBin += 1
-            center = (right+left)/2.
-            #print '>>>', Np, ixBin, Nbins, right, center, left, xx
-            xbin_out.append(right)
-            xbinCenter_out.append(center)
-            nInBin_out.append(Np)
-            if Np >= 2:
-                xMedian_out.append(np.median(xx))
-                xMean_out.append(xx.mean())
-                xStd_out.append(xx.std())
-                yMedian_out.append(np.median(yy))
-                yMean_out.append(yy.mean())
-                yStd_out.append(yy.std())
-                xPrc_out.append(np.percentile(xx, [5, 16, 84, 95]))
-                yPrc_out.append(np.percentile(yy, [5, 16, 84, 95]))
-            else:
-                if len(xMedian_out) > 0:
-                    xMedian_out.append(xMedian_out[-1])
-                    xMean_out.append(xMean_out[-1])
-                    xStd_out.append(xStd_out[-1])
-                    yMedian_out.append(yMedian_out[-1])
-                    yMean_out.append(yMean_out[-1])
-                    yStd_out.append(yStd_out[-1])
+    def tendency(self, x, y, xbin = None, **kwargs):
+        from scipy.interpolate import UnivariateSpline
+        spline = UnivariateSpline(self.x, self.y)
+        if isinstance(x, np.ma.core.MaskedArray) or isinstance(y, np.ma.core.MaskedArray): 
+            xm, ym = ma_mask_xyz(x = x, y = y)
+            x = xm.compressed()
+            y = ym.compressed()
+        if xbin is None:
+            nx = len(x)
+            ind_xs = np.argsort(x)
+            xS = x[ind_xs]
+            nx = len(x)
+            frac = kwargs.get('frac', 0.1)
+            minimal_bin_points = kwargs.get('min_np', nx * frac)
+            i = 0
+            xbin = []
+            xbin.append(xS[0])
+            while i < nx:
+                to_i = i + minimal_bin_points
+                delta = (nx - to_i)
+                miss_frac = 1. * delta / nx
+                if to_i < nx and miss_frac >= frac:
+                    xbin.append(xS[to_i])
                 else:
-                    xMedian_out.append(0.)
-                    xMean_out.append(0.)
-                    xStd_out.append(0.)
-                    yMedian_out.append(0.)
-                    yMean_out.append(0.)
-                    yStd_out.append(0.)
-                if len(xPrc_out) > 0:
-                    xPrc_out.append(xPrc_out[-1])
-                    yPrc_out.append(xPrc_out[-1])
-                else:
-                    xPrc_out.append(np.asarray([0., 0., 0., 0.]))
-                    yPrc_out.append(np.asarray([0., 0., 0., 0.]))
-        return np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
-            np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \
-            np.array(xPrc_out).T, np.array(yPrc_out).T
+                    to_i = nx
+                    xbin.append(xS[-1])
+                i = to_i
+        xT = xbin
+        yT = spline(xT)
+        return xT, yT, xbin, spline

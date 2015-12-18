@@ -6,7 +6,38 @@ import sys
 import types
 import numpy as np
 import CALIFAUtils as C
+from scipy.linalg import eigh
 from pycasso import fitsQ3DataCube
+
+def PCA(arr, reduced = False, arrMean = False, arrStd = False, sort = True):
+    '''
+    ARR array must have shape (measurements, variables)
+    reduced = True:
+        each var = (var - var.mean()) / var.std()
+    '''
+    arr__mv = arr
+    nMeasurements, nVars = arr__mv.shape    
+    if not arrMean or not arrMean.any():
+        arrMean__v = arr.mean(axis = 0)
+    else:
+        arrMean__v = arrMean
+    if not reduced:
+        diff__mv = arr__mv - arrMean__v
+    else:
+        if not arrStd or not arrStd.any():
+            arrStd__v = arr.std(axis = 0)
+        else:
+            arrStd__v = arrStd
+        diff__mv = np.asarray([ diff / arrStd__v for diff in (arr__mv - arrMean__v) ])
+    covMat__vv = (diff__mv.T).dot(diff__mv) / (nVars - 1)
+    eigVal__e, eigVec__ve = eigh(covMat__vv)
+    eigValS__e = eigVal__e
+    eigVecS__ve = eigVec__ve
+    if sort:
+        S = np.argsort(eigVal__e)[::-1]
+        eigValS__e = eigVal__e[S]
+        eigVecS__ve = eigVec__ve[:, S]
+    return diff__mv, arrMean__v, arrStd__v, covMat__vv, eigValS__e, eigVecS__ve
 
 def my_morf(morf_in = None):
     mtype = {
@@ -130,103 +161,100 @@ def ma_mask_xyz(x, y, z = None, mask = None):
 
 def calc_running_stats(x, y, **kwargs):
     '''
-    Statistics of x & y in equal size x-bins (dx-box).
-    Note the mery small default xbinStep, so we have overlapping boxes.. so running stats..
+    Statistics of x & y with a minimal (floor limit) number of points in x
+    Note: we have overlapping boxes.. so running stats..
 
-    Cid@Lagoa -
+    XXX Lacerda@IAA - masked array mess with the method
     '''
-    # XXX Lacerda@IAA - masked array mess with the method
-    debug = kwargs.get('debug', False)
-    C.debug_var(debug, kwargs = kwargs)
-    overlap = kwargs.get('overlap', 0.2)
-    nBox_tmp = kwargs.get('nBox', np.floor(len(x) * 0.1)) 
-    xbinIni = kwargs.get('xbinIni', x.min())
-    xbinFin = kwargs.get('xbinFin', x.max())
-    xbinStep = kwargs.get('xbinStep', (x.max() - x.min()) / (nBox_tmp - 1.))
-    dxBox = kwargs.get('dxBox', xbinStep * (1 + overlap))
-    if isinstance(x, np.ma.core.MaskedArray):
-        x = x[~(x.mask)]
-    if isinstance(y, np.ma.core.MaskedArray):
-        y = y[~(y.mask)]
-    # Def x-bins
-    xbin = kwargs.get('xbin', np.arange(xbinIni, xbinFin + xbinStep, xbinStep))
-    #xbinCenter = (xbin[:-1] + xbin[1:]) / 2.0
-    xbinCenter = np.diff(xbin) / 2.0 + xbin[:-1]
-    C.debug_var(debug, pref = 'OOO>',
-                dxBox = dxBox,
-                xbinIni = xbinIni,
-                xbinFin = xbinFin,
-                xbinStep = xbinStep,
-                xbin = xbin, 
-                xbinCenter = xbinCenter,
-    ) 
-    Nbins = len(xbinCenter)
-    # Reset in-bin stats arrays
-    xMedian = np.zeros(Nbins)
-    xMean = np.zeros(Nbins)
-    xStd = np.zeros(Nbins)
-    yMedian = np.zeros(Nbins)
-    yMean = np.zeros(Nbins)
-    yStd = np.zeros(Nbins)
-    xPrc5 = np.zeros(Nbins)
-    xPrc16 = np.zeros(Nbins)
-    xPrc84 = np.zeros(Nbins)
-    xPrc95 = np.zeros(Nbins)
-    yPrc5 = np.zeros(Nbins)
-    yPrc16 = np.zeros(Nbins)
-    yPrc84 = np.zeros(Nbins)
-    yPrc95 = np.zeros(Nbins)
-    nInBin = np.zeros(Nbins)
-    # fill up in x & y stats for each x-bin
-    bin_radius = dxBox / 2.
-    for ixBin in xrange(Nbins):
-        #fix the borders
-        isInBin = (np.abs(x - xbinCenter[ixBin]) <= bin_radius)
-        xx , yy = x[isInBin] , y[isInBin]
-        Np = isInBin.sum()
-        if (Np >= 2):
-            xMedian[ixBin] = np.median(xx)
-            xMean[ixBin] = xx.mean()
-            xStd[ixBin] = xx.std()
-            yMedian[ixBin] = np.median(yy)
-            yMean[ixBin] = yy.mean()
-            yStd[ixBin] = yy.std()
-            xPrc5[ixBin], xPrc16[ixBin], xPrc84[ixBin], xPrc95[ixBin] = np.percentile(xx, [5, 16, 84, 95])
-            yPrc5[ixBin], yPrc16[ixBin], yPrc84[ixBin], yPrc95[ixBin] = np.percentile(yy, [5, 16, 84, 95])
+    if isinstance(x, np.ma.core.MaskedArray) or isinstance(y, np.ma.core.MaskedArray): 
+        xm, ym = ma_mask_xyz(x = x, y = y)
+        x = xm.compressed()
+        y = ym.compressed()
+    ind_xs = np.argsort(x)
+    xS = x[ind_xs]
+    nx = len(x)
+    frac = kwargs.get('frac', 0.1)
+    minimal_bin_points = kwargs.get('min_np', nx * frac)
+    i = 0
+    xbin = []
+    xbin.append(xS[0])
+    while i < nx:
+        to_i = i + minimal_bin_points
+        delta = (nx - to_i)
+        miss_frac = 1. * delta / nx
+        if to_i < nx and miss_frac >= frac:
+            xbin.append(xS[to_i])
         else:
-            if ixBin > 0:
-                xMedian[ixBin] = xMedian[ixBin - 1]
-                xMean[ixBin] = xMean[ixBin - 1]
-                xStd[ixBin] = xStd[ixBin - 1]
-                yMedian[ixBin] = yMedian[ixBin - 1]
-                yMean[ixBin] = yMean[ixBin - 1]
-                yStd[ixBin] = yStd[ixBin - 1]
-                xPrc5[ixBin] = xPrc5[ixBin - 1]
-                xPrc16[ixBin] = xPrc16[ixBin - 1]
-                xPrc84[ixBin] = xPrc84[ixBin - 1]
-                xPrc95[ixBin] = xPrc95[ixBin - 1]
-                yPrc5[ixBin] = yPrc5[ixBin - 1]
-                yPrc16[ixBin] = yPrc16[ixBin - 1]
-                yPrc84[ixBin] = yPrc84[ixBin - 1]
-                yPrc95[ixBin] = yPrc95[ixBin - 1]
+            to_i = nx
+            xbin.append(xS[-1])
+        #print i, to_i, delta, miss_frac, xbin
+        i = to_i
+    # Def x-bins
+    xbin = np.asarray(xbin)
+    nxbin = len(xbin)
+    debug_var(kwargs.get('debug', False),
+              minimal_bin_points = minimal_bin_points,
+              xbin = xbin,
+              n_xbin = nxbin)
+    # Reset in-bin stats arrays
+    xbinCenter_out = []
+    xbin_out = []
+    xMedian_out = []
+    xMean_out = []
+    xStd_out = []
+    yMedian_out = []
+    yMean_out = []
+    yStd_out = []
+    xPrc_out = []
+    yPrc_out = []
+    nInBin_out = []
+    ixBin = 0
+    while ixBin < (nxbin - 1):
+        left = xbin[ixBin]
+        xbin_out.append(left)
+        right = xbin[ixBin + 1]
+        isInBin = np.bitwise_and(np.greater_equal(x, left), np.less(x, right))
+        xx , yy = x[isInBin] , y[isInBin]
+        center = (right + left) / 2.
+        xbin_out.append(right)
+        xbinCenter_out.append(center)
+        Np = isInBin.astype(np.int).sum()
+        nInBin_out.append(Np)
+        if Np >= 2:
+            xMedian_out.append(np.median(xx))
+            xMean_out.append(xx.mean())
+            xStd_out.append(xx.std())
+            yMedian_out.append(np.median(yy))
+            yMean_out.append(yy.mean())
+            yStd_out.append(yy.std())
+            xPrc_out.append(np.percentile(xx, [5, 16, 84, 95]))
+            yPrc_out.append(np.percentile(yy, [5, 16, 84, 95]))
+        else:
+            if len(xMedian_out) > 0:
+                xMedian_out.append(xMedian_out[-1])
+                xMean_out.append(xMean_out[-1])
+                xStd_out.append(xStd_out[-1])
+                yMedian_out.append(yMedian_out[-1])
+                yMean_out.append(yMean_out[-1])
+                yStd_out.append(yStd_out[-1])
             else:
-                if Np == 1:
-                    xMedian[ixBin] = xx
-                    xMean[ixBin] = xx
-                    xStd[ixBin] = xx
-                    yMedian[ixBin] = yy
-                    yMean[ixBin] = yy
-                    yStd[ixBin] = yy
-                    xPrc5[ixBin] = xx
-                    xPrc16[ixBin] = xx
-                    xPrc84[ixBin] = xx
-                    xPrc95[ixBin] = xx
-                    yPrc5[ixBin] = yy
-                    yPrc16[ixBin] = yy
-                    yPrc84[ixBin] = yy
-                    yPrc95[ixBin] = yy
-        nInBin[ixBin] = Np
-    return xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, [xPrc5, xPrc16, xPrc84, xPrc95], [yPrc5, yPrc16, yPrc84, yPrc95]
+                xMedian_out.append(0.)
+                xMean_out.append(0.)
+                xStd_out.append(0.)
+                yMedian_out.append(0.)
+                yMean_out.append(0.)
+                yStd_out.append(0.)
+            if len(xPrc_out) > 0:
+                xPrc_out.append(xPrc_out[-1])
+                yPrc_out.append(xPrc_out[-1])
+            else:
+                xPrc_out.append(np.asarray([0., 0., 0., 0.]))
+                yPrc_out.append(np.asarray([0., 0., 0., 0.]))
+        ixBin += 1
+    return xbin, \
+        np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
+        np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \
+        np.array(xPrc_out).T, np.array(yPrc_out).T
 
 def gaussSmooth_YofX(x, y, FWHM):
     '''
@@ -322,9 +350,10 @@ def read_one_cube(gal, **kwargs):
     GP = kwargs.get('GP', None)
     v_run = kwargs.get('v_run', -1)
     verbose = kwargs.get('verbose', None)
-    paths = C.CALIFAPaths()
-    paths.set_v_run(v_run)
+    baseCode = kwargs.get('baseCode', None)
+    paths = C.CALIFAPaths(v_run = v_run, baseCode = baseCode)
     pycasso_cube_filename = paths.get_pycasso_file(gal)
+    print pycasso_cube_filename
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)

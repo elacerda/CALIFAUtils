@@ -121,9 +121,9 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, **contour_kwargs):
     ----------
     xdata : numpy.ndarray
     ydata : numpy.ndarray
-    nbins_x : int
+    binsx : int
         Number of bins along x dimension
-    nbins_y : int
+    binsy : int
         Number of bins along y dimension
     ax : matplotlib.Axes (optional)
         If supplied, plot the contour to this axis. Otherwise, open a new figure
