@@ -2,11 +2,9 @@
 #
 # Lacerda@Granada - 13/Oct/2014
 #
-import h5py
 import numpy as np
 import CALIFAUtils as C
 import matplotlib as mpl
-import scipy.optimize as so
 from scipy import stats as st
 from matplotlib.pyplot import cm
 #from sklearn import linear_model
@@ -14,9 +12,7 @@ from matplotlib import pyplot as plt
 from CALIFAUtils.objects import runstats
 from CALIFAUtils.scripts import OLS_bisector
 from matplotlib.pyplot import MultipleLocator
-from CALIFAUtils.scripts import gaussSmooth_YofX
 from CALIFAUtils.scripts import calc_running_stats
-from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import find_confidence_interval
 
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
@@ -71,7 +67,7 @@ def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fonts
 #        ax.text(xm[where], ym[where], txt, fontsize = fontsize,
 #                verticalalignment = 'top', horizontalalignment = 'left',
 #                bbox = textbox)
-    ax.set_title(r'best = %.2f Myr' % ((10.**(x[delta.argmin()]))/1e6))
+    ax.set_title(r'best = %.2f Myr' % ((10.**(x[delta.argmin()])) / 1e6))
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     f.savefig(fname)
@@ -114,7 +110,7 @@ def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black'
     if errorbar:
         ax.errorbar(xx, yy, yerr = yStd, xerr = xStd, c = color)
  
-def density_contour(xdata, ydata, binsx, binsy, ax = None, **contour_kwargs):
+def density_contour(xdata, ydata, binsx, binsy, ax = None, range = None, **contour_kwargs):
     """ Create a density contour plot.
  
     Parameters
@@ -132,8 +128,9 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, **contour_kwargs):
     """    
     #nbins_x = len(binsx) - 1
     #nbins_y = len(binsy) - 1
-
-    H, xedges, yedges = np.histogram2d(xdata, ydata, bins = [binsx, binsy], normed = True)
+    import scipy.optimize as so
+    
+    H, xedges, yedges = np.histogram2d(xdata, ydata, bins = [binsx, binsy], range = range, normed = True)
     x_bin_sizes = (xedges[1:] - xedges[:-1])
     y_bin_sizes = (yedges[1:] - yedges[:-1])
  
@@ -165,26 +162,37 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
     fontsize = kwargs.get('fontsize', kwargs.get('fs', 10))
     color = kwargs.get('color', kwargs.get('c', 'r'))
     rms = kwargs.get('rms', True)
-    label = kwargs.get('label', None)
+    label = kwargs.get('label', 'OLS')
     txt = kwargs.get('text', True)
     kwargs_plot = dict(c = color, ls = '-', lw = 1.5, label = label)
     kwargs_plot.update(kwargs.get('kwargs_plot', {}))
     x_rms = kwargs.get('x_rms', x)
     y_rms = kwargs.get('y_rms', y)
-    a, b, sigma_a, sigma_b = OLS_bisector(x, y)
+    OLS = kwargs.get('OLS', None)
+    va = kwargs.get('verticalalignment', kwargs.get('va', 'bottom'))
+    ha = kwargs.get('horizontalalignment', kwargs.get('ha', 'right'))
+    plotOLS = kwargs.get('plotOLS', True)
+    if OLS is None:
+        a, b, sigma_a, sigma_b = OLS_bisector(x, y)
+    else:
+        a = x
+        b = y
+        sigma_a = None
+        sigma_b = sigma_a
     Yrms_str = ''
     if rms == True:
         Yrms = (y_rms - (a * x_rms + b)).std()
         Yrms_str = r'(rms:%.3f)' % Yrms
-    ax.plot(ax.get_xlim(), a * np.asarray(ax.get_xlim()) + b, **kwargs_plot)
+    if plotOLS == True:
+        ax.plot(ax.get_xlim(), a * np.asarray(ax.get_xlim()) + b, **kwargs_plot)
     if b > 0:
         txt_y = r'$y_{OLS}$ = %.2f$x$ + %.2f %s' % (a, b, Yrms_str)
     else:
         txt_y = r'$y_{OLS}$ = %.2f$x$ - %.2f %s' % (a, b * -1., Yrms_str)
     C.debug_var(True, y_OLS = txt_y)
     if txt == True:
-        txt_y = 'ols (%.3f, %.3f, %.3f)' % (a, b, Yrms)
-        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, 'bottom', 'right', color = color)
+        txt_y = '%s (%.3f, %.3f, %.3f)' % (label, a, b, Yrms)
+        plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, va, ha, color = color)
     else:
         print txt_y
     return a, b, sigma_a, sigma_b
@@ -722,7 +730,7 @@ def plot_zbins(**kwargs):
             #     ax.plot(xPrc16S, yPrc16S, c = c, ls = '--', lw = 2, label = '16 perc. (run. stats)')
             #     ax.plot(xPrc84S, yPrc84S, c = c, ls = '--', lw = 2, label = '84 perc. (run. stats)')
             #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        rs_ols =  kwargs.get('rs_ols', None)
+        rs_ols = kwargs.get('rs_ols', None)
         if rs_ols is not None:
             pos_x = kwargs_ols.get('pos_x', 0.99)
             pos_y = kwargs_ols.get('pos_y', 0.) + 0.03
@@ -739,13 +747,13 @@ def plot_zbins(**kwargs):
                 ### XXX: TODO
                 zbinsrange = xrange(len(zbins))
                 C.debug_var(debug, zbins = zbins)
-                zbins_mask = [ (zm > zbins[i-1]) & (zm <= zbins[i]) for i in zbinsrange ]
+                zbins_mask = [ (zm > zbins[i - 1]) & (zm <= zbins[i]) for i in zbinsrange ]
                 zbins_mask[0] = (zm <= zbins[0])
                 if zbins_labels is None:
                     zbins_labels = [ '%.2f < %s $\leq$ %.2f' % (zbins[i - 1], zname, zbins[i]) for i in zbinsrange ]
                     zbins_labels[0] = '%s $\leq$ %.2f' % (zname, zbins[0])
                 if zbins_colors is None:
-                    zbins_colors = [ zcmap.to_rgba(v/(norm.vmax - norm.vmin)) for v in [norm.vmin] + zbins[0:-1] ]
+                    zbins_colors = [ zcmap.to_rgba(v / (norm.vmax - norm.vmin)) for v in [norm.vmin] + zbins[0:-1] ]
             else:
                 zbinsrange = xrange(zbins)
                 nprc = kwargs.get('zbinsprc', [ (i + 1) * (100 / zbins) for i in zbinsrange ])
