@@ -13,7 +13,6 @@ from CALIFAUtils.lines import Lines
 def create_masks_gal(K, tSF__T, args = None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
     from CALIFAUtils.lines import Lines
-    gasprop = K.__dict__.get('GP', None)
     debug = kwargs.get('debug', False)
     if args is None:
         args = tupperware_none()
@@ -29,7 +28,9 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
         args.underS06 = kwargs.get('underS06', args.underS06)
         args.whanSF = kwargs.get('whanSF', args.whanSF)
         args.filter_residual = kwargs.get('filter_residual', args.filter_residual)
+        args.gasprop = kwargs.get('gasprop', args.gasprop)
         C.debug_var(debug, pref = 'create_masks_gal() >>>>', args = args)
+    args.gasprop = K.__dict__.has_key('GP') and args.gasprop
     #######################
     ### RESID.EML MASKS ###
     #######################

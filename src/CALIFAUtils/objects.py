@@ -181,9 +181,7 @@ class ALLGals(object):
         self.integrated_EW_Hb__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_tau_V__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_tau_V_neb__g = np.ma.masked_all((N_gals), dtype = np.float_)
-        self.integrated_tau_V_neb_resolved__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_tau_V_neb_err__g = np.ma.masked_all((N_gals), dtype = np.float_)
-        self.integrated_tau_V_neb_err_resolved__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_F_obs_Ha__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_F_obs_Hb__g = np.ma.masked_all((N_gals), dtype = np.float_)
         self.integrated_F_obs_O3__g = np.ma.masked_all((N_gals), dtype = np.float_)
@@ -609,9 +607,17 @@ class H5SFRData(object):
         else:
             return maskOKGals, len(l_gals)
                
-        maskOkGals = np.asarray([ 1 if g in self.califaIDs_al.tolist() else 0 for g in l_gals ], dtype = np.bool_)
-        
-        return 
+    def sum_prop_gal(self, data, mask_zones = None):
+        if isinstance(data, str):
+            data = self.get_data_h5(data)
+        if mask_zones is None:
+            mask_zones = np.zeros(data.shape, dtype = np.bool_)
+        dm = np.ma.masked_array(data, mask = (data.mask | mask_zones))
+        prop_sum__g = np.ma.masked_all(self.califaIDs_all.shape)
+        for iGal, gal in enumerate(self.califaIDs_all):
+            if gal is not np.ma.masked:
+                prop_sum__g[iGal] = self.get_prop_gal(dm, gal).sum()
+        return prop_sum__g 
         
     # XXX: TODO: ADD_MASK 
     def get_prop_gal(self, data, gal = None, return_slice = False):

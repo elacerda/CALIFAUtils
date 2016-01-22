@@ -15,6 +15,17 @@ from matplotlib.pyplot import MultipleLocator
 from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import find_confidence_interval
 
+def next_row_col(row, col, NRows, NCols):
+    if col == (NCols - 1): 
+        col = 0 
+        row += 1
+        if (row == NRows):
+            row = 0
+    else: 
+        col += 1
+    
+    return row, col
+
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
     center = np.array([ 256 , 256])
@@ -81,10 +92,16 @@ def plot_text_ax(ax, txt, xpos = 0.99, ypos = 0.01, fontsize = 10, va = 'bottom'
     color = kwargs.get('color', kwargs.get('c', color))
     alpha = kwargs.get('alpha', 1.)
     textbox = dict(boxstyle = 'round', facecolor = 'wheat', alpha = 0.)
-    ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
-            transform = ax.transAxes,
-            verticalalignment = va, horizontalalignment = ha,
-            bbox = textbox, alpha = alpha)
+    transform = kwargs.get('transform', True)
+    if transform is True:
+        ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
+                transform = ax.transAxes,
+                verticalalignment = va, horizontalalignment = ha,
+                bbox = textbox, alpha = alpha)
+    else:
+        ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
+                verticalalignment = va, horizontalalignment = ha,
+                bbox = textbox, alpha = alpha)
 
 def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black', errorbar = True, nBox = 25):
     dxBox = (x.max() - x.min()) / (nBox - 1.)
