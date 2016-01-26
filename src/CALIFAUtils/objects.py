@@ -899,7 +899,7 @@ class runstats(object):
             self.xS = aux[0]
             self.yS = aux[1]
             self.xPrcS = aux[2]
-            self.yPrcS = aux[2]
+            self.yPrcS = aux[3]
             
     def rstats_yx(self, **kwargs):
         ny = len(self.y)
@@ -944,7 +944,7 @@ class runstats(object):
             self.inv_xS = aux[0]
             self.inv_yS = aux[1]
             self.inv_xPrcS = aux[2]
-            self.inv_yPrcS = aux[2]
+            self.inv_yPrcS = aux[3]
 
     def gaussian_smooth(self, **kwargs):
         xPrcS = []

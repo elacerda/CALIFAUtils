@@ -9,7 +9,6 @@ import CALIFAUtils as C
 from scipy.linalg import eigh
 from CALIFAUtils.lines import Lines
 
-
 def create_masks_gal(K, tSF__T, args = None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
     from CALIFAUtils.lines import Lines
