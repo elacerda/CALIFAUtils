@@ -179,7 +179,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
     fontsize = kwargs.get('fontsize', kwargs.get('fs', 10))
     color = kwargs.get('color', kwargs.get('c', 'r'))
     rms = kwargs.get('rms', True)
-    label = kwargs.get('label', 'OLS')
+    label = kwargs.get('label', '')
     txt = kwargs.get('text', True)
     kwargs_plot = dict(c = color, ls = '-', lw = 1.5, label = label)
     kwargs_plot.update(kwargs.get('kwargs_plot', {}))
@@ -201,6 +201,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         Yrms = (y_rms - (a * x_rms + b)).std()
         Yrms_str = r'(rms:%.3f)' % Yrms
     if plotOLS == True:
+        print kwargs_plot
         ax.plot(ax.get_xlim(), a * np.asarray(ax.get_xlim()) + b, **kwargs_plot)
     if b > 0:
         txt_y = r'$y_{OLS}$ = %.2f$x$ + %.2f %s' % (a, b, Yrms_str)
