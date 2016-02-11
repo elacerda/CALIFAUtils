@@ -9,6 +9,26 @@ import CALIFAUtils as C
 from scipy.linalg import eigh
 from CALIFAUtils.lines import Lines
 
+def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
+    mask__g = np.zeros_like(np.ma.log10(H.SFRSD_Ha__g * 1e6).mask, dtype = np.bool_)
+    mask__g[np.ma.log10(H.SFRSD__Tg[iT] * 1e6).mask] = True
+    mask__g[np.ma.log10(H.tau_V__Tg[iT]).mask] = True
+    mask__g[np.ma.log10(H.SFRSD_Ha__g * 1e6).mask] = True
+    mask__g[np.ma.log10(H.tau_V_neb__g).mask] = True
+    mask__g[H.logO3N2_M13__g.mask] = True
+    mask__g[np.less(H.reply_arr_by_zones(H.ba_GAL__g), args.bamin)] = True
+    mask__g[~maskRadiusOk] = True
+    mask__g[~gals_slice] = True
+    #mask__g = np.bitwise_or(mask__g, np.less(H.EW_Ha__g, 3.))
+    return mask__g
+
+def mask_radius_iT(iT, H, args, maskRadiusOk, gals_slice):
+    mask__rg = np.zeros_like(maskRadiusOk, dtype = np.bool_)
+    mask__rg[np.less(H.reply_arr_by_radius(H.ba_GAL__g), args.bamin)] = True
+    mask__rg[~maskRadiusOk] = True
+    mask__rg[~gals_slice] = True
+    return mask__rg
+
 def create_masks_gal(K, tSF__T, args = None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
     from CALIFAUtils.lines import Lines
@@ -304,19 +324,27 @@ def calc_running_stats(x, y, **kwargs):
     frac = kwargs.get('frac', 0.1)
     minimal_bin_points = kwargs.get('min_np', nx * frac)
     i = 0
-    xbin = []
-    xbin.append(xS[0])
-    while i < nx:
-        to_i = i + minimal_bin_points
-        delta = (nx - to_i)
-        miss_frac = 1. * delta / nx
-        if to_i < nx and miss_frac >= frac:
-            xbin.append(xS[to_i])
-        else:
-            to_i = nx
-            xbin.append(xS[-1])
-        #print i, to_i, delta, miss_frac, xbin
-        i = to_i
+    xbin = kwargs.get('xbin', [])
+    if xbin == []:
+        xbin.append(xS[0])
+        min_next_i = int(np.ceil(minimal_bin_points))
+        next_i = min_next_i
+        while i < nx:
+            to_i = i + next_i
+            delta = (nx - to_i)
+            miss_frac = 1. * delta / nx
+            #print to_i, int(to_i), xS[to_i], xS[int(to_i)]
+            if to_i < nx:
+                if (xS[to_i] != xbin[-1]) and (miss_frac >= frac):
+                    xbin.append(xS[to_i])
+                    next_i = min_next_i
+                else:
+                    next_i += 1  
+            else:
+                #### last bin will be the xS.max()
+                to_i = nx
+                xbin.append(xS[-1])
+            i = to_i
     # Def x-bins
     xbin = np.asarray(xbin)
     nxbin = len(xbin)
@@ -347,6 +375,7 @@ def calc_running_stats(x, y, **kwargs):
         xbin_out.append(right)
         xbinCenter_out.append(center)
         Np = isInBin.astype(np.int).sum()
+        C.debug_var(debug, Np = Np)
         nInBin_out.append(Np)
         if Np >= 2:
             xMedian_out.append(np.median(xx))
@@ -379,7 +408,11 @@ def calc_running_stats(x, y, **kwargs):
                 xPrc_out.append(np.asarray([0., 0., 0., 0.]))
                 yPrc_out.append(np.asarray([0., 0., 0., 0.]))
         ixBin += 1
-    C.debug_var(debug, xbinCenter_out = np.array(xbinCenter_out))
+    C.debug_var(
+        debug, 
+        xbinCenter_out = np.array(xbinCenter_out), 
+        xMedian_out = np.array(xMedian_out),
+    )
     return xbin, \
         np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
         np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \

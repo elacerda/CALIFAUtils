@@ -127,7 +127,7 @@ def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black'
     if errorbar:
         ax.errorbar(xx, yy, yerr = yStd, xerr = xStd, c = color)
  
-def density_contour(xdata, ydata, binsx, binsy, ax = None, range = None, **contour_kwargs):
+def density_contour(xdata, ydata, binsx, binsy, ax = None, levels_confidence = [0.68, 0.95, 0.99], range = None, **contour_kwargs):
     """ Create a density contour plot.
  
     Parameters
@@ -152,11 +152,16 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, range = None, **conto
     y_bin_sizes = (yedges[1:] - yedges[:-1])
  
     pdf = (H * (x_bin_sizes * y_bin_sizes))
+    levels = []
+    for lvl in levels_confidence:
+        levels.append(so.brentq(find_confidence_interval, 0., 1., args = (pdf, lvl)))
  
-    one_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.68))
-    two_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.95))
-    three_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.99))
-    levels = [one_sigma, two_sigma, three_sigma]
+    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    # one_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.68))
+    # two_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.95))
+    # three_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.99))
+    # levels = [one_sigma, two_sigma, three_sigma]
+    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
  
     X, Y = 0.5 * (xedges[1:] + xedges[:-1]), 0.5 * (yedges[1:] + yedges[:-1])
     Z = pdf.T
@@ -179,10 +184,10 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
     fontsize = kwargs.get('fontsize', kwargs.get('fs', 10))
     color = kwargs.get('color', kwargs.get('c', 'r'))
     rms = kwargs.get('rms', True)
-    label = kwargs.get('label', '')
     txt = kwargs.get('text', True)
-    kwargs_plot = dict(c = color, ls = '-', lw = 1.5, label = label)
+    kwargs_plot = dict(c = color, ls = '-', lw = 1.5, label = '')
     kwargs_plot.update(kwargs.get('kwargs_plot', {}))
+    label = kwargs_plot['label']
     x_rms = kwargs.get('x_rms', x)
     y_rms = kwargs.get('y_rms', y)
     OLS = kwargs.get('OLS', None)
@@ -201,7 +206,6 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         Yrms = (y_rms - (a * x_rms + b)).std()
         Yrms_str = r'(rms:%.3f)' % Yrms
     if plotOLS == True:
-        print kwargs_plot
         ax.plot(ax.get_xlim(), a * np.asarray(ax.get_xlim()) + b, **kwargs_plot)
     if b > 0:
         txt_y = r'$y_{OLS}$ = %.2f$x$ + %.2f %s' % (a, b, Yrms_str)

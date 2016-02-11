@@ -719,21 +719,21 @@ class H5SFRData(object):
             'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1., 0.2], majloc = 0.5, minloc = 0.1),
             'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
-            'logO3N2M13R' : dict(v = np.ma.masked_array(self.O_O3N2_M13__rg, mask = np.isnan(self.O_O3N2_M13__rg)), label = r'12 + $\log\ O/H (R)$', lim = [8.2, 8.7], majloc = 0.5, minloc = 0.1),
+            'logO3N2M13R' : dict(v = np.ma.masked_array(self.logO3N2_M13__Trg[iT], mask = np.isnan(self.logO3N2_M13__Trg[iT])), label = r'12 + $\log\ O/H (R)$', lim = [8.2, 8.7], majloc = 0.5, minloc = 0.1),
             'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
             'xYR' : dict(v = 100. * self.x_Y__Trg[iT], label = '$x_Y (R)$ [%]', lim = [0, 50], majloc = 10., minloc = 2.),
-            'tauVdiffR' : dict(v = self.tau_V_neb__rg - self.tau_V__Trg[iT], label = r'$\tau_V^{neb} (R)\ -\ \tau_V^\star (R)$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
-            'tauVRatioR' : dict(v = self.tau_V_neb__rg / self.tau_V__Trg[iT], label = r'$\frac{\tau_V^{neb}(R)}{\tau_V^\star(R)}$', lim = [0, 6], majloc = 1., minloc = 0.2),
-            'logWHaWHbR' : dict(v = np.ma.log10(self.EW_Ha__rg / self.EW_Hb__rg), label = r'$\log\ \frac{W_{H\alpha} (R)}{W_{H\beta} (R)}$', lim = [0.2, 0.8], majloc = 0.12, minloc = 0.024,),
+            'tauVdiffR' : dict(v = self.tau_V_neb__Trg[iT] - self.tau_V__Trg[iT], label = r'$\tau_V^{neb} (R)\ -\ \tau_V^\star (R)$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
+            'tauVRatioR' : dict(v = self.tau_V_neb__Trg[iT] / self.tau_V__Trg[iT], label = r'$\frac{\tau_V^{neb}(R)}{\tau_V^\star(R)}$', lim = [0, 6], majloc = 1., minloc = 0.2),
+            'logWHaWHbR' : dict(v = np.ma.log10(self.EW_Ha__Trg[iT] / self.EW_Hb__Trg[iT]), label = r'$\log\ \frac{W_{H\alpha} (R)}{W_{H\beta} (R)}$', lim = [0.2, 0.8], majloc = 0.12, minloc = 0.024,),
             'logO3N2PP04R' : dict(v = self.O_O3N2_PP04__rg, label = r'12 + $\log\ O/H (R)$ (PP, 2004)', lim = [8, 8.6]),
             'logtauVR' : dict(v = np.ma.log10(self.tau_V__Trg[iT]), label = r'$\log\ \tau_V^\star (R)$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
-            'logtauVNebR' : dict(v = np.ma.log10(self.tau_V_neb__rg), label = r'$\log\ \tau_V^{neb} (R)$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
+            'logtauVNebR' : dict(v = np.ma.log10(self.tau_V_neb__Trg[iT]), label = r'$\log\ \tau_V^{neb} (R)$', lim = [ -1.5, 0.5 ], majloc = 0.5, minloc = 0.1),
             'tauVR' : dict(v = self.tau_V__Trg[iT], label = r'$\tau_V^\star (R)$', lim = [ 0., 1.5 ], majloc = 0.5, minloc = 0.1),
-            'tauVNebR' : dict(v = self.tau_V_neb__rg, label = r'$\tau_V^{neb} (R)$', lim = [ 0., 3. ], majloc = 1., minloc = 0.2),
+            'tauVNebR' : dict(v = self.tau_V_neb__Trg[iT], label = r'$\tau_V^{neb} (R)$', lim = [ 0., 3. ], majloc = 1., minloc = 0.2),
             'alogSFRSDR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT]), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDHaR' : dict(v = np.ma.log10(self.aSFRSD_Ha__Trg[iT]), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-9.5, -5], majloc = 0.5, minloc = 0.1),
             'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
-            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__rg * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
+            'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
             'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 12]),
             'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
         }
@@ -853,6 +853,9 @@ class runstats(object):
         
         if self._inverse is not None:
             self.rstats_yx(**kwargs)
+        
+        if kwargs.get('OLS', False):
+            self.OLS_bisector()
         
     def rstats(self, **kwargs):
         nx = len(self.x)
