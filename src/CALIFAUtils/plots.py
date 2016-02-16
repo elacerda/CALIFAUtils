@@ -15,6 +15,33 @@ from matplotlib.pyplot import MultipleLocator
 from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import find_confidence_interval
 
+def plot_histo_axis(ax, x, **kwargs):
+    c = kwargs.get('color', kwargs.get('c', 'b'))
+    va = kwargs.get('verticalalignment', kwargs.get('va', 'top'))
+    ha = kwargs.get('verticalalignment', kwargs.get('ha', 'right'))
+    fs = kwargs.get('fontsize', kwargs.get('fs', 14))
+    pos_x = kwargs.get('pos_x', 0.98)
+    bins = kwargs.get('bins', 30)
+    range = kwargs.get('range', None)
+    kwargs_histo = kwargs.get('kwargs_histo', dict(bins = bins, range = range, color = c, align = 'mid', alpha = 0.6, histtype='stepfilled', normed = True))
+    ax.hist(x, **kwargs_histo)
+    txt = r'%.2f' % np.mean(x)
+    kw_text = dict(pos_x = pos_x, pos_y = 0.96, fs = fs, va = va, ha = ha, c = c)
+    plot_text_ax(ax, txt, **kw_text)
+    txt = r'%.2f' % np.median(x)
+    kw_text = dict(pos_x = pos_x, pos_y = 0.88, fs = fs, va = va, ha = ha, c = c)
+    plot_text_ax(ax, txt, **kw_text)
+    txt = r'%.2f' % np.std(x)
+    kw_text = dict(pos_x = pos_x, pos_y = 0.80, fs = fs, va = va, ha = ha, c = c)
+    plot_text_ax(ax, txt, **kw_text)
+    txt = r'%.2f' % np.max(x)
+    kw_text = dict(pos_x = pos_x, pos_y = 0.72, fs = fs, va = va, ha = ha, c = c)
+    plot_text_ax(ax, txt, **kw_text)
+    txt = r'%.2f' % np.min(x)
+    kw_text = dict(pos_x = pos_x, pos_y = 0.64, fs = fs, va = va, ha = ha, c = c)
+    plot_text_ax(ax, txt, **kw_text)
+    return ax
+
 def next_row_col(row, col, NRows, NCols):
     if col == (NCols - 1): 
         col = 0 
@@ -25,6 +52,15 @@ def next_row_col(row, col, NRows, NCols):
         col += 1
     
     return row, col
+
+def plotPercentilesAxis(ax, x, y, **kwargs):
+    median_kwargs = kwargs.pop('median_kwargs', kwargs)
+    ax.plot(x, np.median(y), **median_kwargs)
+    ax.plot(x, np.percentile(y, 5), **kwargs)
+    ax.plot(x, np.percentile(y, 16), **kwargs)
+    ax.plot(x, np.percentile(y, 84), **kwargs)
+    ax.plot(x, np.percentile(y, 95), **kwargs)
+
 
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse

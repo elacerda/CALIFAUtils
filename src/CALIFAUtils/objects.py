@@ -697,7 +697,7 @@ class H5SFRData(object):
             'logO3N2M13' : dict(v = self.O_O3N2_M13__g, legendname = r'12 + $\log\ O/H$', label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)', lim = [8.2, 8.7], majloc = 0.25, minloc = 0.05),
             'logMcorSD' : dict(v = np.ma.log10(self.McorSD__g), legendname = r'$\log\ \mu_\star$', label = r'$\log\ \mu_\star$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
             'logMcor' : dict(v = np.ma.log10(self.Mcor__g), legendname = r'$\log\ M_\star$', label = r'$\log\ M_\star$ [$M_\odot$]', lim = None, majloc = 1., minloc = 0.2),
-            'xY' : dict(v = 100. * self.x_Y__Tg[iT], legendname = r'$x_Y$', label = r'$x_Y$ [%]', lim = [0, 50], majloc = 10., minloc = 2.),
+            'xY' : dict(v = self.x_Y__Tg[iT], legendname = r'$x_Y$', label = r'$x_Y$', lim = [0, .50], majloc = .10, minloc = .02),
             'tauVdiff' : dict(v = self.tau_V_neb__g - self.tau_V__Tg[iT], legendname = '$\tau_V^{neb}\ -\ \tau_V^\star$', label = r'$\tau_V^{neb}\ -\ \tau_V^\star$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
             'tauVRatio' : dict(v = self.tau_V_neb__g / self.tau_V__Tg[iT], legendname = r'$\frac{\tau_V^{neb}}{\tau_V^\star}$', label = r'$\frac{\tau_V^{neb}}{\tau_V^\star}$', lim = [0, 6], majloc = 1., minloc = 0.2),
             'logWHaWHb' : dict(v = np.ma.log10(self.EW_Ha__g / self.EW_Hb__g), legendname = r'$\log\ \frac{W_{H\alpha}}{W_{H\beta}}$', label = r'$\log\ \frac{W_{H\alpha}}{W_{H\beta}}$', lim = [0.2, 0.8], majloc = 0.12, minloc = 0.024,),
@@ -711,17 +711,17 @@ class H5SFRData(object):
             'logSFRSD' : dict(v = np.ma.log10(self.SFRSD__Tg[iT]), legendname = r'$\log\ \Sigma_{SFR}^\star$', label = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-8.5, -6.0], majloc = 0.5, minloc = 0.1),
             'logSFRSDHa' : dict(v = np.ma.log10(self.SFRSD_Ha__g), legendname = r'$\log\ \Sigma_{SFR}^{neb}$', label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} pc^{-2}]$', lim = [-8.5, -6.0], majloc = 0.5, minloc = 0.1),
             'morfType' : dict(v = self.reply_arr_by_zones(self.morfType_GAL__g), legendname = 'mt', label = 'morph. type', mask = False, lim = [9, 11.5]),
-            'ba' : dict(v = self.reply_arr_by_zones(self.ba_GAL__g), legendname = r'$\frac{b}{a}$', label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
+            'ba' : dict(v = self.reply_arr_by_zones(self.ba_GAL__g), legendname = r'$b/a$', label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
             #########################
             ### Radius ##############
             #########################
-            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7.5, 10], majloc = 0.6, minloc = 0.12,),
-            'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1., 0.2], majloc = 0.5, minloc = 0.1),
+            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1.5, 0.5], majloc = 0.5, minloc = 0.1),
             'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
-            'logO3N2M13R' : dict(v = np.ma.masked_array(self.logO3N2_M13__Trg[iT], mask = np.isnan(self.logO3N2_M13__Trg[iT])), label = r'12 + $\log\ O/H (R)$', lim = [8.2, 8.7], majloc = 0.5, minloc = 0.1),
-            'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [1, 4.6], majloc = 1., minloc = 0.2),
-            'xYR' : dict(v = 100. * self.x_Y__Trg[iT], label = '$x_Y (R)$ [%]', lim = [0, 50], majloc = 10., minloc = 2.),
+            'logO3N2M13R' : dict(v = np.ma.masked_array(self.logO3N2_M13__Trg[iT] - 8.69, mask = np.isnan(self.logO3N2_M13__Trg[iT])), label = r'$\log\ \left(\frac{(O/H)}{(O/H)_\odot}\right)$', lim = [-0.6, 0.], majloc = 0.1, minloc = 0.025),
+            'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [0, 4], majloc = 1., minloc = 0.2),
+            'xYR' : dict(v = self.x_Y__Trg[iT], label = '$x_Y (R)$', lim = [0, 1], majloc = 0.1, minloc = 0.02),
             'tauVdiffR' : dict(v = self.tau_V_neb__Trg[iT] - self.tau_V__Trg[iT], label = r'$\tau_V^{neb} (R)\ -\ \tau_V^\star (R)$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
             'tauVRatioR' : dict(v = self.tau_V_neb__Trg[iT] / self.tau_V__Trg[iT], label = r'$\frac{\tau_V^{neb}(R)}{\tau_V^\star(R)}$', lim = [0, 6], majloc = 1., minloc = 0.2),
             'logWHaWHbR' : dict(v = np.ma.log10(self.EW_Ha__Trg[iT] / self.EW_Hb__Trg[iT]), label = r'$\log\ \frac{W_{H\alpha} (R)}{W_{H\beta} (R)}$', lim = [0.2, 0.8], majloc = 0.12, minloc = 0.024,),
@@ -735,7 +735,7 @@ class H5SFRData(object):
             'alogSFRSDkpcR' : dict(v = np.ma.log10(self.aSFRSD__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star (t_\star, R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
             'alogSFRSDHakpcR' : dict(v = np.ma.log10(self.aSFRSD_Ha__Trg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb} (R)\ [M_\odot yr^{-1} kpc^{-2}]$', lim = [-3.5, 0], majloc = 0.5, minloc = 0.1),
             'morfTypeR' : dict(v = self.reply_arr_by_radius(self.morfType_GAL__g), label = 'morph. type', mask = False, lim = [9, 12]),
-            'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$\frac{b}{a}$', mask = False, lim = [0, 1.]),
+            'baR' : dict(v = self.reply_arr_by_radius(self.ba_GAL__g), label = r'$b/a$', mask = False, lim = [0, 1.]),
         }
         if key is not None:
             try:

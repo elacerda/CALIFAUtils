@@ -375,7 +375,6 @@ def calc_running_stats(x, y, **kwargs):
         xbin_out.append(right)
         xbinCenter_out.append(center)
         Np = isInBin.astype(np.int).sum()
-        C.debug_var(debug, Np = Np)
         nInBin_out.append(Np)
         if Np >= 2:
             xMedian_out.append(np.median(xx))
@@ -412,6 +411,7 @@ def calc_running_stats(x, y, **kwargs):
         debug, 
         xbinCenter_out = np.array(xbinCenter_out), 
         xMedian_out = np.array(xMedian_out),
+        nInBin_out = nInBin_out,
     )
     return xbin, \
         np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
