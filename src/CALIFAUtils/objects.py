@@ -1,3 +1,4 @@
+from scipy import stats as st
 from scipy.ndimage.filters import gaussian_filter1d
 from CALIFAUtils.scripts import get_h5_data_masked
 from CALIFAUtils.scripts import calc_running_stats
@@ -690,8 +691,8 @@ class H5SFRData(object):
             #########################
             ### zones ###############
             #########################
-            'atflux' : dict(v = self.at_flux__g, legendname = r'$\langle \log\ t \rangle_L$', label = r'$\langle \log\ t \rangle_L$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
-            'alogZmass' : dict(v = self.alogZ_mass__Ug[iU], legendname = r'$\langle \log\ Z_\star \rangle_M$', label = r'$\langle \log\ Z_\star \rangle_M$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [ -0.75, 0.25], majloc = 0.25, minloc = 0.05),
+            'atflux' : dict(v = self.at_flux__g, legendname = r'$\langle \log\ t_\star \rangle_L$', label = r'$\langle \log\ t \rangle_L$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'alogZmass' : dict(v = self.alogZ_mass__Ug[iU], legendname = r'$\langle \log\ Z_\star \rangle_M$', label = r'$\langle \log\ Z_\star \rangle_M$ [$Z_\odot$]', lim = [ -0.75, 0.25], majloc = 0.25, minloc = 0.05),
             'OHIICHIM' : dict(v = self.O_HIICHIM__g, legendname = r'12 + $\log\ O/H$', label = r'12 + $\log\ O/H$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06' : dict(v = self.logZ_neb_S06__g, legendname = r'$\log\ Z_{neb}$', label = r'$\log\ Z_{neb}$ [$Z_\odot$] (Stasinska, 2006)', lim = [-0.5, 0.1], majloc = 0.5, minloc = 0.1),
             'logO3N2M13' : dict(v = self.O_O3N2_M13__g, legendname = r'12 + $\log\ O/H$', label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)', lim = [8.2, 8.7], majloc = 0.25, minloc = 0.05),
@@ -715,11 +716,11 @@ class H5SFRData(object):
             #########################
             ### Radius ##############
             #########################
-            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t \rangle_L (R)$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
-            'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ (t < %.2f Gyr) [$Z_\odot$]' % (self.tZ__U[iU] / 1e9), lim = [-1.5, 0.5], majloc = 0.5, minloc = 0.1),
+            'atfluxR' : dict(v = self.at_flux__rg, label = r'$\langle \log\ t_\star \rangle_L (R)$ [yr]', lim = [7, 10], majloc = 0.6, minloc = 0.12,),
+            'alogZmassR' : dict(v = self.alogZ_mass__Urg[-1], label = r'$\langle \log\ Z_\star \rangle_M (R)$ [$Z_\odot$]', lim = [-1.5, 0.5], majloc = 0.5, minloc = 0.1),
             'OHIICHIMR' : dict(v = self.O_HIICHIM__rg, label = r'12 + $\log\ O/H(R)$ (HII-CHI-mistry, EPM, 2014)', lim = [7., 9.5], majloc = 0.5, minloc = 0.1),
             'logO3N2S06R' : dict(v = self.logZ_neb_S06__rg, label = r'$\log\ Z_{neb} (R)$ [$Z_\odot$] (Stasinska, 2006)', lim = [-2., 0.5], majloc = 0.5, minloc = 0.1),
-            'logO3N2M13R' : dict(v = np.ma.masked_array(self.logO3N2_M13__Trg[iT] - 8.69, mask = np.isnan(self.logO3N2_M13__Trg[iT])), label = r'$\log\ \left(\frac{(O/H)}{(O/H)_\odot}\right)$', lim = [-0.6, 0.], majloc = 0.1, minloc = 0.025),
+            'logO3N2M13R' : dict(v = np.ma.masked_array(self.logO3N2_M13__Trg[iT] - 8.69, mask = np.isnan(self.logO3N2_M13__Trg[iT])), label = r'$\log\ \left(\frac{(O/H)}{(O/H)_\odot}\right)(R)$', lim = [-0.6, 0.], majloc = 0.1, minloc = 0.025),
             'logMcorSDR' : dict(v = np.ma.log10(self.McorSD__rg), label = r'$\log\ \mu_\star (R)$ [$M_\odot \ pc^{-2}$]', lim = [0, 4], majloc = 1., minloc = 0.2),
             'xYR' : dict(v = self.x_Y__Trg[iT], label = '$x_Y (R)$', lim = [0, 1], majloc = 0.1, minloc = 0.02),
             'tauVdiffR' : dict(v = self.tau_V_neb__Trg[iT] - self.tau_V__Trg[iT], label = r'$\tau_V^{neb} (R)\ -\ \tau_V^\star (R)$', lim = [-1.2, 2.6], majloc = 0.75, minloc = 0.15),
@@ -850,12 +851,17 @@ class runstats(object):
         self._tendency = kwargs.get('tendency', None)
         self._inverse = kwargs.get('inverse', None)
         self.rstats(**kwargs)
+        self.Rs, self.Rs_pval = st.spearmanr(x, y)
+        self.Rp, self.Rp_pval = st.pearsonr(x, y)
         
         if self._inverse is not None:
             self.rstats_yx(**kwargs)
         
         if kwargs.get('OLS', False):
             self.OLS_bisector()
+
+        if kwargs.get('poly1d', False):
+            self.poly1d()
         
     def rstats(self, **kwargs):
         nx = len(self.x)
@@ -988,11 +994,11 @@ class runstats(object):
         p = np.polyfit(self.x, self.y, 1)
         slope, intercept = p
         self.poly1d_slope = slope 
-        self.poly1d_intercep = intercept 
+        self.poly1d_intercept = intercept 
         p = np.polyfit(self.xS, self.yS, 1)
         slope, intercept = p
         self.poly1d_median_slope = slope 
-        self.poly1d_median_intercep = intercept 
+        self.poly1d_median_intercept = intercept 
     
     def tendency(self, x, y, xbin = None, **kwargs):
         from scipy.interpolate import UnivariateSpline

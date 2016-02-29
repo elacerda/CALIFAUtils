@@ -17,6 +17,7 @@ from CALIFAUtils.scripts import find_confidence_interval
 
 def plot_histo_axis(ax, x, **kwargs):
     c = kwargs.get('color', kwargs.get('c', 'b'))
+    first = kwargs.get('first', False)
     va = kwargs.get('verticalalignment', kwargs.get('va', 'top'))
     ha = kwargs.get('verticalalignment', kwargs.get('ha', 'right'))
     fs = kwargs.get('fontsize', kwargs.get('fs', 14))
@@ -25,19 +26,24 @@ def plot_histo_axis(ax, x, **kwargs):
     range = kwargs.get('range', None)
     kwargs_histo = kwargs.get('kwargs_histo', dict(bins = bins, range = range, color = c, align = 'mid', alpha = 0.6, histtype='stepfilled', normed = True))
     ax.hist(x, **kwargs_histo)
-    txt = r'%.2f' % np.mean(x)
+    txt = '%.2f' % np.mean(x)
+    if first: txt = r'$<x>$: %s' % txt
     kw_text = dict(pos_x = pos_x, pos_y = 0.96, fs = fs, va = va, ha = ha, c = c)
     plot_text_ax(ax, txt, **kw_text)
-    txt = r'%.2f' % np.median(x)
+    txt = '%.2f' % np.median(x)
+    if first: txt = r'med($x$): %s' % txt
     kw_text = dict(pos_x = pos_x, pos_y = 0.88, fs = fs, va = va, ha = ha, c = c)
     plot_text_ax(ax, txt, **kw_text)
-    txt = r'%.2f' % np.std(x)
+    txt = '%.2f' % np.std(x)
+    if first: txt = r'$\sigma(x)$: %s' % txt
     kw_text = dict(pos_x = pos_x, pos_y = 0.80, fs = fs, va = va, ha = ha, c = c)
     plot_text_ax(ax, txt, **kw_text)
-    txt = r'%.2f' % np.max(x)
+    txt = '%.2f' % np.max(x)
+    if first: txt = r'max$(x)$: %s' % txt
     kw_text = dict(pos_x = pos_x, pos_y = 0.72, fs = fs, va = va, ha = ha, c = c)
     plot_text_ax(ax, txt, **kw_text)
-    txt = r'%.2f' % np.min(x)
+    txt = '%.2f' % np.min(x)
+    if first: txt = r'min$(x)$: %s' % txt
     kw_text = dict(pos_x = pos_x, pos_y = 0.64, fs = fs, va = va, ha = ha, c = c)
     plot_text_ax(ax, txt, **kw_text)
     return ax

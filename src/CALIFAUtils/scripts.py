@@ -325,6 +325,7 @@ def calc_running_stats(x, y, **kwargs):
     minimal_bin_points = kwargs.get('min_np', nx * frac)
     i = 0
     xbin = kwargs.get('xbin', [])
+    debug_var(debug, xbin = xbin)
     if xbin == []:
         xbin.append(xS[0])
         min_next_i = int(np.ceil(minimal_bin_points))
