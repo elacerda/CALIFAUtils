@@ -74,6 +74,56 @@ class GasProp(object):
     def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
         return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
     
+class stack_gals(object):
+    def __init__(self):
+        self.keys1d = []
+        self.keys2d = []
+        pass
+    
+    def new1d(self, k):
+        self.keys1d.append(k)
+        setattr(self, '_%s' % k, [])
+        setattr(self, '_mask_%s' % k, [])
+
+    def new2d(self, k, N):
+        self.keys2d.append(k)
+        setattr(self, '_N_%s' % k, N)
+        setattr(self, '_%s' % k, [[] for _ in xrange(N)])
+        setattr(self, '_mask_%s' % k, [[] for _ in xrange(N)])
+        
+    def append1d(self, k, val, mask_val = None):
+        attr = getattr(self, '_%s' % k)
+        attr.append(val)
+        m = getattr(self, '_mask_%s' % k)
+        if mask_val is None:
+            mask_val = np.zeros_like(val, dtype = np.bool_)
+        m.append(mask_val)
+        
+    def append2d(self, k, i, val, mask_val = None):
+        if (self.__dict__.has_key('_N_%s' % k)):
+            attr = getattr(self, '_%s' % k)
+            attr[i].append(val)
+            m = getattr(self, '_mask_%s' % k)
+            if mask_val is None:
+                mask_val = np.zeros_like(val, dtype = np.bool_)
+            m[i].append(mask_val)
+        
+    def stack1d(self):
+        for k in self.keys1d:
+            attr = np.hstack(getattr(self, '_%s' % k))
+            mask = np.hstack(getattr(self, '_mask_%s' % k))
+            setattr(self, k, np.ma.masked_array(attr, mask = mask, dtype = np.float_))
+
+    def stack2d(self):
+        for k in self.keys2d:
+            N = getattr(self, '_N_%s' % k)
+            attr = getattr(self, '_%s' % k)
+            mask = getattr(self, '_mask_%s' % k)
+            tmp = []
+            for i in xrange(N):
+                tmp.append(np.ma.masked_array(np.hstack(attr[i]), mask = np.hstack(mask[i]), dtype = np.float_))
+            setattr(self, k, np.ma.asarray(tmp))
+            
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
         self.N_gals = N_gals

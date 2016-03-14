@@ -521,6 +521,52 @@ def get_HMR_pc(K, **kwargs):
 def get_McorSD_GAL(K, **kwargs):
     return K.McorSD__yx.mean()
 
+def read_gal_cubes(gal, **kwargs):
+    from pycasso import fitsQ3DataCube
+    verbose = kwargs.get('verbose', None)
+    debug = kwargs.get('debug', None)
+    pycasso_cube_dir = kwargs.get('pycasso_cube_dir', None)
+    pycasso_cube_suffix = kwargs.get('pycasso_cube_suffix', None)
+    eml_cube_dir = kwargs.get('eml_cube_dir', None)
+    EL = (eml_cube_dir is not None)
+    eml_cube_suffix = kwargs.get('eml_cube_suffix', None)
+    gasprop_cube_dir = kwargs.get('gasprop_cube_dir', None)
+    GP = (gasprop_cube_dir is not None)
+    gasprop_cube_suffix = kwargs.get('gasprop_cube_dir', None)
+    if pycasso_cube_dir[-1] != '/':
+        pycasso_cube_dir += '/'
+    if (EL is not None) and (eml_cube_dir[-1] != '/'):
+        eml_cube_dir += '/'
+    if (GP is not None) and (gasprop_cube_dir[-1] != '/'):
+        gasprop_cube_dir += '/'
+    pycasso_cube_filename = '%s%s%s' % (pycasso_cube_dir, gal, pycasso_cube_suffix)
+    K = None
+    try:
+        K = fitsQ3DataCube(pycasso_cube_filename)
+        if verbose is not None:
+            print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
+        if EL is True:
+            emlines_cube_filename = '%s%s%s' % (eml_cube_dir, gal, eml_cube_suffix)
+            C.debug_var(debug, emlines = emlines_cube_filename)
+            try:
+                K.loadEmLinesDataCube(emlines_cube_filename)
+                if verbose is not None:
+                    print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
+            except IOError:
+                print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
+        if GP is True:
+            gasprop_cube_filename = '%s%s%s' % (gasprop_cube_dir, gal, gasprop_cube_suffix)
+            C.debug_var(debug, gasprop = gasprop_cube_filename)
+            try:
+                K.GP = C.GasProp(gasprop_cube_filename)
+                if verbose is not None:
+                    print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
+            except IOError:
+                print >> sys.stderr, 'GP: File does not exists: %s' % gasprop_cube_filename
+    except IOError:
+        print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
+    return K
+
 def read_one_cube(gal, **kwargs):
     from pycasso import fitsQ3DataCube
     EL = kwargs.get('EL', None)
