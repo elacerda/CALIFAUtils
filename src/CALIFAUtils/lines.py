@@ -59,9 +59,9 @@ class Lines:
         self.addLine('K03', self.linebpt, (1.30, 0.61, -0.05), x['K03'][:-1])
         self.addLine('S06', self.linebpt, (0.96, 0.29, 0.2), x['S06'][:-1])
 
-        x['K06'] = np.linspace(-10.0, 10.0, self.xn)
-        self.addLine('K06', self.lline, (1.01, 0.48), x['K06'])
-        self.fixK06(self)
+        x['CF10'] = np.linspace(-10.0, 10.0, self.xn)
+        self.addLine('CF10', self.lline, (1.01, 0.48), x['CF10'])
+        self.fixCF10(self)
 
         '''
         Just a shortcut to BPT lines.
@@ -76,27 +76,27 @@ class Lines:
     def belowlinebpt(self, linename, x, y):
         if self.lines.__contains__(linename):
             mask = (y <= self.get_yfromx(linename, x)) 
-            if linename != 'K06':
+            if linename != 'CF10':
                 c = self.consts[linename]
                 mask &= (x < -1.0*c[-1])
         return mask
 
     @staticmethod
-    def fixK06(self):
-        yK06 = self.y['K06']
-        yS06 = self.get_yfromx('S06', self.x['K06'])
-        i = np.where(yK06 > yS06)[0][0]
-        xmin = self.x['K06'][i]
+    def fixCF10(self):
+        yCF10 = self.y['CF10']
+        yS06 = self.get_yfromx('S06', self.x['CF10'])
+        i = np.where(yCF10 > yS06)[0][0]
+        xmin = self.x['CF10'][i]
         newx = np.linspace(xmin, 2.0, self.xn)
-        self.remLine('K06')
-        self.addLine('K06', self.lline, (1.01, 0.48), newx)
+        self.remLine('CF10')
+        self.addLine('CF10', self.lline, (1.01, 0.48), newx)
 
     @staticmethod
     def removable_init(self):
         self._removable = {
             'K01' : False,
             'K03' : False,
-            'K06' : False,
+            'CF10' : False,
             'S06' : False
         }
 

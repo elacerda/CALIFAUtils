@@ -135,15 +135,16 @@ def plot_text_ax(ax, txt, xpos = 0.99, ypos = 0.01, fontsize = 10, va = 'bottom'
     alpha = kwargs.get('alpha', 1.)
     textbox = dict(boxstyle = 'round', facecolor = 'wheat', alpha = 0.)
     transform = kwargs.get('transform', True)
+    rot = kwargs.get('rotation', 0)
     if transform is True:
         ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
                 transform = ax.transAxes,
                 verticalalignment = va, horizontalalignment = ha,
-                bbox = textbox, alpha = alpha)
+                bbox = textbox, alpha = alpha, rotation = rot)
     else:
         ax.text(xpos, ypos, txt, fontsize = fontsize, color = color,
                 verticalalignment = va, horizontalalignment = ha,
-                bbox = textbox, alpha = alpha)
+                bbox = textbox, alpha = alpha, rotation = rot)
 
 def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black', errorbar = True, nBox = 25):
     dxBox = (x.max() - x.min()) / (nBox - 1.)
