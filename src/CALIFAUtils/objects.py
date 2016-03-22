@@ -77,11 +77,16 @@ class GasProp(object):
 class stack_gals(object):
     def __init__(self):
         self.keys1d = []
+        self.keys1d_masked = []
         self.keys2d = []
-        pass
-    
+        self.keys2d_masked = []
+
     def new1d(self, k):
         self.keys1d.append(k)
+        setattr(self, '_%s' % k, [])
+    
+    def new1d_masked(self, k):
+        self.keys1d_masked.append(k)
         setattr(self, '_%s' % k, [])
         setattr(self, '_mask_%s' % k, [])
 
@@ -89,9 +94,18 @@ class stack_gals(object):
         self.keys2d.append(k)
         setattr(self, '_N_%s' % k, N)
         setattr(self, '_%s' % k, [[] for _ in xrange(N)])
+
+    def new2d_masked(self, k, N):
+        self.keys2d_masked.append(k)
+        setattr(self, '_N_%s' % k, N)
+        setattr(self, '_%s' % k, [[] for _ in xrange(N)])
         setattr(self, '_mask_%s' % k, [[] for _ in xrange(N)])
         
-    def append1d(self, k, val, mask_val = None):
+    def append1d(self, k, val):
+        attr = getattr(self, '_%s' % k)
+        attr.append(val)
+
+    def append1d_masked(self, k, val, mask_val = None):
         attr = getattr(self, '_%s' % k)
         attr.append(val)
         m = getattr(self, '_mask_%s' % k)
@@ -99,7 +113,12 @@ class stack_gals(object):
             mask_val = np.zeros_like(val, dtype = np.bool_)
         m.append(mask_val)
         
-    def append2d(self, k, i, val, mask_val = None):
+    def append2d(self, k, i, val):
+        if (self.__dict__.has_key('_N_%s' % k)):
+            attr = getattr(self, '_%s' % k)
+            attr[i].append(val)
+
+    def append2d_masked(self, k, i, val, mask_val = None):
         if (self.__dict__.has_key('_N_%s' % k)):
             attr = getattr(self, '_%s' % k)
             attr[i].append(val)
@@ -107,22 +126,40 @@ class stack_gals(object):
             if mask_val is None:
                 mask_val = np.zeros_like(val, dtype = np.bool_)
             m[i].append(mask_val)
-        
-    def stack1d(self):
+
+    def stack(self):
+        if len(self.keys1d) > 0: self._stack1d()
+        if len(self.keys1d_masked) > 0: self._stack1d_masked()
+        if len(self.keys2d) > 0: self._stack2d()
+        if len(self.keys2d_masked) > 0: self._stack2d_masked()
+                
+    def _stack1d(self):
         for k in self.keys1d:
+            print k
+            attr = np.hstack(getattr(self, '_%s' % k))
+            setattr(self, k, np.array(attr, dtype = np.float_))
+
+    def _stack1d_masked(self):
+        for k in self.keys1d_masked:
+            print k
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
             setattr(self, k, np.ma.masked_array(attr, mask = mask, dtype = np.float_))
 
-    def stack2d(self):
+    def _stack2d(self):
         for k in self.keys2d:
+            print k
+            N = getattr(self, '_N_%s' % k)
+            attr = getattr(self, '_%s' % k)
+            setattr(self, k, np.asarray([ np.array(np.hstack(attr[i]), dtype = np.float_) for i in xrange(N) ]))
+
+    def _stack2d_masked(self):
+        for k in self.keys2d_masked:
+            print k
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
             mask = getattr(self, '_mask_%s' % k)
-            tmp = []
-            for i in xrange(N):
-                tmp.append(np.ma.masked_array(np.hstack(attr[i]), mask = np.hstack(mask[i]), dtype = np.float_))
-            setattr(self, k, np.ma.asarray(tmp))
+            setattr(self, k, np.ma.asarray([ np.ma.masked_array(np.hstack(attr[i]), mask = np.hstack(mask[i]), dtype = np.float_) for i in xrange(N) ]))
             
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):

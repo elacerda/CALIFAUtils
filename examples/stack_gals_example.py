@@ -39,9 +39,9 @@ N_T = len(tSF__T)
 #Using stack gals to stack data in 1 pass.
 G = stack_gals()
 G.new1d('McorSD__g')
-G.new2d('McorSD__Tg', N_T)
-G.new2d('SFR__Tg', N_T)
-G.new2d('SFRSD__Tg', N_T)
+G.new2d_masked('McorSD__Tg', N_T)
+G.new2d_masked('SFR__Tg', N_T)
+G.new2d_masked('SFRSD__Tg', N_T)
 G.new2d('x_Y__Tg', N_T)
 
 #for iGal, K in loop_cubes(gals.tolist(), imax = 4, EL = True, GP = True, v_run = -1, debug = True):        
@@ -69,15 +69,14 @@ for iGal, gal in enumerate(gals[0:maxGals]):
         bad_zones = np.less(x_Y__z, xOkMin)
         
         # append McorSD data
-        G.append2d('McorSD__Tg', iT, K.Mcor__z / K.zoneArea_pc2, bad_zones)
+        G.append2d_masked('McorSD__Tg', iT, K.Mcor__z / K.zoneArea_pc2, bad_zones)
         aux = calc_SFR(K, tSF)
         # append SFR data
-        G.append2d('SFR__Tg', iT, aux[0], bad_zones)
-        G.append2d('SFRSD__Tg', iT, aux[1], bad_zones)
+        G.append2d_masked('SFR__Tg', iT, aux[0], bad_zones)
+        G.append2d_masked('SFRSD__Tg', iT, aux[1], bad_zones)
         
-# stack all data 
-G.stack1d()
-G.stack2d()
+# stack all data
+G.stack() 
 
 print 'total time: %.2f' % (time.clock() - t_init_prog)
 from matplotlib import pyplot as plt

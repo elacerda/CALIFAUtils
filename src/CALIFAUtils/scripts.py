@@ -33,6 +33,7 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
     from CALIFAUtils.lines import Lines
     debug = kwargs.get('debug', False)
+    summary = kwargs.get('summary', False)
     if args is None:
         args = tupperware_none()
         args.mintauv = kwargs.get('mintauv', np.finfo(np.float_).min)
@@ -47,9 +48,7 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
         args.underS06 = kwargs.get('underS06', args.underS06)
         args.whanSF = kwargs.get('whanSF', args.whanSF)
         args.filter_residual = kwargs.get('filter_residual', args.filter_residual)
-        args.gasprop = kwargs.get('gasprop', args.gasprop)
         C.debug_var(debug, pref = 'create_masks_gal() >>>>', args = args)
-    args.gasprop = K.__dict__.has_key('GP') and args.gasprop
     #######################
     ### RESID.EML MASKS ###
     #######################
@@ -65,7 +64,7 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
         if args.nolinecuts is True:
             mask_lines_dict__Lz[l] = np.zeros((K.N_zone), dtype = np.bool_)
         else:
-            if (args.rgbcuts and args.gasprop) is True: 
+            if args.rgbcuts is True: 
                 pos = K.GP._dlcons[l]['pos']
                 sigma = K.GP._dlcons[l]['sigma']
                 snr = K.GP._dlcons[l]['SN']
@@ -129,26 +128,27 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
     #######################
     #######################
     #######################
-    print '# Mask Summary '              
-    print '#'                                        
-    print '# Gal: ', K.califaID
-    print '# N_Zone: ', K.N_zone
-    print '# N_x: ', K.N_x
-    print '# N_y: ', K.N_y
-    print '# N_pix: ', K.qMask.astype(int).sum()
-    print '# Number of not contributing zones: '
-    for l in lines_central_wl:
-        print '# N_mask_line_', l, ' : ', mask_lines_dict__Lz[l].astype(int).sum()  
-    print '# N_mask_tauVNeb: ', mask_tau_V_neb__z.astype(int).sum()
-    print '# N_mask_bpt: ',mask_bpt__z.astype(int).sum()
-    print '# N_mask_whan: ',mask_whan__z.astype(int).sum()
-    print '# N_mask_eml: ', mask_eml__z.astype(int).sum()
-    print '# N_mask_residual: ', mask_residual__z.astype(int).sum()
-    print '# N_mask_tauV: ', mask_tau_V__z.astype(int).sum()
-    for iT, tSF in enumerate(tSF__T):
-        print '# N_mask_popx (%.3f Myrs): %d' % ((tSF / 1e6), mask_popx__Tz[iT].astype(int).sum())
-        print '# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum())
-        print '# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum())        
+    if summary or debug:
+        print '# Mask Summary '              
+        print '#'                                        
+        print '# Gal: ', K.califaID
+        print '# N_Zone: ', K.N_zone
+        print '# N_x: ', K.N_x
+        print '# N_y: ', K.N_y
+        print '# N_pix: ', K.qMask.astype(int).sum()
+        print '# Number of not contributing zones: '
+        for l in lines_central_wl:
+            print '# N_mask_line_', l, ' : ', mask_lines_dict__Lz[l].astype(int).sum()  
+        print '# N_mask_tauVNeb: ', mask_tau_V_neb__z.astype(int).sum()
+        print '# N_mask_bpt: ',mask_bpt__z.astype(int).sum()
+        print '# N_mask_whan: ',mask_whan__z.astype(int).sum()
+        print '# N_mask_eml: ', mask_eml__z.astype(int).sum()
+        print '# N_mask_residual: ', mask_residual__z.astype(int).sum()
+        print '# N_mask_tauV: ', mask_tau_V__z.astype(int).sum()
+        for iT, tSF in enumerate(tSF__T):
+            print '# N_mask_popx (%.3f Myrs): %d' % ((tSF / 1e6), mask_popx__Tz[iT].astype(int).sum())
+            print '# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum())
+            print '# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum())        
     return mask__Tz, mask_syn__Tz, mask_eml__z, \
         mask_popx__Tz, mask_tau_V__z, mask_residual__z, \
         mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, mask_lines_dict__Lz
@@ -257,14 +257,14 @@ def get_NEDName_by_CALIFAID(califaID):
     #t.close()
     return rval
 
-def get_morfologia(galName, morf_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
+def get_morfologia(galName, morph_file = '/Users/lacerda/CALIFA/morph_eye_class.csv') : 
     # Morfologia, incluyendo tipo medio y +- error
     # ES.Enrique . DF . 20120808
     # ES.Enrique . Chiclana . 20140417 . Corrected to distinguish E0 and S0.
     Korder = int(galName[1:])
     # lee el numero de la galaxia, tipo y subtipo morfologico
     id, name, morf0, morf1, morf_m0, morf_m1, morf_p0, morf_p1, bar, bar_m, bar_p = \
-        np.loadtxt(morf_file, delimiter = ',', unpack = True,
+        np.loadtxt(morph_file, delimiter = ',', unpack = True,
                    usecols = (0, 2, 5, 6, 7, 8, 9, 10, 12, 13, 14),
                    skiprows = 23,
                    dtype = {
@@ -532,7 +532,7 @@ def read_gal_cubes(gal, **kwargs):
     eml_cube_suffix = kwargs.get('eml_cube_suffix', None)
     gasprop_cube_dir = kwargs.get('gasprop_cube_dir', None)
     GP = (gasprop_cube_dir is not None)
-    gasprop_cube_suffix = kwargs.get('gasprop_cube_dir', None)
+    gasprop_cube_suffix = kwargs.get('gasprop_cube_suffix', None)
     if pycasso_cube_dir[-1] != '/':
         pycasso_cube_dir += '/'
     if (EL is not None) and (eml_cube_dir[-1] != '/'):
@@ -950,7 +950,7 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
            isOkFrac_GAL, alogZ_mass_oneHLR, alogZ_flux_oneHLR
 
-def calc_agebins(ages, age):
+def calc_agebins(ages, age = None):
     # Define ranges for age-bins
     # ToDo: This age-bin-edges thing could be made more elegant & general.
     aCen__t = ages
@@ -961,7 +961,9 @@ def calc_agebins(ages, age):
     aUpp__t[:-1] = aLow__t[1:]
     aUpp__t[-1] = aCen__t[-1]
     # Find index of age-bin corresponding to the last bin fully within < tSF
-    age_index = np.where(aLow__t < age)[0][-1]
+    age_index = -1
+    if age is not None:
+        age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index 
 
 def redshift_dist_Mpc(z, H0):
