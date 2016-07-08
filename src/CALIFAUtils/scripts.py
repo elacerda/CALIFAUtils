@@ -293,6 +293,10 @@ def find_confidence_interval(x, pdf, confidence_level):
 
 def ma_mask_xyz(x, y, z = None, mask = None):
     m = np.zeros_like(x, dtype = np.bool)
+    m |= np.isnan(x)
+    m |= np.isnan(y)
+    m |= np.isinf(x)
+    m |= np.isinf(y)
     if isinstance(x, np.ma.core.MaskedArray):
         m |= np.bitwise_or(x.mask, np.isnan(x))
     if isinstance(y, np.ma.core.MaskedArray):
@@ -300,6 +304,8 @@ def ma_mask_xyz(x, y, z = None, mask = None):
     if mask is not None:
          m |= mask
     if z is not None:
+        m |= np.isnan(z)
+        m |= np.isinf(z)
         if isinstance(z, np.ma.core.MaskedArray):
             m |= np.copy(z.mask) | np.isnan(z)
         return np.ma.masked_array(x, mask = m, dtype = np.float_), np.ma.masked_array(y, mask = m, dtype = np.float_), np.ma.masked_array(z, mask = m, dtype = np.float_)

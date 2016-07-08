@@ -74,8 +74,10 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     a = HLR_pix * 512.0 / 75.0 
     b_a = ba
     theta = pa * 180 / np.pi 
+    e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    ax.add_artist(e0)
     ax.add_artist(e1)
     ax.add_artist(e2)
     
