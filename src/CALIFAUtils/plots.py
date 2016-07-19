@@ -49,14 +49,14 @@ def plot_histo_axis(ax, x, **kwargs):
     return ax
 
 def next_row_col(row, col, NRows, NCols):
-    if col == (NCols - 1): 
-        col = 0 
+    if col == (NCols - 1):
+        col = 0
         row += 1
         if (row == NRows):
             row = 0
-    else: 
+    else:
         col += 1
-    
+
     return row, col
 
 def plotPercentilesAxis(ax, x, y, **kwargs):
@@ -71,24 +71,24 @@ def plotPercentilesAxis(ax, x, y, **kwargs):
 def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
     center = np.array([ 256 , 256])
-    a = HLR_pix * 512.0 / 75.0 
+    a = HLR_pix * 512.0 / 75.0
     b_a = ba
-    theta = pa * 180 / np.pi 
+    theta = pa * 180 / np.pi
     e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     ax.add_artist(e0)
     ax.add_artist(e1)
     ax.add_artist(e2)
-    
+
 def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
-    center , a , b_a , theta = np.array([ K.x0 , K.y0]) , K.HLR_pix , K.ba , K.pa * 180 / np.pi 
+    center , a , b_a , theta = np.array([ K.x0 , K.y0]) , K.HLR_pix , K.ba , K.pa * 180 / np.pi
     e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     ax.add_artist(e1)
     ax.add_artist(e2)
-    
+
 def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fontsize = 12):
     y = param
     xm = x
@@ -104,9 +104,9 @@ def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fonts
         x_pos = xm[delta.argmin()]
         y_pos = ym[delta.argmin()]
         xlim_inf, xlim_sup = ax.get_xlim()
-        ylim_inf, ylim_sup = ax.get_ylim() 
+        ylim_inf, ylim_sup = ax.get_ylim()
         arrow_size_x = (xlim_sup - x_pos) / 6
-        arrow_size_y = (ylim_sup - y_pos) / 3 
+        arrow_size_y = (ylim_sup - y_pos) / 3
         ax.annotate(txt,
             xy = (x_pos, y_pos), xycoords = 'data',
             xytext = (x_pos + arrow_size_x, y_pos + arrow_size_y),
@@ -159,7 +159,7 @@ def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black'
     yMean = aux[5]
     yStd = aux[6]
     nInBin = aux[7]
-    
+
     if plot_stats == 'median':
         xx = xMedian
         yy = yMedian
@@ -168,13 +168,13 @@ def plotRunningStatsAxis(ax, x, y, ylegend, plot_stats = 'mean', color = 'black'
         yy = yMean
 
     ax.plot(xx, yy, color, lw = 2, label = ylegend)
-    
+
     if errorbar:
         ax.errorbar(xx, yy, yerr = yStd, xerr = xStd, c = color)
- 
+
 def density_contour(xdata, ydata, binsx, binsy, ax = None, levels_confidence = [0.68, 0.95, 0.99], range = None, **contour_kwargs):
     """ Create a density contour plot.
- 
+
     Parameters
     ----------
     xdata : numpy.ndarray
@@ -187,35 +187,37 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, levels_confidence = [
         If supplied, plot the contour to this axis. Otherwise, open a new figure
     contour_kwargs : dict
         kwargs to be passed to pyplot.contour()
-    """    
+    """
     #nbins_x = len(binsx) - 1
     #nbins_y = len(binsy) - 1
     import scipy.optimize as so
-    
+
     H, xedges, yedges = np.histogram2d(xdata, ydata, bins = [binsx, binsy], range = range, normed = True)
     x_bin_sizes = (xedges[1:] - xedges[:-1])
     y_bin_sizes = (yedges[1:] - yedges[:-1])
- 
+
     pdf = (H * (x_bin_sizes * y_bin_sizes))
-    levels = []
-    for lvl in levels_confidence:
-        levels.append(so.brentq(find_confidence_interval, 0., 1., args = (pdf, lvl)))
- 
+    print pdf.max(), pdf.min()
+    levels = [ so.brentq(find_confidence_interval, 0., 1., args = (pdf, lvl)) for lvl in levels_confidence ]
+
+    print levels
+
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     # one_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.68))
     # two_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.95))
     # three_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.99))
     # levels = [one_sigma, two_sigma, three_sigma]
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
- 
+
     X, Y = 0.5 * (xedges[1:] + xedges[:-1]), 0.5 * (yedges[1:] + yedges[:-1])
     Z = pdf.T
- 
+
     if ax == None:
         contour = plt.contour(X, Y, Z, levels = levels, origin = "lower", **contour_kwargs)
     else:
-        contour = ax.contour(X, Y, Z, levels = levels, origin = "lower", **contour_kwargs)
- 
+        #contour = ax.contour(X, Y, Z, levels = levels, origin = "lower", **contour_kwargs)
+        contour = ax.contour(X, Y, Z, levels = levels[::-1], origin = "lower", **contour_kwargs)
+
     return contour
 
 def plotStatCorreAxis(ax, x, y, pos_x, pos_y, fontsize):
@@ -324,33 +326,33 @@ def plotTau(x, y, xlabel, ylabel, xlim, ylim, age, fname):
 def plotScatterColorAxis(f, x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
                          zlim = None, age = None,
                          contour = True, run_stats = True, OLS = False):
-    
+
     ax = f.gca()
-    
+
     if zlim != None:
         sc = ax.scatter(x, y, c = z, cmap = 'spectral_r', vmin = zlim[0], vmax = zlim[1], marker = 'o', s = 5., edgecolor = 'none')
     else:
         sc = ax.scatter(x, y, c = z, cmap = 'spectral_r', marker = 'o', s = 5., edgecolor = 'none')
-        
+
     cb = f.colorbar(sc)
     cb.set_label(zlabel)
-    
+
     if contour == True:
         binsx = np.linspace(min(x), max(x), 21)
         binsy = np.linspace(min(y), max(y), 21)
         density_contour(x, y, binsx, binsy, ax = ax, color = 'k')
-        
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    
+
     if xlim != None:
         ax.set_xlim(xlim)
     if ylim != None:
         ax.set_ylim(ylim)
-        
+
     if OLS == True:
         A, B, sigma_A, sigma_B = plotOLSbisectorAxis(ax, x, y, 0.92, 0.05, 16)
-        
+
     if run_stats == True:
         nBox = 20
         dxBox = (x.max() - x.min()) / (nBox - 1.)
@@ -368,44 +370,44 @@ def plotScatterColorAxis(f, x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
         ax.plot(xMedian, yMedian, 'k', lw = 2)
         ax.plot(xPrc[0], yPrc[0], 'k--', lw = 2)
         ax.plot(xPrc[1], yPrc[1], 'k--', lw = 2)
-        
+
     if age != None:
         txt = r'$%s$ Myr' % str(age / 1.e6)
         plot_text_ax(ax, txt, 0.02, 0.98, 14, 'top', 'left')
-        
+
 def plotScatterColor(x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
                      fname = 'PlotScatter.png',
                      zlim = None, age = None,
                      contour = True, run_stats = True, OLS = False):
-    
+
     f = plt.figure()
     f.set_size_inches(10, 8)
     ax = f.gca()
-    
+
     if zlim != None:
         sc = ax.scatter(x, y, c = z, cmap = 'spectral_r', vmin = zlim[0], vmax = zlim[1], marker = 'o', s = 5., edgecolor = 'none')
     else:
         sc = ax.scatter(x, y, c = z, cmap = 'spectral_r', marker = 'o', s = 5., edgecolor = 'none')
-        
+
     cb = f.colorbar(sc)
     cb.set_label(zlabel)
-    
+
     if contour == True:
         binsx = np.linspace(min(x), max(x), 21)
         binsy = np.linspace(min(y), max(y), 21)
         density_contour(x, y, binsx, binsy, ax = ax, color = 'k')
-        
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    
+
     if xlim != None:
         ax.set_xlim(xlim)
     if ylim != None:
         ax.set_ylim(ylim)
-        
+
     if OLS == True:
         A, B, sigma_A, sigma_B = plotOLSbisectorAxis(ax, x, y, 0.98, 0.02, 16)
-        
+
     if run_stats == True:
         nBox = 40
         dxBox = (x.max() - x.min()) / (nBox - 1.)
@@ -427,11 +429,11 @@ def plotScatterColor(x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
             xMm = np.ma.masked_array(xMedian, mask = np.isnan(xMedian))
             yMm = np.ma.masked_array(yMedian, mask = np.isnan(yMedian))
             A, B, sigma_A, sigma_B = plotOLSbisectorAxis(ax, xMm, yMm, 0.98, 0.08, 16, color = 'b')
-        
+
     if age != None:
         txt = r'$%s$ Myr' % str(age / 1.e6)
         plot_text_ax(ax, txt, 0.02, 0.98, 14, 'top', 'left')
-    
+
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     # ax.xaxis.set_major_locator(MultipleLocator(0.2))
     # ax.xaxis.set_minor_locator(MultipleLocator(0.05))
@@ -439,7 +441,7 @@ def plotScatterColor(x, y, z, xlabel, ylabel, zlabel, xlim, ylim,
     # ax.yaxis.set_minor_locator(MultipleLocator(0.125))
     # ax.grid(which = 'both')
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        
+
     f.savefig(fname)
     plt.close(f)
 
@@ -454,25 +456,25 @@ def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
     f = plt.figure()
     f.set_size_inches(10, 8)
     ax = f.gca()
-    
+
     sc = ax.scatter(x, y, c = color, marker = 'o', s = 5., edgecolor = 'none')
 
     if contour == True:
         binsx = np.linspace(min(x), max(x), 21)
         binsy = np.linspace(min(y), max(y), 21)
         density_contour(x, y, binsx, binsy, ax = ax, color = 'k')
-        
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    
+
     if xlim != None:
         ax.set_xlim(xlim)
     if ylim != None:
         ax.set_ylim(ylim)
-        
+
     if OLS == True:
         a, b, sigma_a, sigma_b = plotOLSbisectorAxis(ax, x, y, 0.92, 0.05, 16, 'b', rms = True)
-        
+
     if run_stats == True:
         nBox = 20
         dxBox = (x.max() - x.min()) / (nBox - 1.)
@@ -486,11 +488,11 @@ def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
         yStd = aux[6]
         nInBin = aux[7]
         ax.plot(xMedian, yMedian, 'k', lw = 2)
-        
+
     if age != None:
         txt = r'$%s$ Myr' % str(age / 1.e6)
         plot_text_ax(ax, txt, 0.02, 0.98, 14, 'top', 'left')
-        
+
     f.savefig(fname)
     plt.close(f)
 
@@ -521,21 +523,21 @@ def ax_scatterXYrunstats(ax, x, y, **kwargs):
 def plotLinRegAge(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     f = plt.figure()
     f.set_dpi(100)
-    f.set_size_inches(11.69, 8.27) 
+    f.set_size_inches(11.69, 8.27)
     plot_suptitle = '%.2f Myr' % (age / 1e6)
     f.suptitle(plot_suptitle)
     ax = f.gca()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    
+
     if xlim != None:
         ax.set_xlim(xlim)
-        
+
     if ylim != None:
         ax.set_ylim(ylim)
 
     ax.scatter(x, y, c = 'black', marker = 'o', s = 10, edgecolor = 'none', alpha = 0.5, label = '')
-    
+
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     # c = 'b'
     # step = (x.max() - x.min()) / len(x)
@@ -549,7 +551,7 @@ def plotLinRegAge(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     # txt = r'$y = %.2f\ x\ +\ (%.2f)\ (y_{rms}:%.2f)$' %  (A1, B1, Yrms)
     # plot_text_ax(ax, txt, 0.98, 0.21, 14, 'bottom', 'right', c)
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-     
+
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     # c = 'g'
     # model_ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
@@ -565,10 +567,10 @@ def plotLinRegAge(x, y, xlabel, ylabel, xlim, ylim, age, fname):
     # plot_text_ax(ax, txt, 0.98, 0.14, 14, 'bottom', 'right', c)
     # ax.scatter(x[inlier_mask], y[inlier_mask], c = c, marker = 'x', s = 20, facecolor = 'k', edgecolor = c, alpha = 0.3, label='')
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    
+
     c = 'r'
     plotOLSbisectorAxis(ax, x, y, 0.98, 0.07, 14, c, True)
-    
+
     ax.plot(ax.get_xlim(), ax.get_xlim(), ls = '--', label = '', c = 'k')
     ax.legend()
     f.savefig(fname)
@@ -639,7 +641,7 @@ def plot_zbins(**kwargs):
     z2 = kwargs.get('z2', None)
     z2mask = kwargs.get('z2mask', False)
     zcolor = kwargs.get('zcolor', 'k')
-    zbins_mask = kwargs.get('zbins_mask', None) 
+    zbins_mask = kwargs.get('zbins_mask', None)
     zbins_labels = kwargs.get('zbins_labels', None)
     zbins_colors = kwargs.get('zbins_colors', None)
     zticklabels = kwargs.get('zticklabels', None)
@@ -653,7 +655,7 @@ def plot_zbins(**kwargs):
             mask |= z.mask
         xm, ym, zm = C.ma_mask_xyz(x = x, y = y, z = z, mask = mask)
         kwargs.update(dict(zm = zm))
-    else:  
+    else:
         xm, ym = C.ma_mask_xyz(x = x, y = y, z = None, mask = mask)
     kwargs.update(dict(xm = xm, ym = ym))
     mask |= np.copy(xm.mask)
@@ -689,7 +691,7 @@ def plot_zbins(**kwargs):
     else:
         kwargs_figure = kwargs.get('kwargs_figure', {})
         f = plt.figure(**kwargs_figure)
-    ax_kw = kwargs.get('axis', kwargs.get('ax', None)) 
+    ax_kw = kwargs.get('axis', kwargs.get('ax', None))
     if ax_kw is not None:
         ax = ax_kw
     else:
@@ -713,7 +715,7 @@ def plot_zbins(**kwargs):
     else:
         ylim = [ ym.min(), ym.max() ]
     ##### scatter #####
-    kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))    
+    kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))
     C.debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     kwargs.update(dict(sc = sc))
@@ -737,7 +739,7 @@ def plot_zbins(**kwargs):
         kwargs_ols = dict(pos_x = 0.98, pos_y = 0.00, fs = 10, c = 'k', rms = True, text = True)
         kwargs_ols.update(kwargs.get('kwargs_ols', {}))
         kwargs_ols_plot = dict(ls = '--', lw = 1.5, label = 'OLS', c = 'k')
-        kwargs_ols_plot.update(kwargs.get('kwargs_ols_plot', {})) 
+        kwargs_ols_plot.update(kwargs.get('kwargs_ols_plot', {}))
         kwargs_ols.update(dict(kwargs_plot = kwargs_ols_plot))
         C.debug_var(debug, kwargs_ols = kwargs_ols)
         a, b, sa, sb = plotOLSbisectorAxis(ax, xm, ym, **kwargs_ols)
@@ -748,7 +750,7 @@ def plot_zbins(**kwargs):
         #dxBox = (xm.max() - xm.min()) / (nBox - 1.)
         #kwargs_rs = dict(dxBox = dxBox, xbinIni = xm.min(), xbinFin = xm.max(), xbinStep = dxBox)
         kwargs_rs = {}
-        kwargs_rs.update(kwargs.get('kwargs_rs', {})) 
+        kwargs_rs.update(kwargs.get('kwargs_rs', {}))
         C.debug_var(debug, kwargs_rs = kwargs_rs)
         rs = runstats(xm.compressed(), ym.compressed(), **kwargs_rs)
         kwargs['rs'] = rs
@@ -766,7 +768,7 @@ def plot_zbins(**kwargs):
             # sig = FWHM / np.sqrt(8. * np.log(2))
             # xM = np.ma.masked_array(xMedian)
             # yM = np.ma.masked_array(yMedian)
-            # m_gs = np.isnan(xM) | np.isnan(yM) 
+            # m_gs = np.isnan(xM) | np.isnan(yM)
             # xS = gaussian_filter1d(xM[~m_gs], sig)
             # yS = gaussian_filter1d(yM[~m_gs], sig)
             #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
@@ -789,7 +791,7 @@ def plot_zbins(**kwargs):
             #     xPrc84 = np.ma.masked_array(xPrc[1])
             #     yPrc84 = np.ma.masked_array(yPrc[1])
             #     m_gs_16 = np.isnan(xPrc16) | np.isnan(yPrc16)
-            #     m_gs_84 = np.isnan(xPrc84) | np.isnan(yPrc84) 
+            #     m_gs_84 = np.isnan(xPrc84) | np.isnan(yPrc84)
             #     xPrc16S = gaussian_filter1d(xPrc16[~m_gs_16], sig)
             #     yPrc16S = gaussian_filter1d(yPrc16[~m_gs_16], sig)
             #     xPrc84S = gaussian_filter1d(xPrc84[~m_gs_84], sig)
@@ -858,7 +860,7 @@ def plot_zbins(**kwargs):
                         zbins_labels.append('%s = %.2f' % (zname, zmskmin))
                     else:
                         zbins_labels.append('%.2f < %s $\leq$ %.2f' % (zmskmin, zname, zmskmax))
-                kwargs.update(dict(zbins_labels = zbins_labels))         
+                kwargs.update(dict(zbins_labels = zbins_labels))
             if zbins_colors is None:
                 zbins_colors = []
                 for i in listrange:
@@ -891,11 +893,11 @@ def plot_zbins(**kwargs):
                 dxBox = (X.max() - X.min()) / (nBox - 1.)
                 #kwargs_zbins_rs = dict(dxBox = dxBox, xbinIni = X.min(), xbinFin = X.max(), xbinStep = dxBox)
                 kwargs_zbins_rs = {}
-                kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', dict(smooth = True, sigma = 1.2, overlap = 0.4, nBox = 30))) 
+                kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', dict(smooth = True, sigma = 1.2, overlap = 0.4, nBox = 30)))
                 C.debug_var(debug, kwargs_zbins_rs = kwargs_zbins_rs)
                 rsbins = runstats(X.compressed(), Y.compressed(), **kwargs_zbins_rs)
                 #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(X, Y, **kwargs_zbins_rs)
-                zbins_rs_gs = kwargs.get('zbins_rs_gaussian_smooth', None) 
+                zbins_rs_gs = kwargs.get('zbins_rs_gaussian_smooth', None)
                 if zbins_rs_gs is None:
                     plt.errorbar(rsbins.xMedian, rsbins.yMedian, c = zbins_colors[i], lw = 2, label = r'%s' % zbins_labels[i])
                 else:
@@ -952,7 +954,7 @@ def plot_zbins(**kwargs):
             f.savefig(filename)
         else:
             f.show()
-        plt.close(f)  
+        plt.close(f)
     if kwargs.get('return_kwargs', None) is not None:
         return kwargs
 
@@ -970,11 +972,11 @@ if __name__ == '__main__':
     k = 0.2 / DGR
     SigmaGas__g = k * H.tau_V__Tg[iT]
     f_gas__g = 1. / (1. + (H.McorSD__Tg[iT] / SigmaGas__g))
-    
+
     P = C.GasProp()
     tau_V_GP__g = np.ma.masked_where(P.CtoTau(H.chb_in__g) < H.xOkMin, P.CtoTau(H.chb_in__g), copy = True)
-    
-    Z = { 
+
+    Z = {
         'OHIICHIM' : dict(v = H.O_HIICHIM__g, label = r'12 + $\log\ O/H$ (HII-CHI-mistry, EPM, 2014)'),
         'logO3N2S06' : dict(v = H.logZ_neb_S06__g + np.log10(4.9e-4) + 12, label = r'12 + $\log\ O/H$ (logO3N2, Stasinska, 2006)'),
         'logO3N2M13' : dict(v = H.O_O3N2_M13__g, label = r'12 + $\log\ O/H$ (logO3N2, Marino, 2013)'),
@@ -993,7 +995,7 @@ if __name__ == '__main__':
         'logSFRSD' : dict(v = np.ma.log10(H.SFRSD__Tg[iT] * 1e6), label = r'$\log\ \Sigma_{SFR}^\star(t_\star)\ [M_\odot yr^{-1} kpc^{-2}]$'),
         'logSFRSDHa' : dict(v = np.ma.log10(H.SFRSD_Ha__g * 1e6), label = r'$\log\ \Sigma_{SFR}^{neb}\ [M_\odot yr^{-1} kpc^{-2}]$'),
     }
-    
+
     for Zname, Zval in Z.iteritems():
         for tauname, tauval in tau.iteritems():
             plot_zbins(
@@ -1017,7 +1019,7 @@ if __name__ == '__main__':
                        y_minor_locator = 0.05,
                        kwargs_legend = dict(fontsize = 8),
             )
-            
+
     for sfrsdname, sfrsdval in SFRSD.iteritems():
         for tauname, tauval in logtau.iteritems():
             for Zname, Zval in Z.iteritems():
@@ -1070,7 +1072,7 @@ if __name__ == '__main__':
                ols_rs = False,
                ols = True,
                running_stats = True,
-               #kwargs_rs = dict(), 
+               #kwargs_rs = dict(),
                kwargs_plot_rs = dict(c = 'k', lw = 2),
                rs_errorbar = False,
                suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
@@ -1082,12 +1084,12 @@ if __name__ == '__main__':
                y_minor_locator = 0.05,
                kwargs_legend = dict(fontsize = 8),
     )
-    
+
     ##############################################################################
     ##############################################################################
     ##############################################################################
 
-    
+
     plot_zbins(
                debug = True,
                x = H.tau_V__Tg[iT],
@@ -1130,7 +1132,7 @@ if __name__ == '__main__':
     zticks = [9., 9.5, 10, 10.5, 11., 11.5]
     zticklabels = ['Sa', 'Sab', 'Sb', 'Sbc', 'Sc', 'Scd']
     #zbinsticklabels = ['Sa + Sab', 'Sb', 'Sbc', 'Sc + Scd']
-  
+
     plot_zbins(
                zname = 'morph',
                debug = True,
@@ -1146,7 +1148,7 @@ if __name__ == '__main__':
                zbins_mask = zticks_mask,
                zticks = zticks,
                zticklabels = zticklabels,
-               #zbinsticklabels = zbinsticklabels, 
+               #zbinsticklabels = zbinsticklabels,
                zlim = [9, 11.5],
                kwargs_scatter = dict(marker = 'o', s = 6, edgecolor = 'none', alpha = 0.4, label = ''),
                suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1.e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax),
@@ -1162,11 +1164,11 @@ if __name__ == '__main__':
                y_minor_locator = 0.05,
                kwargs_legend = dict(fontsize = 8),
     )
-    
+
     ##############################################################################
     ##############################################################################
     ##############################################################################
-    
+
     suptitle = r'NGals:%d  tSF:%.2f Myr  $x_Y$(min):%.0f%%  $\tau_V^\star$(min):%.2f  $\tau_V^{neb}$(min):%.2f  $\epsilon\tau_V^{neb}$(max):%.2f' % (H.N_gals, (tSF / 1e6), H.xOkMin * 100., H.tauVOkMin, H.tauVNebOkMin, H.tauVNebErrMax)
 
     xaxis = {
@@ -1297,7 +1299,7 @@ if __name__ == '__main__':
     ##############################################################################
     ##############################################################################
     ##############################################################################
-                
+
     xaxis = {
         'OHIICHIM' : dict(
                         v = H.O_HIICHIM__g,
@@ -1326,7 +1328,7 @@ if __name__ == '__main__':
         x = xv['v']
         xlim = xv['lim']
         mask = y.mask | x.mask
-        not_masked = len(y) - mask.sum() 
+        not_masked = len(y) - mask.sum()
         kw = plot_zbins(
             return_kwargs = True,
             x = x,
@@ -1353,7 +1355,7 @@ if __name__ == '__main__':
             kwargs_legend = dict(fontsize = 12),
         )
         filetxt = kw['filename'].replace('.png', '.txt')
-        f = open(filetxt, 'w') 
+        f = open(filetxt, 'w')
         f.write('CALIFAID\tZONE\tO/H\tOH_direct\n')
         for g, z, OH, OHdir in zip(H.reply_arr_by_zones(H.califaIDs)[~mask], H.zones_map[~mask], xv['v'][~mask], y[~mask]):
             f.write('%s\t%d\t%.4f\t%.4f' % (g, z, OH, OHdir))
@@ -1362,11 +1364,7 @@ if __name__ == '__main__':
             else:
                 f.write('\n')
         f.close()
-    
+
     ##############################################################################
     ##############################################################################
     ##############################################################################
-    
-     
-        
-        
