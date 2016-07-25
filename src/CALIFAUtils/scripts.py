@@ -8,6 +8,7 @@ import numpy as np
 import CALIFAUtils as C
 from scipy.linalg import eigh
 from CALIFAUtils.lines import Lines
+from CALIFAUtils import __path__
 
 def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
     mask__g = np.zeros_like(np.ma.log10(H.SFRSD_Ha__g * 1e6).mask, dtype = np.bool_)
@@ -259,7 +260,7 @@ def get_NEDName_by_CALIFAID(califaID):
 
 def get_morfologia(galName, morph_file = None) :
     if morph_file == None:
-        morph_file = 'morph_eye_class.csv'
+        morph_file = '%s/morph_eye_class.csv' % __path__[0]
     # Morfologia, incluyendo tipo medio y +- error
     # ES.Enrique . DF . 20120808
     # ES.Enrique . Chiclana . 20140417 . Corrected to distinguish E0 and S0.
