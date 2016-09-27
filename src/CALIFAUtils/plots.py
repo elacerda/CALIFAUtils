@@ -81,15 +81,22 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     ax.add_artist(e1)
     ax.add_artist(e2)
 
+
 def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     from matplotlib.patches import Ellipse
-    center , a , b_a , theta = np.array([ K.x0 , K.y0]) , K.HLR_pix , K.ba , K.pa * 180 / np.pi
-    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    center = np.array([K.x0, K.y0])
+    a = K.HLR_pix
+    b_a = K.ba
+    theta = K.pa * 180 / np.pi
+    e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    e1 = Ellipse(center, height=2 * a * b_a, width=2 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    e2 = Ellipse(center, height=4 * a * b_a, width=4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    ax.add_artist(e0)
     ax.add_artist(e1)
     ax.add_artist(e2)
 
-def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param = None, fontsize = 12):
+
+def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param=None, fontsize=12):
     y = param
     xm = x
     ym = y
@@ -266,15 +273,19 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         print txt_y
     return a, b, sigma_a, sigma_b
 
-def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize):
+def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None):
     galimg = plt.imread(imgfile)[::-1, :, :]
     plt.setp(ax.get_xticklabels(), visible = False)
     plt.setp(ax.get_yticklabels(), visible = False)
-    ax.imshow(galimg, origin = 'lower')
-    K = C.read_one_cube(gal)
+    ax.imshow(galimg, origin = 'lower', aspect='equal')
+    close = False
+    if K is None:
+        close = True
+        K = C.read_one_cube(gal)
     pa, ba = K.getEllipseParams()
     DrawHLRCircleInSDSSImage(ax, K.HLR_pix, pa, ba)
-    K.close()
+    if close:
+        K.close()
     txt = '%s' % gal
     plot_text_ax(ax, txt, pos_x, pos_y, fontsize, 'top', 'left', color = 'w')
     return ax
@@ -609,7 +620,7 @@ def add_subplot_axes(ax, rect, axisbg = 'w'):
     x = infig_position[0]
     y = infig_position[1]
     width *= rect[2]
-    height *= rect[3]  # <= Typo was here
+    height *= rect[3]
     subax = fig.add_axes([x, y, width, height], axisbg = axisbg)
     x_labelsize = subax.get_xticklabels()[0].get_size()
     y_labelsize = subax.get_yticklabels()[0].get_size()

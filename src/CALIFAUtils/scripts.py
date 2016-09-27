@@ -184,7 +184,7 @@ def PCA(arr, reduced = False, arrMean = False, arrStd = False, sort = True):
         eigVecS__ve = eigVec__ve[:, S]
     return diff__mv, arrMean__v, arrStd__v, covMat__vv, eigValS__e, eigVecS__ve
 
-def my_morf(morf_in = None):
+def my_morf(morf_in = None, get_dict = False):
     mtype = {
         'Sa' : 0,
         'Sab' : 1,
@@ -207,8 +207,13 @@ def my_morf(morf_in = None):
         'S0' : -1,
         'S0a' : -1,
     }
-    morf_out = mtype[morf_in]
-    return morf_out
+    if get_dict is True:
+        if morf_in is None:
+            return mtype
+        else:
+            return mtype[morf_in], mtype
+    else:
+        return mtype[morf_in]
 
 def get_h5_data_masked(h5, prop_str, h5_root = '', add_mask = None, **ma_kwargs):
     prop = h5['%sdata/%s' % (h5_root, prop_str)].value
@@ -583,7 +588,8 @@ def read_one_cube(gal, **kwargs):
     v_run = kwargs.get('v_run', -1)
     verbose = kwargs.get('verbose', None)
     debug = kwargs.get('debug', None)
-    paths = C.CALIFAPaths(v_run = v_run)
+    work_dir = kwargs.get('work_dir', None)
+    paths = C.CALIFAPaths(work_dir=work_dir, v_run=v_run)
     pycasso_cube_filename = paths.get_pycasso_file(gal)
     C.debug_var(debug, pycasso = pycasso_cube_filename)
     K = None
@@ -794,16 +800,26 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
     return v__r
 
+def prop_Y(prop, tY, age_base):
+    # prop must have dimension __tZz
+    _, aLow__t, aUpp__t, indY = calc_agebins(age_base, tY)
+    aux1__z = prop[:indY, :, :].sum(axis=1).sum(axis=0)
+    aux2__z = prop[indY, :, :].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1__z + aux2__z)
+
+def integrated_prop_Y(prop, tY, age_base):
+    # prop must have dimension __tZ
+    _, aLow__t, aUpp__t, indY = calc_agebins(age_base, tY)
+    aux1__z = prop[:indY, :].sum()
+    aux2__z = prop[indY, :].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1__z + aux2__z)
+
 def calc_xY(K, tY):
-    _, aLow__t, aUpp__t, indY = calc_agebins(K.ageBase, tY)
     # Compute xY__z
-    x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+    x__tZz = K.popx / K.popx.sum(axis=1).sum(axis=0)
     integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
-    aux1__z = x__tZz[:indY, :, :].sum(axis = 1).sum(axis = 0)
-    aux2__z = x__tZz[indY, :, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
-    integrated_aux1 = integrated_x__tZ[:indY, :].sum()
-    integrated_aux2 = integrated_x__tZ[indY, :].sum(axis = 0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
-    return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
+    ageBase = K.ageBase
+    return prop_Y(x__tZz, tY, ageBase), integrated_prop_Y(integrated_x__tZ, tY, ageBase)
 
 def calc_xO(K, tO):
     _, aLow__t, aUpp__t, indO = calc_agebins(K.ageBase, tO)
@@ -846,9 +862,9 @@ def calc_SFR(K, tSF):
     return SFR__z, SFRSD__z
 
 def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
- #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
- # flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
- #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     '''
     Compute average logZ (alogZ_*) both for each zone (*__z) and the galaxy-wide
     average (*_GAL, computed a la GD14).
@@ -881,6 +897,9 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
 
     removed radial profiles inside this func.
     Lacerda@Granada - 23/Feb/2015
+
+    radial profiles back to this func.
+    Lacerda@Corrego
     '''
     #--------------------------------------------------------------------------
     # Initialization
