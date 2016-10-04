@@ -10,14 +10,14 @@ import itertools
 import pyfits
 import h5py
 
-class tupperware_none:
+class tupperware_none(object):
     def __init__(self):
         pass
     def __getattr__(self, attr):
         r = self.__dict__.get(attr, None)
         return r
 
-class tupperware: pass
+class tupperware(object): pass
 
 class GasProp(object):
     def __init__(self, filename = None):

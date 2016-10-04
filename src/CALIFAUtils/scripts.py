@@ -11,7 +11,7 @@ from CALIFAUtils.lines import Lines
 from CALIFAUtils import __path__
 
 def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
-    mask__g = np.zeros_like(np.ma.log10(H.SFRSD_Ha__g * 1e6).mask, dtype = np.bool_)
+    mask__g = np.zeros_like(np.ma.log10(H.SFRSD_Ha__g * 1e6).mask, dtype=np.bool_)
     mask__g[np.ma.log10(H.SFRSD__Tg[iT] * 1e6).mask] = True
     mask__g[np.ma.log10(H.tau_V__Tg[iT]).mask] = True
     mask__g[np.ma.log10(H.SFRSD_Ha__g * 1e6).mask] = True
@@ -24,13 +24,13 @@ def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
     return mask__g
 
 def mask_radius_iT(iT, H, args, maskRadiusOk, gals_slice):
-    mask__rg = np.zeros_like(maskRadiusOk, dtype = np.bool_)
+    mask__rg = np.zeros_like(maskRadiusOk, dtype=np.bool_)
     mask__rg[np.less(H.reply_arr_by_radius(H.ba_GAL__g), args.bamin)] = True
     mask__rg[~maskRadiusOk] = True
     mask__rg[~gals_slice] = True
     return mask__rg
 
-def create_masks_gal(K, tSF__T, args = None, **kwargs):
+def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
     from CALIFAUtils.lines import Lines
     debug = kwargs.get('debug', False)
@@ -49,7 +49,7 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
         args.underS06 = kwargs.get('underS06', args.underS06)
         args.whanSF = kwargs.get('whanSF', args.whanSF)
         args.filter_residual = kwargs.get('filter_residual', args.filter_residual)
-        C.debug_var(debug, pref = 'create_masks_gal() >>>>', args = args)
+        C.debug_var(debug, pref='create_masks_gal() >>>>', args=args)
     #######################
     ### RESID.EML MASKS ###
     #######################
@@ -60,10 +60,16 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
     lines_central_wl = [Hb_central_wl, O3_central_wl, Ha_central_wl, N2_central_wl]
     i_Hb = K.EL.lines.index(Hb_central_wl)
     i_Ha = K.EL.lines.index(Ha_central_wl)
+    mask_lines_dict__Lmz = {}
     mask_lines_dict__Lz = {}
     for l in lines_central_wl:
+        mask_lines_dict__Lmz[l] = {}
         if args.nolinecuts is True:
-            mask_lines_dict__Lz[l] = np.zeros((K.N_zone), dtype = np.bool_)
+            mask_lines_dict__Lz[l] = np.zeros((K.N_zone), dtype=np.bool_)
+            mask_lines_dict__Lmz[l]['fluxneg'] = np.zeros((K.N_zone), dtype=np.bool_)
+            mask_lines_dict__Lmz[l]['pos'] = np.zeros((K.N_zone), dtype=np.bool_)
+            mask_lines_dict__Lmz[l]['sigma'] = np.zeros((K.N_zone), dtype=np.bool_)
+            mask_lines_dict__Lmz[l]['SNR'] = np.zeros((K.N_zone), dtype=np.bool_)
         else:
             if args.rgbcuts is True:
                 pos = K.GP._dlcons[l]['pos']
@@ -71,38 +77,50 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
                 snr = K.GP._dlcons[l]['SN']
             else:
                 pos, sigma, snr = 3.0, 3.0, args.minSNR
-                C.debug_var(debug, l = l)
-            if snr < args.minSNR: snr = args.minSNR
-            if l == '4861': snr = args.minSNRHb
+                C.debug_var(debug, l=l)
+            if snr < args.minSNR:
+                snr = args.minSNR
+            if l == '4861':
+                snr = args.minSNRHb
+            mask_lines_dict__Lmz[l]['fluxneg'] = K.EL._setMaskLineFluxNeg(l)
+            mask_lines_dict__Lmz[l]['pos'] = K.EL._setMaskLineDisplacement(l, pos)
+            mask_lines_dict__Lmz[l]['sigma'] = K.EL._setMaskLineSigma(l, sigma)
+            mask_lines_dict__Lmz[l]['SNR'] = K.EL._setMaskLineSNR(l, snr)
             mask_lines_dict__Lz[l] = K.EL._setMaskLineFluxNeg(l)
             mask_lines_dict__Lz[l] |= K.EL._setMaskLineDisplacement(l, pos)
             mask_lines_dict__Lz[l] |= K.EL._setMaskLineSigma(l, sigma)
             mask_lines_dict__Lz[l] |= K.EL._setMaskLineSNR(l, snr)
     mask_tau_V_neb__z = np.less(K.EL.tau_V_neb__z, args.mintauvneb)
-    mask_tau_V_neb__z = np.ma.masked_array(mask_tau_V_neb__z, dtype = np.bool_, fill_value = True)
+    mask_tau_V_neb__z = np.ma.masked_array(mask_tau_V_neb__z, dtype=np.bool_, fill_value=True)
     mask_tau_V_neb__z = mask_tau_V_neb__z.data
     mask_tau_V_neb_err__z = np.greater(K.EL.tau_V_neb_err__z, args.maxtauvneberr)
-    mask_tau_V_neb_err__z = np.ma.masked_array(mask_tau_V_neb_err__z, dtype = np.bool_, fill_value = True)
+    mask_tau_V_neb_err__z = np.ma.masked_array(mask_tau_V_neb_err__z, dtype=np.bool_, fill_value=True)
     mask_tau_V_neb_err__z = mask_tau_V_neb_err__z.data
     mask_EW_Hb__z = np.less(K.EL.EW[i_Hb], args.minEWHb)
-    mask_EW_Hb__z = np.ma.masked_array(mask_EW_Hb__z, dtype = np.bool_, fill_value = True)
+    mask_EW_Hb__z = np.ma.masked_array(mask_EW_Hb__z, dtype=np.bool_, fill_value=True)
     mask_EW_Hb__z = mask_EW_Hb__z.data
-    mask_bpt__z = np.zeros((K.N_zone), dtype = np.bool_)
+    mask_bpt__z = np.zeros((K.N_zone), dtype=np.bool_)
     if args.underS06:
         L = Lines()
         N2Ha = np.ma.log10(K.EL.N2_obs__z / K.EL.Ha_obs__z)
         O3Hb = np.ma.log10(K.EL.O3_obs__z / K.EL.Hb_obs__z)
         mask_bpt__z = ~(L.belowlinebpt('S06', N2Ha, O3Hb))
-    mask_whan__z = np.zeros((K.N_zone), dtype = np.bool_)
+    mask_whan__z = np.zeros((K.N_zone), dtype=np.bool_)
     if args.whanSF is not None:
         N2Ha = np.ma.log10(K.EL.N2_obs__z / K.EL.Ha_obs__z)
         WHa = K.EL.EW[i_Ha, :]
         mask_whan__z = np.bitwise_or(np.less(WHa, 3.), np.greater(N2Ha, -0.4))
-    mask_eml__z = np.zeros(K.N_zone, dtype = np.bool_)
-    mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[Hb_central_wl])
-    mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[O3_central_wl])
-    mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[Ha_central_wl])
-    mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[N2_central_wl])
+    mask_eml__z = np.zeros(K.N_zone, dtype=np.bool_)
+    if kwargs.get('mask_lines_snr_only', False):
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lmz[Hb_central_wl]['SNR'])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lmz[O3_central_wl]['SNR'])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lmz[Ha_central_wl]['SNR'])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lmz[N2_central_wl]['SNR'])
+    else:
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[Hb_central_wl])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[O3_central_wl])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[Ha_central_wl])
+        mask_eml__z = np.bitwise_or(mask_eml__z, mask_lines_dict__Lz[N2_central_wl])
     mask_eml__z = np.bitwise_or(mask_eml__z, mask_EW_Hb__z)
     mask_eml__z = np.bitwise_or(mask_eml__z, mask_bpt__z)
     mask_eml__z = np.bitwise_or(mask_eml__z, mask_whan__z)
@@ -112,13 +130,13 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
     ### STARLIGHT MASKS ###
     #######################
     N_T = len(tSF__T)
-    mask__Tz = np.zeros((N_T, K.N_zone), dtype = np.bool_)
-    mask_syn__Tz = np.zeros((N_T, K.N_zone), dtype = np.bool_)
-    mask_popx__Tz = np.zeros((N_T, K.N_zone), dtype = np.bool_)
+    mask__Tz = np.zeros((N_T, K.N_zone), dtype=np.bool_)
+    mask_syn__Tz = np.zeros((N_T, K.N_zone), dtype=np.bool_)
+    mask_popx__Tz = np.zeros((N_T, K.N_zone), dtype=np.bool_)
     mask_tau_V__z = np.less(K.tau_V__z, args.mintauv)
-    mask_residual__z = np.zeros(K.N_zone, dtype = np.bool_)
+    mask_residual__z = np.zeros(K.N_zone, dtype=np.bool_)
     if args.filter_residual is True:
-        mask_residual__z = ~(K.filterResidual(w2 = 4600))
+        mask_residual__z = ~(K.filterResidual(w2=4600))
     for iT, tSF in enumerate(tSF__T):
         mask_popx__Tz[iT] = np.less(calc_xY(K, tSF)[0], args.minpopx)
         mask_syn__Tz[iT] = np.bitwise_or(np.bitwise_or(mask_tau_V__z, mask_popx__Tz[iT]), mask_residual__z)
@@ -139,6 +157,10 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
         print '# N_pix: ', K.qMask.astype(int).sum()
         print '# Number of not contributing zones: '
         for l in lines_central_wl:
+            print '# N_mask_line_', l, ' fluxneg: ', mask_lines_dict__Lmz[l]['fluxneg'].astype(int).sum()
+            print '# N_mask_line_', l, ' pos: ', mask_lines_dict__Lmz[l]['pos'].astype(int).sum()
+            print '# N_mask_line_', l, ' sigma: ', mask_lines_dict__Lmz[l]['sigma'].astype(int).sum()
+            print '# N_mask_line_', l, ' SNR: ', mask_lines_dict__Lmz[l]['SNR'].astype(int).sum()
             print '# N_mask_line_', l, ' : ', mask_lines_dict__Lz[l].astype(int).sum()
         print '# N_mask_tauVNeb: ', mask_tau_V_neb__z.astype(int).sum()
         print '# N_mask_bpt: ',mask_bpt__z.astype(int).sum()
@@ -150,11 +172,14 @@ def create_masks_gal(K, tSF__T, args = None, **kwargs):
             print '# N_mask_popx (%.3f Myrs): %d' % ((tSF / 1e6), mask_popx__Tz[iT].astype(int).sum())
             print '# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum())
             print '# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum())
+    retmask_lines = mask_lines_dict__Lz
+    if kwargs.get('return_mask_lines_separated', False):
+        retmask_lines = mask_lines_dict__Lmz
     return mask__Tz, mask_syn__Tz, mask_eml__z, \
         mask_popx__Tz, mask_tau_V__z, mask_residual__z, \
-        mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, mask_lines_dict__Lz
+        mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, retmask_lines
 
-def PCA(arr, reduced = False, arrMean = False, arrStd = False, sort = True):
+def PCA(arr, reduced=False, arrMean=False, arrStd=False, sort=True):
     '''
     ARR array must have shape (measurements, variables)
     reduced = True:
@@ -163,14 +188,14 @@ def PCA(arr, reduced = False, arrMean = False, arrStd = False, sort = True):
     arr__mv = arr
     nMeasurements, nVars = arr__mv.shape
     if not arrMean or not arrMean.any():
-        arrMean__v = arr.mean(axis = 0)
+        arrMean__v = arr.mean(axis=0)
     else:
         arrMean__v = arrMean
     if not reduced:
         diff__mv = arr__mv - arrMean__v
     else:
         if not arrStd or not arrStd.any():
-            arrStd__v = arr.std(axis = 0)
+            arrStd__v = arr.std(axis=0)
         else:
             arrStd__v = arrStd
         diff__mv = np.asarray([ diff / arrStd__v for diff in (arr__mv - arrMean__v) ])
@@ -184,7 +209,7 @@ def PCA(arr, reduced = False, arrMean = False, arrStd = False, sort = True):
         eigVecS__ve = eigVec__ve[:, S]
     return diff__mv, arrMean__v, arrStd__v, covMat__vv, eigValS__e, eigVecS__ve
 
-def my_morf(morf_in = None, get_dict = False):
+def my_morf(morf_in=None, get_dict=False):
     mtype = {
         'Sa' : 0,
         'Sab' : 1,
@@ -215,7 +240,7 @@ def my_morf(morf_in = None, get_dict = False):
     else:
         return mtype[morf_in]
 
-def get_h5_data_masked(h5, prop_str, h5_root = '', add_mask = None, **ma_kwargs):
+def get_h5_data_masked(h5, prop_str, h5_root='', add_mask=None, **ma_kwargs):
     prop = h5['%sdata/%s' % (h5_root, prop_str)].value
     mask = h5['%smask/%s' % (h5_root, prop_str)].value
     if add_mask is not None:
@@ -225,7 +250,7 @@ def get_h5_data_masked(h5, prop_str, h5_root = '', add_mask = None, **ma_kwargs)
 def get_CALIFAID_by_NEDName(nedname):
     import atpy
     from califa import masterlist
-    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type = 'califa_masterlist')
+    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type='califa_masterlist')
     if isinstance(nedname, str):
         nedlist = [ nedname ]
     else:
@@ -246,7 +271,7 @@ def get_CALIFAID_by_NEDName(nedname):
 def get_NEDName_by_CALIFAID(califaID):
     import atpy
     from califa import masterlist
-    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type = 'califa_masterlist')
+    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type='califa_masterlist')
     if isinstance(califaID, str):
         califalist = [ califaID ]
     else:
@@ -263,7 +288,7 @@ def get_NEDName_by_CALIFAID(califaID):
     #t.close()
     return rval
 
-def get_morfologia(galName, morph_file = None) :
+def get_morfologia(galName, morph_file=None) :
     if morph_file == None:
         morph_file = '%s/morph_eye_class.csv' % __path__[0]
     # Morfologia, incluyendo tipo medio y +- error
@@ -272,7 +297,7 @@ def get_morfologia(galName, morph_file = None) :
     Korder = int(galName[1:])
     # lee el numero de la galaxia, tipo y subtipo morfologico
     id, name, morf0, morf1, morf_m0, morf_m1, morf_p0, morf_p1, bar, bar_m, bar_p = \
-        np.loadtxt(morph_file, delimiter = ',', unpack = True,
+        np.loadtxt(morph_file, delimiter=',', unpack=True,
                    usecols = (0, 2, 5, 6, 7, 8, 9, 10, 12, 13, 14),
                    skiprows = 23,
                    dtype = {
@@ -299,8 +324,8 @@ def get_morfologia(galName, morph_file = None) :
 def find_confidence_interval(x, pdf, confidence_level):
     return pdf[pdf > x].sum() - confidence_level
 
-def ma_mask_xyz(x, y, z = None, mask = None):
-    m = np.zeros_like(x, dtype = np.bool)
+def ma_mask_xyz(x, y, z=None, mask=None):
+    m = np.zeros_like(x, dtype=np.bool)
     m |= np.isnan(x)
     m |= np.isnan(y)
     m |= np.isinf(x)
@@ -316,8 +341,8 @@ def ma_mask_xyz(x, y, z = None, mask = None):
         m |= np.isinf(z)
         if isinstance(z, np.ma.core.MaskedArray):
             m |= np.copy(z.mask) | np.isnan(z)
-        return np.ma.masked_array(x, mask = m, dtype = np.float_), np.ma.masked_array(y, mask = m, dtype = np.float_), np.ma.masked_array(z, mask = m, dtype = np.float_)
-    return np.ma.masked_array(x, mask = m, dtype = np.float_), np.ma.masked_array(y, mask = m, dtype = np.float_)
+        return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_), np.ma.masked_array(z, mask=m, dtype=np.float_)
+    return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_)
 
 def calc_running_stats(x, y, **kwargs):
     '''
@@ -329,7 +354,7 @@ def calc_running_stats(x, y, **kwargs):
 
     debug = kwargs.get('debug', False)
     if isinstance(x, np.ma.core.MaskedArray) or isinstance(y, np.ma.core.MaskedArray):
-        xm, ym = ma_mask_xyz(x = x, y = y)
+        xm, ym = ma_mask_xyz(x=x, y=y)
         x = xm.compressed()
         y = ym.compressed()
     ind_xs = np.argsort(x)
@@ -339,7 +364,7 @@ def calc_running_stats(x, y, **kwargs):
     minimal_bin_points = kwargs.get('min_np', nx * frac)
     i = 0
     xbin = kwargs.get('xbin', [])
-    debug_var(debug, xbin = xbin)
+    debug_var(debug, xbin=xbin)
     if xbin == []:
         xbin.append(xS[0])
         min_next_i = int(np.ceil(minimal_bin_points))
@@ -454,7 +479,7 @@ def gaussSmooth_YofX(x, y, FWHM):
 
     return xS , yS
 
-def calcYofXStats_EqNumberBins(x, y, nPerBin = 25):
+def calcYofXStats_EqNumberBins(x, y, nPerBin=25):
     '''
     This gives the statistics of y(x) for x-bins of variable width, but all containing
     the same number of points.
@@ -561,7 +586,7 @@ def read_gal_cubes(gal, **kwargs):
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
             emlines_cube_filename = '%s%s%s' % (eml_cube_dir, gal, eml_cube_suffix)
-            C.debug_var(debug, emlines = emlines_cube_filename)
+            C.debug_var(debug, emlines=emlines_cube_filename)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -570,7 +595,7 @@ def read_gal_cubes(gal, **kwargs):
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
             gasprop_cube_filename = '%s%s%s' % (gasprop_cube_dir, gal, gasprop_cube_suffix)
-            C.debug_var(debug, gasprop = gasprop_cube_filename)
+            C.debug_var(debug, gasprop=gasprop_cube_filename)
             try:
                 K.GP = C.GasProp(gasprop_cube_filename)
                 if verbose is not None:
@@ -591,7 +616,7 @@ def read_one_cube(gal, **kwargs):
     work_dir = kwargs.get('work_dir', None)
     paths = C.CALIFAPaths(work_dir=work_dir, v_run=v_run)
     pycasso_cube_filename = paths.get_pycasso_file(gal)
-    C.debug_var(debug, pycasso = pycasso_cube_filename)
+    C.debug_var(debug, pycasso=pycasso_cube_filename)
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
@@ -599,7 +624,7 @@ def read_one_cube(gal, **kwargs):
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
             emlines_cube_filename = paths.get_emlines_file(gal)
-            C.debug_var(debug, emlines = emlines_cube_filename)
+            C.debug_var(debug, emlines=emlines_cube_filename)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -608,7 +633,7 @@ def read_one_cube(gal, **kwargs):
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
             gasprop_cube_filename = paths.get_gasprop_file(gal)
-            C.debug_var(debug, gasprop = gasprop_cube_filename)
+            C.debug_var(debug, gasprop=gasprop_cube_filename)
             try:
                 K.GP = C.GasProp(gasprop_cube_filename)
                 if verbose is not None:
@@ -629,7 +654,7 @@ def loop_cubes(gals, **kwargs):
     for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
 
-def debug_var(turn_on = False, **kwargs):
+def debug_var(turn_on=False, **kwargs):
     pref = kwargs.pop('pref', '>>>')
     if turn_on == True:
         for kw, vw in kwargs.iteritems():
@@ -640,7 +665,7 @@ def debug_var(turn_on = False, **kwargs):
             else:
                 print '%s' % pref, '%s:\t' % kw, vw
 
-def sort_gals(gals, func = None, order = 0, **kwargs):
+def sort_gals(gals, func=None, order=0, **kwargs):
     '''
     Sort galaxies inside GALS in ORDER order.
 
@@ -698,7 +723,7 @@ def sort_gals(gals, func = None, order = 0, **kwargs):
         if order != 0:
             if order < 0:
                 reverse = True
-            sgals = np.asarray(sorted(gals.tolist(), reverse = reverse))
+            sgals = np.asarray(sorted(gals.tolist(), reverse=reverse))
         else:
             sgals = gals
         sdata = None
@@ -716,7 +741,7 @@ def create_dx(x):
     #dx[-1]      = x[-1]
     return dx
 
-def SFR_parametrize(flux, wl, ages, tSF, wl_lum = 6562.8):
+def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
 
@@ -733,9 +758,9 @@ def SFR_parametrize(flux, wl, ages, tSF, wl_lum = 6562.8):
     y = flux * wl * cmInAA * L_sun / (h * c)
     #y = flux * cmInAA * L_sun #BOL
 
-    qh__Zt = (y * create_dx(wl)).sum(axis = 2)
-    Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis = 1) * yr_sec
-    Nh__Zt = np.cumsum(qh__Zt * create_dx(ages), axis = 1) * yr_sec
+    qh__Zt = (y * create_dx(wl)).sum(axis=2)
+    Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis=1) * yr_sec
+    Nh__Zt = np.cumsum(qh__Zt * create_dx(ages), axis=1) * yr_sec
 
     k_SFR__Z = 2.226 * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
 
@@ -761,7 +786,7 @@ def linearInterpol(x1, x2, y1, y2, x):
     '''
     return (x2 * y1 - x1 * y2 - x * (y1 - y2)) / (x2 - x1)
 
-def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
+def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum=6562.8):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
 
@@ -778,9 +803,9 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum = 6562.8):
 
     y = flux * wl * cmInAA * L_sun / (h * c)
 
-    qh__Zt = np.trapz(y = y, x = wl, axis = 2) # 1 / Msol
-    Nh__Zt = spi.cumtrapz(y = qh__Zt, x = ages, initial = 0, axis = 1) * yr_sec
-    Nh__Z = np.trapz(y = qh__Zt[:, mask_age], x = ages[mask_age], axis = 1) * yr_sec
+    qh__Zt = np.trapz(y=y, x=wl, axis=2) # 1 / Msol
+    Nh__Zt = spi.cumtrapz(y=qh__Zt, x=ages, initial=0, axis=1) * yr_sec
+    Nh__Z = np.trapz(y=qh__Zt[:, mask_age], x=ages[mask_age], axis=1) * yr_sec
 
     k_SFR__Z = 2.226 * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
 
@@ -794,8 +819,8 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
     v__r = None
 
     if r_func:
-        w__r = r_func(w__yx, bin_r = bin_r, mode = 'sum', rad_scale = rad_scale)
-        v_w__r = r_func(v__yx * w__yx, bin_r = bin_r, mode = 'sum', rad_scale = rad_scale)
+        w__r = r_func(w__yx, bin_r=bin_r, mode='sum', rad_scale=rad_scale)
+        v_w__r = r_func(v__yx * w__yx, bin_r=bin_r, mode='sum', rad_scale=rad_scale)
         v__r = v_w__r / w__r
 
     return v__r
@@ -823,12 +848,12 @@ def calc_xY(K, tY):
 
 def calc_xO(K, tO):
     _, aLow__t, aUpp__t, indO = calc_agebins(K.ageBase, tO)
-    x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
+    x__tZz = K.popx / K.popx.sum(axis=1).sum(axis=0)
     integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
-    aux1__z = x__tZz[(indO + 1):, :, :].sum(axis = 1).sum(axis = 0)
-    aux2__z = x__tZz[indO, :, :].sum(axis = 0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
+    aux1__z = x__tZz[(indO + 1):, :, :].sum(axis=1).sum(axis=0)
+    aux2__z = x__tZz[indO, :, :].sum(axis=0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
     integrated_aux1 = integrated_x__tZ[(indO + 1):, :].sum()
-    integrated_aux2 = integrated_x__tZ[indO, :].sum(axis = 0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
+    integrated_aux2 = integrated_x__tZ[indO, :].sum(axis=0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
     return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
 
 def calc_SFR(K, tSF):
@@ -851,13 +876,13 @@ def calc_SFR(K, tSF):
     _, aLow__t, aUpp__t, indSF = calc_agebins(K.ageBase, tSF)
 
     # Compute SFR__z
-    aux1__z = K.Mini__tZz[:indSF, :, :].sum(axis = 1).sum(axis = 0)
-    aux2__z = K.Mini__tZz[indSF, :, :].sum(axis = 0) * (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
+    aux1__z = K.Mini__tZz[:indSF, :, :].sum(axis=1).sum(axis=0)
+    aux2__z = K.Mini__tZz[indSF, :, :].sum(axis=0) * (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
     SFR__z = (aux1__z + aux2__z) / tSF
     SFRSD__z = SFR__z / K.zoneArea_pc2
 
-    #aux1__z = K.MiniSD__tZz[:indSF, :, :].sum(axis = 1).sum(axis = 0)
-    #aux2__z = K.MiniSD__tZz[indSF, :, :].sum(axis = 0) * (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
+    #aux1__z = K.MiniSD__tZz[:indSF, :, :].sum(axis=1).sum(axis=0)
+    #aux2__z = K.MiniSD__tZz[indSF, :, :].sum(axis=0) * (tSF - aLow__t[indSF]) / (aUpp__t[indSF] - aLow__t[indSF])
 
     return SFR__z, SFRSD__z
 
@@ -912,14 +937,14 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     #--------------------------------------------------------------------------
     # Define alogZ_****__z: flux & mass weighted average logZ for each zone
     # ==> alogZ_mass__z - ATT: There may be nan's here depending on flag__t!
-    numerator__z = np.tensordot(K.Mcor__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis = 0)
-    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    numerator__z = np.tensordot(K.Mcor__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis=0)
+    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis=1).sum(axis=0)
     alogZ_mass__z = np.ma.masked_array(numerator__z / denominator__z)
     alogZ_mass__z[np.isnan(alogZ_mass__z)] = np.ma.masked
 
     # ==> alogZ_flux__z - ATT: There may be nan's here depending on flag__t!
-    numerator__z = np.tensordot(K.Lobn__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis = 0)
-    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    numerator__z = np.tensordot(K.Lobn__tZz[flag__t, :, :] , logZBase__Z , (1, 0)).sum(axis=0)
+    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis=1).sum(axis=0)
     alogZ_flux__z = np.ma.masked_array(numerator__z / denominator__z)
     alogZ_flux__z[np.isnan(alogZ_mass__z)] = np.ma.masked
     #--------------------------------------------------------------------------
@@ -927,12 +952,12 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     #--------------------------------------------------------------------------
     # Def galaxy-wide averages of alogZ in light & mass, but **discards** zones having
     # too little light fractions in the ages given by flag__t
-    isOk__z = np.ones_like(K.Mcor__z, dtype = np.bool)
+    isOk__z = np.ones_like(K.Mcor__z, dtype=np.bool)
 
     # Define Ok flag: Zones with light fraction x < xOkMin are not reliable for alogZ (& etc) estimation!
     if xOkMin >= 0.:
-        x__tZz = K.popx / K.popx.sum(axis = 1).sum(axis = 0)
-        xOk__z = x__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+        x__tZz = K.popx / K.popx.sum(axis=1).sum(axis=0)
+        xOk__z = x__tZz[flag__t, :, :].sum(axis=1).sum(axis=0)
         isOk__z = xOk__z > xOkMin
 
     # Fraction of all zones which are Ok in the isOk__z sense. Useful to censor galaxies whose
@@ -941,12 +966,12 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     isOkFrac_GAL = (1.0 * isOk__z.sum()) / (1.0 * K.N_zone)
 
     # Galaxy wide averages of logZ - ATT: Only isOk__z zones are considered in this averaging!
-    numerator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0) * alogZ_mass__z
-    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    numerator__z = K.Mcor__tZz[flag__t, :, :].sum(axis=1).sum(axis=0) * alogZ_mass__z
+    denominator__z = K.Mcor__tZz[flag__t, :, :].sum(axis=1).sum(axis=0)
     alogZ_mass_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
 
-    numerator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0) * alogZ_flux__z
-    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis = 1).sum(axis = 0)
+    numerator__z = K.Lobn__tZz[flag__t, :, :].sum(axis=1).sum(axis=0) * alogZ_flux__z
+    denominator__z = K.Lobn__tZz[flag__t, :, :].sum(axis=1).sum(axis=0)
     alogZ_flux_GAL = numerator__z[isOk__z].sum() / denominator__z[isOk__z].sum()
 
     alogZ_mass__r = None
@@ -961,24 +986,24 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
         binstep = Rbin__r[1] - Rbin__r[0]
         Rbin_oneHLR = [1. - binstep, 1. + binstep]
         #radial profiles
-        alogZ_mass__yx = K.zoneToYX(alogZ_mass__z, extensive = False)
-        alogZ_flux__yx = K.zoneToYX(alogZ_flux__z, extensive = False)
-        alogZ_mass__r = K.radialProfile(alogZ_mass__yx, Rbin__r, rad_scale = K.HLR_pix)
-        alogZ_flux__r = K.radialProfile(alogZ_flux__yx, Rbin__r, rad_scale = K.HLR_pix)
-        alogZ_mass_oneHLR = K.radialProfile(alogZ_mass__yx, Rbin_oneHLR, rad_scale = K.HLR_pix)
-        alogZ_flux_oneHLR = K.radialProfile(alogZ_flux__yx, Rbin_oneHLR, rad_scale = K.HLR_pix)
-        Mcor__z = np.ma.masked_array(K.Mcor__z, mask = ~isOk__z)
-        Lobn__z = np.ma.masked_array(K.Lobn__z, mask = ~isOk__z)
-        Mcor__yx = K.zoneToYX(Mcor__z, extensive = True)
-        Lobn__yx = K.zoneToYX(Lobn__z, extensive = True)
-        alogZ_mass_wei__r = radialProfileWeighted(alogZ_mass__yx, Mcor__yx, r_func = K.radialProfile, bin_r = Rbin__r, rad_scale = K.HLR_pix)
-        alogZ_flux_wei__r = radialProfileWeighted(alogZ_flux__yx, Lobn__yx, r_func = K.radialProfile, bin_r = Rbin__r, rad_scale = K.HLR_pix)
+        alogZ_mass__yx = K.zoneToYX(alogZ_mass__z, extensive=False)
+        alogZ_flux__yx = K.zoneToYX(alogZ_flux__z, extensive=False)
+        alogZ_mass__r = K.radialProfile(alogZ_mass__yx, Rbin__r, rad_scale=K.HLR_pix)
+        alogZ_flux__r = K.radialProfile(alogZ_flux__yx, Rbin__r, rad_scale=K.HLR_pix)
+        alogZ_mass_oneHLR = K.radialProfile(alogZ_mass__yx, Rbin_oneHLR, rad_scale=K.HLR_pix)
+        alogZ_flux_oneHLR = K.radialProfile(alogZ_flux__yx, Rbin_oneHLR, rad_scale=K.HLR_pix)
+        Mcor__z = np.ma.masked_array(K.Mcor__z, mask=~isOk__z)
+        Lobn__z = np.ma.masked_array(K.Lobn__z, mask=~isOk__z)
+        Mcor__yx = K.zoneToYX(Mcor__z, extensive=True)
+        Lobn__yx = K.zoneToYX(Lobn__z, extensive=True)
+        alogZ_mass_wei__r = radialProfileWeighted(alogZ_mass__yx, Mcor__yx, r_func=K.radialProfile, bin_r=Rbin__r, rad_scale=K.HLR_pix)
+        alogZ_flux_wei__r = radialProfileWeighted(alogZ_flux__yx, Lobn__yx, r_func=K.radialProfile, bin_r=Rbin__r, rad_scale=K.HLR_pix)
 
     return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, \
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
            isOkFrac_GAL, alogZ_mass_oneHLR, alogZ_flux_oneHLR
 
-def calc_agebins(ages, age = None):
+def calc_agebins(ages, age=None):
     # Define ranges for age-bins
     # ToDo: This age-bin-edges thing could be made more elegant & general.
     aCen__t = ages
