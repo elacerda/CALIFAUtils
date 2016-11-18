@@ -16,37 +16,33 @@ from CALIFAUtils.scripts import calc_running_stats
 from CALIFAUtils.scripts import find_confidence_interval
 
 def plot_histo_axis(ax, x, **kwargs):
-    c = kwargs.get('color', kwargs.get('c', 'b'))
+    return plot_histo_ax(ax, x, kwargs)
+
+def plot_histo_ax(ax, x, **kwargs):
     first = kwargs.get('first', False)
     va = kwargs.get('verticalalignment', kwargs.get('va', 'top'))
     ha = kwargs.get('verticalalignment', kwargs.get('ha', 'right'))
     fs = kwargs.get('fontsize', kwargs.get('fs', 14))
     pos_x = kwargs.get('pos_x', 0.98)
-    bins = kwargs.get('bins', 30)
-    range = kwargs.get('range', None)
-    kwargs_histo = kwargs.get('kwargs_histo', dict(bins = bins, range = range, color = c, align = 'mid', alpha = 0.6, histtype='stepfilled', normed = True))
+    y_v_space = kwargs.get('y_v_space', 0.08)
+    ini_pos_y = kwargs.get('ini_pos_y', 0.96)
+    kwargs_histo = dict(bins=30, range=None, color='b', align='mid', alpha=0.6, histtype='bar', normed=False)
+    kwargs_histo.update(kwargs.get('kwargs_histo', {}))
+    c = kwargs_histo.get('color', 'b')
     ax.hist(x, **kwargs_histo)
-    txt = '%.2f' % np.mean(x)
-    if first: txt = r'$<x>$: %s' % txt
-    kw_text = dict(pos_x = pos_x, pos_y = 0.96, fs = fs, va = va, ha = ha, c = c)
-    plot_text_ax(ax, txt, **kw_text)
-    txt = '%.2f' % np.median(x)
-    if first: txt = r'med($x$): %s' % txt
-    kw_text = dict(pos_x = pos_x, pos_y = 0.88, fs = fs, va = va, ha = ha, c = c)
-    plot_text_ax(ax, txt, **kw_text)
-    txt = '%.2f' % np.std(x)
-    if first: txt = r'$\sigma(x)$: %s' % txt
-    kw_text = dict(pos_x = pos_x, pos_y = 0.80, fs = fs, va = va, ha = ha, c = c)
-    plot_text_ax(ax, txt, **kw_text)
-    txt = '%.2f' % np.max(x)
-    if first: txt = r'max$(x)$: %s' % txt
-    kw_text = dict(pos_x = pos_x, pos_y = 0.72, fs = fs, va = va, ha = ha, c = c)
-    plot_text_ax(ax, txt, **kw_text)
-    txt = '%.2f' % np.min(x)
-    if first: txt = r'min$(x)$: %s' % txt
-    kw_text = dict(pos_x = pos_x, pos_y = 0.64, fs = fs, va = va, ha = ha, c = c)
-    plot_text_ax(ax, txt, **kw_text)
+    pos_y = [ini_pos_y - (i * y_v_space) for i in xrange(6)]
+    if first:
+        txt = [r'$N(x)$: %d' % len(x),
+               r'$<x>$: %.2f' % np.mean(x), r'med($x$): %.2f' % np.median(x),
+               r'$\sigma(x)$: %.2f' % np.std(x), r'max$(x)$: %.2f' % np.max(x),
+               r'min$(x)$: %.2f' % np.min(x)]
+    else:
+        txt = ['%d' % len(x), '%.2f' % np.mean(x), '%.2f' % np.median(x),
+               '%.2f' % np.std(x), '%.2f' % np.max(x), '%.2f' % np.min(x)]
+    for i, pos in enumerate(pos_y):
+        plot_text_ax(ax, txt[i], **dict(pos_x=pos_x, pos_y=pos, fs=fs, va=va, ha=ha, c=c))
     return ax
+
 
 def next_row_col(row, col, NRows, NCols):
     if col == (NCols - 1):
@@ -74,10 +70,10 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
     a = HLR_pix * 512.0 / 75.0
     b_a = ba
     theta = pa * 180 / np.pi
-    e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    # e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
     e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    ax.add_artist(e0)
+    # ax.add_artist(e0)
     ax.add_artist(e1)
     ax.add_artist(e2)
 
@@ -88,10 +84,10 @@ def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
     a = K.HLR_pix
     b_a = K.ba
     theta = K.pa * 180 / np.pi
-    e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    # e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
     e1 = Ellipse(center, height=2 * a * b_a, width=2 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
     e2 = Ellipse(center, height=4 * a * b_a, width=4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
-    ax.add_artist(e0)
+    # ax.add_artist(e0)
     ax.add_artist(e1)
     ax.add_artist(e2)
 

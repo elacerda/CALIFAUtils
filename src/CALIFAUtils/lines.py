@@ -38,12 +38,12 @@ class Lines:
         self.consts = {}
         '''
         _var it's a convention to protect variables.Single underscore prefixed
-        variables means that is a "private" attribute. Expect your users to 
-        respect convention, and expect your abusers to break it no matter what 
+        variables means that is a "private" attribute. Expect your users to
+        respect convention, and expect your abusers to break it no matter what
         you do.
         '''
-        self._removable = {} 
-        
+        self._removable = {}
+
         if create_BPT is True:
             self.linesbpt = []
             self.linesbpt_init(self)
@@ -61,7 +61,7 @@ class Lines:
 
         x['CF10'] = np.linspace(-10.0, 10.0, self.xn)
         self.addLine('CF10', self.lline, (1.01, 0.48), x['CF10'])
-        self.fixCF10(self)
+        self.fixCF10()
 
         '''
         Just a shortcut to BPT lines.
@@ -75,17 +75,16 @@ class Lines:
 
     def belowlinebpt(self, linename, x, y):
         if self.lines.__contains__(linename):
-            mask = (y <= self.get_yfromx(linename, x)) 
+            mask = (y <= self.get_yfromx(linename, x))
             if linename != 'CF10':
                 c = self.consts[linename]
                 mask &= (x < -1.0*c[-1])
         return mask
 
-    @staticmethod
-    def fixCF10(self):
+    def fixCF10(self, linename='S06'):
         yCF10 = self.y['CF10']
-        yS06 = self.get_yfromx('S06', self.x['CF10'])
-        i = np.where(yCF10 > yS06)[0][0]
+        yline = self.get_yfromx(linename, self.x['CF10'])
+        i = np.where(yCF10 > yline)[0][0]
         xmin = self.x['CF10'][i]
         newx = np.linspace(xmin, 2.0, self.xn)
         self.remLine('CF10')
@@ -96,7 +95,7 @@ class Lines:
         self._removable = {
             'K01' : False,
             'K03' : False,
-            'CF10' : False,
+            'CF10' : True,
             'S06' : False
         }
 
@@ -118,10 +117,10 @@ class Lines:
             self.addType(self, linename)
             self.addMethod(self, linename, lfunc)
             self.addConst(self, linename, lconst)
-            
+
             self.x[linename] = x
             self.y[linename] = self.get_yfromx(linename, x)
-            
+
             self._removable[linename] = removable
         else:
             print 'line %s exists, try another name' % linename
@@ -129,7 +128,7 @@ class Lines:
     @staticmethod
     def addType(self, linename):
         self.lines.append(linename)
-    
+
     @staticmethod
     def remType(self, linename):
         self.lines.remove(linename)
@@ -145,7 +144,7 @@ class Lines:
     @staticmethod
     def addConst(self, linename, lconst):
         self.consts[linename] = lconst
-    
+
     @staticmethod
     def remConst(self, linename):
         del self.consts[linename]
@@ -153,7 +152,7 @@ class Lines:
     @staticmethod
     def linebpt(c, x):
         return c[0] + c[1] / (c[2] + x)
-    
+
     @staticmethod
     def lline(c, x):
         return np.polyval(c, x)

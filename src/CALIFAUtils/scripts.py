@@ -410,13 +410,29 @@ def calc_running_stats(x, y, **kwargs):
         xbin_out.append(left)
         right = xbin[ixBin + 1]
         isInBin = np.bitwise_and(np.greater_equal(x, left), np.less(x, right))
+        Np = isInBin.astype(np.int).sum()
+        nInBin_out.append(Np)
         xx , yy = x[isInBin] , y[isInBin]
+        # print ixBin, Np, xx, yy
         center = (right + left) / 2.
         xbin_out.append(right)
         xbinCenter_out.append(center)
-        Np = isInBin.astype(np.int).sum()
-        nInBin_out.append(Np)
-        if Np >= 2:
+        if Np == 1:
+            xMedian_out.append(np.median(xx))
+            xMean_out.append(xx.mean())
+            xStd_out.append(xx.std())
+            yMedian_out.append(np.median(yy))
+            yMean_out.append(yy.mean())
+            yStd_out.append(yy.std())
+            if len(xPrc_out) > 0:
+                xPrc_out.append(xPrc_out[-1])
+                yPrc_out.append(xPrc_out[-1])
+            else:
+                xPrc = np.median(xx)
+                yPrc = np.median(yy)
+                xPrc_out.append(np.asarray([xPrc, xPrc, xPrc, xPrc]))
+                yPrc_out.append(np.asarray([yPrc, yPrc, yPrc, yPrc]))
+        elif Np >= 2:
             xMedian_out.append(np.median(xx))
             xMean_out.append(xx.mean())
             xStd_out.append(xx.std())
@@ -451,6 +467,7 @@ def calc_running_stats(x, y, **kwargs):
         debug,
         xbinCenter_out = np.array(xbinCenter_out),
         xMedian_out = np.array(xMedian_out),
+        yMedian_out = np.array(yMedian_out),
         nInBin_out = nInBin_out,
     )
     return xbin, \
@@ -664,6 +681,48 @@ def debug_var(turn_on=False, **kwargs):
                     print '\t%s' % pref, k, ':\t', v
             else:
                 print '%s' % pref, '%s:\t' % kw, vw
+
+
+def get_data_gals(gals, func=None, **kwargs):
+    '''
+    Retreive data from galaxies inside GALS in using func.
+
+    GALS can be a list or a string with a text file direction.
+
+    This method will pass by each CALIFA fits file executing function FUNC that
+    should return the data requested.
+    '''
+    verbose = kwargs.get('verbose', None)
+    if isinstance(gals, str):
+        fname = gals
+        f = open(fname, 'r')
+        g = []
+        for line in f.xreadlines():
+            l = line.strip()
+            if l[0] == '#':
+                continue
+            g.append(l)
+        f.close()
+        gals = np.unique(np.asarray(g))
+    elif isinstance(gals, list):
+        gals = np.unique(np.asarray(gals))
+    Ng = len(gals)
+    if isinstance(func, types.FunctionType):
+        if verbose:
+            print gals
+        data__g = []
+        for i, K in loop_cubes(gals.tolist(), **kwargs):
+            data__g.append(func(K, **kwargs))
+            if verbose:
+                print K.califaID, data__g[i]
+            K.close()
+        sgals = gals
+        sdata = data__g
+    else:
+        sgals = gals
+        sdata = None
+    return sgals, sdata
+
 
 def sort_gals(gals, func=None, order=0, **kwargs):
     '''
