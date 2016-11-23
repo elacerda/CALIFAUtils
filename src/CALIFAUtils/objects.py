@@ -9,6 +9,7 @@ import numpy as np
 import itertools
 import pyfits
 import h5py
+import os
 
 class tupperware_none(object):
     def __init__(self):
@@ -884,7 +885,7 @@ class CALIFAPaths(object):
 
     def __init__(self, work_dir=None, v_run=-1):
         if work_dir is None:
-            work_dir = '/Users/lacerda/CALIFA/'
+            work_dir = '%s/CALIFA/' % os.getenv('HOME')
         self.califa_work_dir = work_dir
         self.set_v_run(v_run)
 

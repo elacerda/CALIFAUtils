@@ -173,11 +173,31 @@ def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
             print '# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum())
             print '# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum())
     retmask_lines = mask_lines_dict__Lz
+    k = 'mask_lines_dict__Lz'
+    k_oth = 'mask_lines_dict__Lmz'
     if kwargs.get('return_mask_lines_separated', False):
         retmask_lines = mask_lines_dict__Lmz
-    return mask__Tz, mask_syn__Tz, mask_eml__z, \
-        mask_popx__Tz, mask_tau_V__z, mask_residual__z, \
-        mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, retmask_lines
+        k = 'mask_lines_dict__Lmz'
+        k_oth = 'mask_lines_dict__Lz'
+    if kwargs.get('return_dict', False):
+        D = {}
+        D['mask__Tz'] = mask__Tz
+        D['mask_syn__Tz'] = mask_syn__Tz
+        D['mask_eml__z'] = mask_eml__z
+        D['mask_popx__Tz'] = mask_popx__Tz
+        D['mask_tau_V__z'] = mask_tau_V__z
+        D['mask_residual__z'] = mask_residual__z
+        D['mask_tau_V_neb__z'] = mask_tau_V_neb__z
+        D['mask_tau_V_neb_err__z'] = mask_tau_V_neb_err__z
+        D['mask_EW_Hb__z'] = mask_EW_Hb__z
+        D['mask_whan__z'] = mask_whan__z
+        D['mask_bpt__z'] = mask_bpt__z
+        D[k] = retmask_lines
+        D[k_oth] = None
+    else:
+        return mask__Tz, mask_syn__Tz, mask_eml__z, \
+            mask_popx__Tz, mask_tau_V__z, mask_residual__z, \
+            mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, retmask_lines
 
 def PCA(arr, reduced=False, arrMean=False, arrStd=False, sort=True):
     '''
@@ -268,10 +288,10 @@ def get_CALIFAID_by_NEDName(nedname):
     #t.close()
     return rval
 
-def get_NEDName_by_CALIFAID(califaID):
+def get_NEDName_by_CALIFAID(califaID, work_dir=None):
     import atpy
     from califa import masterlist
-    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type='califa_masterlist')
+    t = atpy.Table(C.CALIFAPaths(work_dir=work_dir).get_masterlist_file(), type='califa_masterlist')
     if isinstance(califaID, str):
         califalist = [ califaID ]
     else:
