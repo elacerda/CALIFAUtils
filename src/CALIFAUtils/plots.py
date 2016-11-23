@@ -64,32 +64,42 @@ def plotPercentilesAxis(ax, x, y, **kwargs):
     ax.plot(x, np.percentile(y, 95), **kwargs)
 
 
-def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5):
+def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5, bins=[1, 2]):
     from matplotlib.patches import Ellipse
     center = np.array([ 256 , 256])
     a = HLR_pix * 512.0 / 75.0
     b_a = ba
     theta = pa * 180 / np.pi
-    # e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
-    # ax.add_artist(e0)
-    ax.add_artist(e1)
-    ax.add_artist(e2)
+    for bin in bins:
+        height = bin * 2. * a * b_a
+        width = bin * 2. * a
+        e = Ellipse(center, height=height, width=width, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+        ax.add_artist(e)
+    # # e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    # e1 = Ellipse(center, height = 2 * a * b_a, width = 2 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    # e2 = Ellipse(center, height = 4 * a * b_a, width = 4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
+    # # ax.add_artist(e0)
+    # ax.add_artist(e1)
+    # ax.add_artist(e2)
 
 
-def DrawHLRCircle(ax, K, color = 'white', lw = 1.5):
+def DrawHLRCircle(ax, K, color = 'white', lw = 1.5, bins=[1, 2]):
     from matplotlib.patches import Ellipse
     center = np.array([K.x0, K.y0])
     a = K.HLR_pix
     b_a = K.ba
     theta = K.pa * 180 / np.pi
-    # e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
-    e1 = Ellipse(center, height=2 * a * b_a, width=2 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
-    e2 = Ellipse(center, height=4 * a * b_a, width=4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
-    # ax.add_artist(e0)
-    ax.add_artist(e1)
-    ax.add_artist(e2)
+    for bin in bins:
+        height = bin * 2. * a * b_a
+        width = bin * 2. * a
+        e = Ellipse(center, height=height, width=width, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+        ax.add_artist(e)
+    # # e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    # e1 = Ellipse(center, height=2 * a * b_a, width=2 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    # e2 = Ellipse(center, height=4 * a * b_a, width=4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
+    # # ax.add_artist(e0)
+    # ax.add_artist(e1)
+    # ax.add_artist(e2)
 
 
 def plot_linreg_params(param, x, xlabel, ylabel, fname, best_param=None, fontsize=12):
@@ -269,7 +279,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         print txt_y
     return a, b, sigma_a, sigma_b
 
-def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None):
+def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None, bins=[1, 2]):
     galimg = plt.imread(imgfile)[::-1, :, :]
     plt.setp(ax.get_xticklabels(), visible = False)
     plt.setp(ax.get_yticklabels(), visible = False)
@@ -279,7 +289,7 @@ def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None):
         close = True
         K = C.read_one_cube(gal)
     pa, ba = K.getEllipseParams()
-    DrawHLRCircleInSDSSImage(ax, K.HLR_pix, pa, ba)
+    DrawHLRCircleInSDSSImage(ax, K.HLR_pix, pa, ba, lw=1, bins=bins)
     if close:
         K.close()
     txt = '%s' % gal
