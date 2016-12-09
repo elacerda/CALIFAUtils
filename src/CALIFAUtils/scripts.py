@@ -713,12 +713,12 @@ def loop_cubes(gals, **kwargs):
     elif isinstance(gals, np.ndarray):
         gals = gals.tolist()
     for g in gals[:imax]:
-        yield gals.index(g), read_one_cube(g, **kwargs
+        yield gals.index(g), read_one_cube(g, **kwargs)
 
 
 def debug_var(turn_on=False, **kwargs):
     pref = kwargs.pop('pref', '>>>')
-    if turn_on == True:
+    if turn_on:
         for kw, vw in kwargs.iteritems():
             if isinstance(vw, dict):
                 print '%s' % pref, kw
