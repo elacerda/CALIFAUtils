@@ -687,6 +687,8 @@ def read_one_cube(gal, **kwargs):
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
                     print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
+                if kwargs.get('elliptical', False) is True:
+                    K.setGeometry(*K.getEllipseParams())
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
@@ -711,10 +713,7 @@ def loop_cubes(gals, **kwargs):
     elif isinstance(gals, np.ndarray):
         gals = gals.tolist()
     for g in gals[:imax]:
-        K = read_one_cube(g, **kwargs.copy())
-        if kwargs.get('elliptical', False) is True:
-            K.setGeometry(*K.getEllipseParams())
-        yield gals.index(g), K
+        yield gals.index(g), read_one_cube(g, **kwargs
 
 
 def debug_var(turn_on=False, **kwargs):
