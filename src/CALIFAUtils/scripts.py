@@ -711,7 +711,10 @@ def loop_cubes(gals, **kwargs):
     elif isinstance(gals, np.ndarray):
         gals = gals.tolist()
     for g in gals[:imax]:
-        yield gals.index(g), read_one_cube(g, **kwargs)
+        K = read_one_cube(g, **kwargs.copy())
+        if kwargs.get('elliptical', False) is True:
+            K.setGeometry(*K.getEllipseParams())
+        yield gals.index(g), K
 
 
 def debug_var(turn_on=False, **kwargs):
