@@ -1,79 +1,143 @@
-from scipy import stats as st
-from scipy.ndimage.filters import gaussian_filter1d
-from CALIFAUtils.scripts import get_h5_data_masked
-from CALIFAUtils.scripts import calc_running_stats
-from CALIFAUtils.scripts import OLS_bisector
-from CALIFAUtils.scripts import ma_mask_xyz
-from CALIFAUtils.scripts import sort_gals
 import numpy as np
 import itertools
 import pyfits
 import h5py
 import os
 
+
+def get_h5_data_masked(h5, prop_str, h5_root='', add_mask=None, **ma_kwargs):
+    prop = h5['%sdata/%s' % (h5_root, prop_str)].value
+    mask = h5['%smask/%s' % (h5_root, prop_str)].value
+    if add_mask is not None:
+        mask = np.bitwise_or(mask, add_mask)
+    return np.ma.masked_array(prop, mask, **ma_kwargs)
+
+
+class CALIFAPaths(object):
+    _superfits_dir = [
+        'synth',
+        'superfits'
+    ]
+    _spacialSampling = [
+        'v20',
+        'pix'
+    ]
+    _qVersion = [
+        'q036',
+        'q043',
+        'q045',
+        'q046',
+        'q050',
+        'q051',
+        'q053',
+        'q054'
+    ]
+    _dVersion = [
+        'd13c',
+        'd14a',
+        'd15a',
+        'd22a'
+    ]
+    _othSuffix = [
+        '512.ps03.k1.mE.CCM.',
+    ]
+    _bases = [
+        'Bgsd6e',
+        'Bzca6e',
+        'Bgstf6e'
+    ]
+    _config = [
+        [
+            _superfits_dir.index('superfits'),
+            _spacialSampling.index('v20'),
+            _qVersion.index('q050'),
+            _dVersion.index('d15a'),
+            0,
+            _bases.index('Bgsd6e')
+        ],
+        [
+            _superfits_dir.index('superfits'),
+            _spacialSampling.index('v20'),
+            _qVersion.index('q054'),
+            _dVersion.index('d22a'),
+            0,
+            _bases.index('Bgstf6e')
+        ],
+    ]
+    _masterlist_file = 'califa_master_list_rgb.txt'
+
+    def __init__(self,
+                 qVersion='q050',
+                 dVersion='d15a',
+                 base='Bgsd6e',
+                 spacialSampling='v20',
+                 othSuffix='512.ps03.k1.mE.CCM.',
+                 work_dir=None,
+                 config=None):
+        if work_dir is None:
+            work_dir = '%s/califa' % os.getenv('HOME')
+        self.califa_work_dir = work_dir
+        self.set_config(config)
+
+    def _config_run(self):
+        config = self.get_config()
+        tmp_suffix = '_synthesis_eBR_'
+        tmp_suffix += config['spacialSampling'] + '_' + config['qVersion'] + '.' + config['dVersion']
+        tmp_suffix += config['othSuffix'] + config['base']
+        self.pycasso_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/' + config['superfits_dir'] + '/'
+        self.emlines_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/EML/'
+        self.gasprop_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/EML/prop/'
+        self.pycasso_suffix = tmp_suffix + '.fits'
+        self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
+        self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
+
+    def set_config(self, config):
+        if config is not None:
+            if config == 'last':
+                self.config = -1
+            else:
+                self.config = config
+        else:
+            self.config = -1
+        self._config_run()
+
+    def get_masterlist_file(self):
+        return self.califa_work_dir + self._masterlist_file
+
+    def get_config(self):
+        config = self._config[self.config]
+        return dict(superfits_dir=self._superfits_dir[config[0]],
+                    spacialSampling=self._spacialSampling[config[1]],
+                    qVersion=self._qVersion[config[2]],
+                    dVersion=self._dVersion[config[3]],
+                    othSuffix=self._othSuffix[config[4]],
+                    base=self._bases[config[5]])
+
+    def get_image_file(self, gal):
+        return self.califa_work_dir + '/images/' + gal + '.jpg'
+
+    def get_emlines_file(self, gal):
+        return '%s%s%s' % (self.emlines_cube_dir, gal, self.emlines_suffix)
+
+    def get_gasprop_file(self, gal):
+        return '%s%s%s' % (self.gasprop_cube_dir, gal, self.gasprop_suffix)
+
+    def get_pycasso_file(self, gal):
+        return '%s%s%s' % (self.pycasso_cube_dir, gal, self.pycasso_suffix)
+
+
 class tupperware_none(object):
     def __init__(self):
         pass
+
     def __getattr__(self, attr):
         r = self.__dict__.get(attr, None)
         return r
 
-class tupperware(object): pass
 
-class GasProp(object):
-    def __init__(self, filename = None):
-        try:
-            self._hdulist = pyfits.open(filename)
-        except:
-            print 'pyfits: %s: file error' % filename
-            self._hdulist = None
+class tupperware(object):
+    pass
 
-        if self._hdulist is not None:
-            self.header = self._hdulist[0].header
-            self._excluded_hdus = [ 'FLINES', 'NAMEFILES', 'ICF' ]
-            self._nobs = self.header['NOBS']
-            self._create_attrs()
-            self._dlcons = eval(self._hdulist[-1].header['DLCONS'])
-
-        self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.)))
-
-    def close(self):
-        self._hdulist.close()
-        self._hdulist = None
-
-    def _iter_hdus(self):
-        for i in xrange(1, len(self._hdulist)):
-            n = self._hdulist[i].name
-            if n in self._excluded_hdus:
-                continue
-            h = self._hdulist[i].data
-            yield n, h
-
-    def _create_attrs(self):
-        for hname, h in self._iter_hdus():
-            setattr(self, hname, tupperware())
-            tmp = getattr(self, hname)
-            names = h.names
-            attrs = [ name.replace('[', '_').replace(']', '').replace('.', '_') for name in names ]
-            for attr, k in zip(attrs, names):
-                if len(h[k]) == self._nobs:
-                    data = np.copy(h[k][1:])
-                    setattr(tmp, attr, data)
-                    int_attr = 'integrated_%s' % attr
-                    int_data = np.copy(h[k][0])
-                    setattr(tmp, int_attr, int_data)
-
-    def AVtoTau(self, AV):
-        return AV * self.cte_av_tau
-
-    def TautoAV(self, tau):
-        return tau * 1. / self.cte_av_tau
-
-    def CtoAV(self, c, Rv = 3.1, extlaw = 1.443):
-        return c * (Rv / extlaw)
-
-    def CtoTau(self, c, Rv = 3.1, extlaw = 1.443):
-        return self.AVtoTau(self.CtoAV(c, Rv, extlaw))
 
 class stack_gals(object):
     def __init__(self):
@@ -106,53 +170,59 @@ class stack_gals(object):
         attr = getattr(self, '_%s' % k)
         attr.append(val)
 
-    def append1d_masked(self, k, val, mask_val = None):
+    def append1d_masked(self, k, val, mask_val=None):
         attr = getattr(self, '_%s' % k)
         attr.append(val)
         m = getattr(self, '_mask_%s' % k)
         if mask_val is None:
-            mask_val = np.zeros_like(val, dtype = np.bool_)
+            mask_val = np.zeros_like(val, dtype=np.bool_)
         m.append(mask_val)
 
     def append2d(self, k, i, val):
-        if (self.__dict__.has_key('_N_%s' % k)):
+        key = '_N_%s' % k
+        if key in self.__dict__:
             attr = getattr(self, '_%s' % k)
             attr[i].append(val)
 
-    def append2d_masked(self, k, i, val, mask_val = None):
-        if (self.__dict__.has_key('_N_%s' % k)):
+    def append2d_masked(self, k, i, val, mask_val=None):
+        key = '_N_%s' % k
+        if key in self.__dict__:
             attr = getattr(self, '_%s' % k)
             attr[i].append(val)
             m = getattr(self, '_mask_%s' % k)
             if mask_val is None:
-                mask_val = np.zeros_like(val, dtype = np.bool_)
+                mask_val = np.zeros_like(val, dtype=np.bool_)
             m[i].append(mask_val)
 
     def stack(self):
-        if len(self.keys1d) > 0: self._stack1d()
-        if len(self.keys1d_masked) > 0: self._stack1d_masked()
-        if len(self.keys2d) > 0: self._stack2d()
-        if len(self.keys2d_masked) > 0: self._stack2d_masked()
+        if len(self.keys1d) > 0:
+            self._stack1d()
+        if len(self.keys1d_masked) > 0:
+            self._stack1d_masked()
+        if len(self.keys2d) > 0:
+            self._stack2d()
+        if len(self.keys2d_masked) > 0:
+            self._stack2d_masked()
 
     def _stack1d(self):
         for k in self.keys1d:
             print k
             attr = np.hstack(getattr(self, '_%s' % k))
-            setattr(self, k, np.array(attr, dtype = np.float_))
+            setattr(self, k, np.array(attr, dtype=np.float_))
 
     def _stack1d_masked(self):
         for k in self.keys1d_masked:
             print k
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
-            setattr(self, k, np.ma.masked_array(attr, mask = mask, dtype = np.float_))
+            setattr(self, k, np.ma.masked_array(attr, mask=mask, dtype=np.float_))
 
     def _stack2d(self):
         for k in self.keys2d:
             print k
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
-            setattr(self, k, np.asarray([ np.array(np.hstack(attr[i]), dtype = np.float_) for i in xrange(N) ]))
+            setattr(self, k, np.asarray([np.array(np.hstack(attr[i]), dtype=np.float_) for i in xrange(N)]))
 
     def _stack2d_masked(self):
         for k in self.keys2d_masked:
@@ -160,7 +230,8 @@ class stack_gals(object):
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
             mask = getattr(self, '_mask_%s' % k)
-            setattr(self, k, np.ma.asarray([ np.ma.masked_array(np.hstack(attr[i]), mask = np.hstack(mask[i]), dtype = np.float_) for i in xrange(N) ]))
+            setattr(self, k, np.ma.asarray([np.ma.masked_array(np.hstack(attr[i]), mask=np.hstack(mask[i]), dtype=np.float_) for i in xrange(N)]))
+
 
 class ALLGals(object):
     def __init__(self, N_gals, NRbins, N_T, N_U):
@@ -511,6 +582,7 @@ class ALLGals(object):
                 D.update(tmp_mask)
         return D
 
+
 class H5SFRData(object):
     def __init__(self, h5file, create_attrs = False):
         self.h5file = h5file
@@ -656,8 +728,17 @@ class H5SFRData(object):
 
     def _get_valid_gals(self, l_gals):
         if isinstance(l_gals, str):
-            l_gals, _ = sort_gals(l_gals)
-        return [ g for g in l_gals if g in self.califaIDs ]
+            fname = l_gals
+            f = open(fname, 'r')
+            g = []
+            for line in f.xreadlines():
+                lin = line.strip()
+                if lin[0] == '#':
+                    continue
+                g.append(lin)
+            f.close()
+            l_gals = np.unique(np.asarray(g))
+        return [g for g in l_gals if g in self.califaIDs]
 
     # this method only works if self.califaIDs is sorted also
     def get_mask_zones_list(self, l_gals, return_ngals = False):
@@ -856,268 +937,58 @@ class H5SFRData(object):
                 else:
                     yield '%s_%s' % (xk, yk), xv, yv
 
-class CALIFAPaths(object):
-    _versionSuffix = [
-        'v20_q043.d14a',
-        'px1_q043.d14a',
-        'v20_q046.d15a',
-        'v20_q050.d15a',
-    ]
-    _bases = [
-        'Bgsd6e',
-        'Bzca6e'
-    ]
-    _othSuffix = [
-        '512.ps03.k1.mE.CCM.',
-    ]
-    _superfits_dir = 'gal_fits/'
-    _config = {
-        'v20_q043.d14a_2' : [ 1, 0, 0 ],
-        'v20_q043.d14a'   : [ 0, 0, 0 ],
-        'px1_q043.d14a_2' : [ 1, 0, 1 ],
-        'px1_q043.d14a'   : [ 0, 0, 1 ],
-        'v20_q046.d15a_2' : [ 1, 0, 2 ],
-        'v20_q046.d15a'   : [ 0, 0, 2 ],
-        'v20_q050.d15a_2' : [ 1, 0, 3 ],
-        'v20_q050.d15a'   : [ 0, 0, 3 ],
-    }
-    _masterlist_file = 'califa_master_list_rgb.txt'
 
-    def __init__(self, work_dir=None, v_run=-1):
-        if work_dir is None:
-            work_dir = '%s/CALIFA/' % os.getenv('HOME')
-        self.califa_work_dir = work_dir
-        self.set_v_run(v_run)
+class GasProp(object):
+    def __init__(self, filename=None):
+        try:
+            self._hdulist = pyfits.open(filename)
+        except:
+            print 'pyfits: %s: file error' % filename
+            self._hdulist = None
 
-    def _config_run(self):
-        config = self.get_config()
-        tmp_suffix = '_synthesis_eBR_' + config['versionSuffix'] + config['othSuffix'] + config['baseCode']
-        self.pycasso_suffix = tmp_suffix + '.fits'
-        self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
-        self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
-        self.gasprop_cube_dir = self.califa_work_dir + 'rgb-gas/' + config['versionSuffix'] + '/prop/'
-        self.emlines_cube_dir = self.califa_work_dir + 'rgb-gas/' + config['versionSuffix'] + '/'
-        self.pycasso_cube_dir = self.califa_work_dir + self._superfits_dir + config['versionSuffix'] + '/'
+        if self._hdulist is not None:
+            self.header = self._hdulist[0].header
+            self._excluded_hdus = ['FLINES', 'NAMEFILES', 'ICF']
+            self._nobs = self.header['NOBS']
+            self._create_attrs()
+            self._dlcons = eval(self._hdulist[-1].header['DLCONS'])
 
-    def set_v_run(self, v_run):
-        if v_run == 'last':
-            v_run = -1
-        if isinstance(v_run, int):
-            self.v_run = self._versionSuffix[v_run]
-        else:
-            self.v_run = v_run
-        self._config_run()
+        self.cte_av_tau = 1. / (2.5 * np.log10(np.exp(1.)))
 
-    def get_masterlist_file(self):
-        return self.califa_work_dir + self._masterlist_file
+    def close(self):
+        self._hdulist.close()
+        self._hdulist = None
 
-    def get_config(self):
-        v_conf = self._config[self.v_run]
-        return dict(versionSuffix = self._versionSuffix[v_conf[-1]],
-                    baseCode = self._bases[v_conf[0]],
-                    othSuffix = self._othSuffix[v_conf[1]])
+    def _iter_hdus(self):
+        for i in xrange(1, len(self._hdulist)):
+            n = self._hdulist[i].name
+            if n in self._excluded_hdus:
+                continue
+            h = self._hdulist[i].data
+            yield n, h
 
-    def get_image_file(self, gal):
-        return self.califa_work_dir + 'images/' + gal + '.jpg'
+    def _create_attrs(self):
+        for hname, h in self._iter_hdus():
+            setattr(self, hname, tupperware())
+            tmp = getattr(self, hname)
+            names = h.names
+            attrs = [name.replace('[', '_').replace(']', '').replace('.', '_') for name in names]
+            for attr, k in zip(attrs, names):
+                if len(h[k]) == self._nobs:
+                    data = np.copy(h[k][1:])
+                    setattr(tmp, attr, data)
+                    int_attr = 'integrated_%s' % attr
+                    int_data = np.copy(h[k][0])
+                    setattr(tmp, int_attr, int_data)
 
-    def get_emlines_file(self, gal):
-        return self.emlines_cube_dir + gal + self.emlines_suffix
+    def AVtoTau(self, AV):
+        return AV * self.cte_av_tau
 
-    def get_gasprop_file(self, gal):
-        return self.gasprop_cube_dir + gal + self.gasprop_suffix
+    def TautoAV(self, tau):
+        return tau * 1. / self.cte_av_tau
 
-    def get_pycasso_file(self, gal):
-        return self.pycasso_cube_dir + gal + self.pycasso_suffix
+    def CtoAV(self, c, Rv=3.1, extlaw=1.443):
+        return c * (Rv / extlaw)
 
-class runstats(object):
-    def __init__(self, x, y, **kwargs):
-        self.x = x
-        self.y = y
-        self.x_inv = y
-        self.y_inv = x
-        self.xbin = None
-        self.debug = kwargs.get('debug', False)
-        self._gsmooth = kwargs.get('smooth', None)
-        self.sigma = kwargs.get('sigma', None)
-        self._tendency = kwargs.get('tendency', None)
-        self._inverse = kwargs.get('inverse', None)
-        self.rstats(**kwargs)
-        self.Rs, self.Rs_pval = st.spearmanr(x, y)
-        self.Rp, self.Rp_pval = st.pearsonr(x, y)
-
-        if self._inverse is not None:
-            self.rstats_yx(**kwargs)
-
-        if kwargs.get('OLS', False):
-            self.OLS_bisector()
-
-        if kwargs.get('poly1d', False):
-            self.poly1d()
-
-    def rstats(self, **kwargs):
-        nx = len(self.x)
-        nBox = kwargs.get('nBox', nx * kwargs.get('frac', 0.1))
-        if nx > nBox:
-            aux = calc_running_stats(self.x, self.y, **kwargs)
-            self.xbin = aux[0]
-            self.xbinCenter = aux[1]
-            self.xMedian = aux[2]
-            self.xMean = aux[3]
-            self.xStd = aux[4]
-            self.yMedian = aux[5]
-            self.yMean = aux[6]
-            self.yStd = aux[7]
-            self.nInBin = aux[8]
-            self.xPrc = aux[9]
-            self.yPrc = aux[10]
-            self.xPrcS = None
-            self.yPrcS = None
-
-            if self._tendency is True:
-                aux = self.tendency(self.x, self.y, **kwargs)
-                self.xT = aux[0]
-                self.yT = aux[1]
-                self.xbin = aux[2]
-                self.spline = aux[3]
-        else:
-            self.xbin = self.x
-            self.xbinCenter = self.x
-            self.xMedian = self.x
-            self.xMean = self.x
-            self.xStd = self.x
-            self.yMedian = self.y
-            self.yMean = self.y
-            self.yStd = self.y
-            self.nInBin = np.ones_like(self.x, dtype = np.int)
-            self.xPrc = None
-            self.yPrc = None
-            self.xPrcS = None
-            self.yPrcS = None
-
-        if self._gsmooth is True:
-            aux = self.gaussian_smooth(**kwargs)
-            self.xS = aux[0]
-            self.yS = aux[1]
-            self.xPrcS = aux[2]
-            self.yPrcS = aux[3]
-
-    def rstats_yx(self, **kwargs):
-        ny = len(self.y)
-        nBox = kwargs.get('nBox', ny * kwargs.get('frac', 0.1))
-        if ny > nBox:
-            aux = calc_running_stats(self.y, self.x, **kwargs)
-            self.inv_xbin = aux[0]
-            self.inv_xbinCenter = aux[0]
-            self.inv_xMedian = aux[1]
-            self.inv_xMean = aux[2]
-            self.inv_xStd = aux[3]
-            self.inv_yMedian = aux[4]
-            self.inv_yMean = aux[5]
-            self.inv_yStd = aux[6]
-            self.inv_nInBin = aux[7]
-            self.inv_xPrc = aux[8]
-            self.inv_yPrc = aux[9]
-            self.inv_xPrcS = []
-            self.inv_yPrcS = []
-            if self._tendency is True:
-                aux = self.tendency(self.y, self.x, **kwargs)
-                self.inv_xT = aux[0]
-                self.inv_yT = aux[1]
-                self.inv_xbin = aux[2]
-                self.inv_spline = aux[3]
-        else:
-            self.inv_xbinCenter = self.x
-            self.inv_xMedian = self.x
-            self.inv_xMean = self.x
-            self.inv_xStd = self.x
-            self.inv_yMedian = self.y
-            self.inv_yMean = self.y
-            self.inv_yStd = self.y
-            self.inv_nInBin = np.ones_like(self.y, dtype = np.int)
-            self.inv_xPrc = -1
-            self.inv_yPrc = -1
-            self.inv_xPrcS = -1
-            self.inv_yPrcS = -1
-
-        if self._gsmooth is True:
-            aux = self.gaussian_smooth(**kwargs)
-            self.inv_xS = aux[0]
-            self.inv_yS = aux[1]
-            self.inv_xPrcS = aux[2]
-            self.inv_yPrcS = aux[3]
-
-    def gaussian_smooth(self, **kwargs):
-        xPrcS = []
-        yPrcS = []
-        if self.sigma is None:
-            self.sigma = self.y.std()
-        self.sigma = kwargs.get('sigma', self.sigma)
-        xM = np.ma.masked_array(self.xMedian)
-        yM = np.ma.masked_array(self.yMedian)
-        m_gs = np.isnan(xM) | np.isnan(yM)
-        #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
-        xS = self.xMedian[~m_gs]
-        yS = gaussian_filter1d(yM[~m_gs], self.sigma)
-        #print '>X>X>X>', len(self.xMedian[~m_gs]), len(self.xS)
-        if kwargs.get('gs_prc', None) is not None:
-            for i in xrange(len(self.xPrc)):
-                xM = np.ma.masked_array(self.xPrc[i])
-                yM = np.ma.masked_array(self.yPrc[i])
-                m_gs = np.isnan(xM) | np.isnan(yM)
-                #self.xS = gaussian_filter1d(xM[~m_gs], self.sigma)
-                xPrcS.append(self.xPrc[i][~m_gs])
-                yPrcS.append(gaussian_filter1d(yM[~m_gs], self.sigma))
-        return xS, yS, xPrcS, yPrcS
-
-    def OLS_bisector(self):
-        a, b, sa, sb = OLS_bisector(self.x, self.y)
-        self.OLS_slope = a
-        self.OLS_intercept = b
-        self.OLS_slope_sigma = sa
-        self.OLS_intercept_sigma = sb
-        a, b, sa, sb = OLS_bisector(self.xS, self.yS)
-        self.OLS_median_slope = a
-        self.OLS_median_intercept = b
-        self.OLS_median_slope_sigma = sa
-        self.OLS_median_intercept_sigma = sb
-
-    def poly1d(self):
-        p = np.polyfit(self.x, self.y, 1)
-        slope, intercept = p
-        self.poly1d_slope = slope
-        self.poly1d_intercept = intercept
-        p = np.polyfit(self.xS, self.yS, 1)
-        slope, intercept = p
-        self.poly1d_median_slope = slope
-        self.poly1d_median_intercept = intercept
-
-    def tendency(self, x, y, xbin = None, **kwargs):
-        from scipy.interpolate import UnivariateSpline
-        spline = UnivariateSpline(self.x, self.y)
-        if isinstance(x, np.ma.core.MaskedArray) or isinstance(y, np.ma.core.MaskedArray):
-            xm, ym = ma_mask_xyz(x = x, y = y)
-            x = xm.compressed()
-            y = ym.compressed()
-        if xbin is None:
-            nx = len(x)
-            ind_xs = np.argsort(x)
-            xS = x[ind_xs]
-            nx = len(x)
-            frac = kwargs.get('frac', 0.1)
-            minimal_bin_points = kwargs.get('min_np', nx * frac)
-            i = 0
-            xbin = []
-            xbin.append(xS[0])
-            while i < nx:
-                to_i = i + minimal_bin_points
-                delta = (nx - to_i)
-                miss_frac = 1. * delta / nx
-                if to_i < nx and miss_frac >= frac:
-                    xbin.append(xS[to_i])
-                else:
-                    to_i = nx
-                    xbin.append(xS[-1])
-                i = to_i
-        xT = xbin
-        yT = spline(xT)
-        return xT, yT, xbin, spline
+    def CtoTau(self, c, Rv=3.1, extlaw=1.443):
+        return self.AVtoTau(self.CtoAV(c, Rv, extlaw))

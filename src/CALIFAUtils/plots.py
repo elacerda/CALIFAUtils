@@ -3,20 +3,25 @@
 # Lacerda@Granada - 13/Oct/2014
 #
 import numpy as np
-import CALIFAUtils as C
 import matplotlib as mpl
 from scipy import stats as st
+from .scripts import debug_var
+from .scripts import ma_mask_xyz
 from matplotlib.pyplot import cm
-#from sklearn import linear_model
+from pytu.objects import runstats
+from .scripts import OLS_bisector
+from .scripts import read_one_cube
 from matplotlib import pyplot as plt
-from CALIFAUtils.objects import runstats
-from CALIFAUtils.scripts import OLS_bisector
+from .scripts import calc_running_stats
+from .objects import GasProp, H5SFRData
+from .scripts import find_confidence_interval
 from matplotlib.pyplot import MultipleLocator
-from CALIFAUtils.scripts import calc_running_stats
-from CALIFAUtils.scripts import find_confidence_interval
+
+
 
 def plot_histo_axis(ax, x, **kwargs):
     return plot_histo_ax(ax, x, kwargs)
+
 
 def plot_histo_ax(ax, x, **kwargs):
     first = kwargs.get('first', False)
@@ -271,7 +276,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         txt_y = r'$y_{OLS}$ = %.2f$x$ + %.2f %s' % (a, b, Yrms_str)
     else:
         txt_y = r'$y_{OLS}$ = %.2f$x$ - %.2f %s' % (a, b * -1., Yrms_str)
-    C.debug_var(True, y_OLS = txt_y)
+    debug_var(True, y_OLS = txt_y)
     if txt == True:
         txt_y = '%s (%.3f, %.3f, %.3f)' % (label, a, b, Yrms)
         plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, va, ha, color = color)
@@ -287,7 +292,7 @@ def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None, bins=[1,
     close = False
     if K is None:
         close = True
-        K = C.read_one_cube(gal)
+        K = read_one_cube(gal)
     pa, ba = K.getEllipseParams()
     DrawHLRCircleInSDSSImage(ax, K.HLR_pix, pa, ba, lw=1, bins=bins)
     if close:
@@ -516,7 +521,7 @@ def plotScatter(x, y, xlabel, ylabel, xlim, ylim, fname = 'PlotScatter.png',
 def ax_scatterXYrunstats(ax, x, y, **kwargs):
     from CALIFAUtils.objects import runstats
     mask = kwargs.get('mask', np.zeros_like(x, dtype = np.bool))
-    xm, ym = C.ma_mask_xyz(x, y, mask = mask)
+    xm, ym = ma_mask_xyz(x, y, mask = mask)
     rs_kwargs = dict(smooth = True, sigma = 1.2)
     rs_kwargs.update(kwargs.get('rs_kwargs', {}))
     rs = runstats(xm.compressed(), ym.compressed(), **rs_kwargs)
@@ -639,7 +644,7 @@ def add_subplot_axes(ax, rect, axisbg = 'w'):
 
 def plot_zbins(**kwargs):
     debug = kwargs.get('debug', False)
-    C.debug_var(debug, kwargs = kwargs)
+    debug_var(debug, kwargs = kwargs)
     ###### vars begin ######
     x = kwargs.get('x', None)
     xlabel = kwargs.get('xlabel', None)
@@ -670,10 +675,10 @@ def plot_zbins(**kwargs):
     if z is not None:
         if zmask == True:
             mask |= z.mask
-        xm, ym, zm = C.ma_mask_xyz(x = x, y = y, z = z, mask = mask)
+        xm, ym, zm = ma_mask_xyz(x = x, y = y, z = z, mask = mask)
         kwargs.update(dict(zm = zm))
     else:
-        xm, ym = C.ma_mask_xyz(x = x, y = y, z = None, mask = mask)
+        xm, ym = ma_mask_xyz(x = x, y = y, z = None, mask = mask)
     kwargs.update(dict(xm = xm, ym = ym))
     mask |= np.copy(xm.mask)
     kwargs_scatter = {}
@@ -696,8 +701,8 @@ def plot_zbins(**kwargs):
             zlim = np.percentile(zm.compressed(), zlimprc)
             kwargs_scatter.update(dict(vmin = zlim[0]))
             kwargs_scatter.update(dict(vmax = zlim[1]))
-        C.debug_var(debug, zlim = zlim)
-        C.debug_var(debug, zticks = zticks)
+        debug_var(debug, zlim = zlim)
+        debug_var(debug, zticks = zticks)
         norm = mpl.colors.Normalize(vmin = zlim[0], vmax = zlim[1])
         zcmap.set_norm(norm)
         kwargs_scatter.update(dict(norm = norm))
@@ -733,7 +738,7 @@ def plot_zbins(**kwargs):
         ylim = [ ym.min(), ym.max() ]
     ##### scatter #####
     kwargs_scatter.update(kwargs.get('kwargs_scatter', {}))
-    C.debug_var(debug, kwargs_scatter = kwargs_scatter)
+    debug_var(debug, kwargs_scatter = kwargs_scatter)
     sc = ax.scatter(xm, ym, **kwargs_scatter)
     kwargs.update(dict(sc = sc))
     zlabel = kwargs.get('zlabel', None)
@@ -746,7 +751,7 @@ def plot_zbins(**kwargs):
             if sc_cb_newaxis is not None:
                 kwargs_sc_cb.update(cax = f.add_axes(sc_cb_newaxis))
             kwargs_sc_cb.update(kwargs.get('kwargs_sc_cb', {}))
-            C.debug_var(debug, kwargs_sc_cb = kwargs_sc_cb)
+            debug_var(debug, kwargs_sc_cb = kwargs_sc_cb)
             cb = f.colorbar(sc, **kwargs_sc_cb)
             if zlabel is not None:
                 cb.set_label(zlabel)
@@ -758,24 +763,24 @@ def plot_zbins(**kwargs):
         kwargs_ols_plot = dict(ls = '--', lw = 1.5, label = 'OLS', c = 'k')
         kwargs_ols_plot.update(kwargs.get('kwargs_ols_plot', {}))
         kwargs_ols.update(dict(kwargs_plot = kwargs_ols_plot))
-        C.debug_var(debug, kwargs_ols = kwargs_ols)
+        debug_var(debug, kwargs_ols = kwargs_ols)
         a, b, sa, sb = plotOLSbisectorAxis(ax, xm, ym, **kwargs_ols)
         kwargs.update(dict(ols = [a, b, sa, sb]))
     if kwargs.get('running_stats', False) is not False:
         #nBox = len(xm.compressed()) / kwargs.get('rs_frac_box', 20.)
-        #C.debug_var(debug, nBox = nBox)
+        #debug_var(debug, nBox = nBox)
         #dxBox = (xm.max() - xm.min()) / (nBox - 1.)
         #kwargs_rs = dict(dxBox = dxBox, xbinIni = xm.min(), xbinFin = xm.max(), xbinStep = dxBox)
         kwargs_rs = {}
         kwargs_rs.update(kwargs.get('kwargs_rs', {}))
-        C.debug_var(debug, kwargs_rs = kwargs_rs)
+        debug_var(debug, kwargs_rs = kwargs_rs)
         rs = runstats(xm.compressed(), ym.compressed(), **kwargs_rs)
         kwargs['rs'] = rs
         #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(xm, ym, **kwargs_rs)
         kwargs_plot_rs = kwargs.get('kwargs_plot_rs', dict(c = 'k', lw = 2))
         if kwargs.get('rs_errorbar', False) is not False:
             kwargs_plot_rs.update(dict(xerr = rs.xStd, yerr = rs.yStd))
-        C.debug_var(debug, kwargs_plot_rs = kwargs_plot_rs)
+        debug_var(debug, kwargs_plot_rs = kwargs_plot_rs)
         rs_gs = kwargs.get('rs_gaussian_smooth', None)
         if rs_gs is None:
             plt.errorbar(rs.xMedian, rs.yMedian, **kwargs_plot_rs)
@@ -822,7 +827,7 @@ def plot_zbins(**kwargs):
             pos_y = kwargs_ols.get('pos_y', 0.) + 0.03
             kwargs_rs_ols = dict(pos_x = pos_x, pos_y = pos_y, fs = 10, c = 'k', rms = True, label = 'OLS(tend)', text = True)
             kwargs_rs_ols.update(kwargs.get('kwargs_rs_ols', {}))
-            C.debug_var(debug, kwargs_rs_ols = kwargs_rs_ols)
+            debug_var(debug, kwargs_rs_ols = kwargs_rs_ols)
             if rs_ols == 'median':
                 a, b, sa, sb = plotOLSbisectorAxis(ax, rs.xMedian, rs.yMedian, **kwargs_rs_ols)
             elif rs_ols == 'smoothed':
@@ -832,7 +837,7 @@ def plot_zbins(**kwargs):
             if isinstance(zbins, list):
                 ### XXX: TODO
                 zbinsrange = xrange(len(zbins))
-                C.debug_var(debug, zbins = zbins)
+                debug_var(debug, zbins = zbins)
                 zbins_mask = [ (zm > zbins[i - 1]) & (zm <= zbins[i]) for i in zbinsrange ]
                 zbins_mask[0] = (zm <= zbins[0])
                 if zbins_labels is None:
@@ -848,9 +853,9 @@ def plot_zbins(**kwargs):
                 center_nprc[0] = nprc[0] / 2.
                 zprc = np.percentile(zm.compressed(), nprc)
                 center_prc = [ np.percentile(zm.compressed(), center_nprc[i]) for i in zbinsrange ]
-                C.debug_var(debug, nprc = nprc)
-                C.debug_var(debug, zprc = zprc)
-                C.debug_var(debug, center_prc = center_prc)
+                debug_var(debug, nprc = nprc)
+                debug_var(debug, zprc = zprc)
+                debug_var(debug, center_prc = center_prc)
                 zbins_mask = [ (zm > zprc[i - 1]) & (zm <= zprc[i]) for i in zbinsrange ]
                 zbins_mask[0] = (zm <= zprc[0])
                 if zbins_labels is None:
@@ -871,8 +876,8 @@ def plot_zbins(**kwargs):
                 for i in listrange:
                     zmskmax = zmsk[i].max()
                     zmskmin = zmsk[i].min()
-                    C.debug_var(debug, zmskmax = zmskmax)
-                    C.debug_var(debug, zmskmin = zmskmin)
+                    debug_var(debug, zmskmax = zmskmax)
+                    debug_var(debug, zmskmin = zmskmin)
                     if zmskmin == zmskmax:
                         zbins_labels.append('%s = %.2f' % (zname, zmskmin))
                     else:
@@ -883,16 +888,16 @@ def plot_zbins(**kwargs):
                 for i in listrange:
                     zmskmax = zmsk[i].max()
                     zmskmin = zmsk[i].min()
-                    C.debug_var(debug, zmskmax = zmskmax)
-                    C.debug_var(debug, zmskmin = zmskmin)
+                    debug_var(debug, zmskmax = zmskmax)
+                    debug_var(debug, zmskmin = zmskmin)
                     if zmskmin == zmskmax:
                         zbins_colors.append(zcmap.to_rgba(zmskmax))
                     else:
                         zbins_colors.append(zcmap.to_rgba(0.5 * (zmskmax + zmskmin)))
                 kwargs.update(dict(zbins_colors = zbins_colors))
-        C.debug_var(debug, zbins_mask = zbins_mask)
-        C.debug_var(debug, zbins_colors = zbins_colors)
-        C.debug_var(debug, zbins_labels = zbins_labels)
+        debug_var(debug, zbins_mask = zbins_mask)
+        debug_var(debug, zbins_colors = zbins_colors)
+        debug_var(debug, zbins_labels = zbins_labels)
         for i, msk in enumerate(zbins_mask):
             y_pos = (0.03 * i) + 0.03
             tmp_mask = (xm[msk].mask | ym[msk].mask)
@@ -902,16 +907,16 @@ def plot_zbins(**kwargs):
             #Y = ym[msk]
             NX = X.count()
             NY = y.count()
-            C.debug_var(debug, bin = i)
-            C.debug_var(debug, N = (~(X.mask | Y.mask)).sum())
-            C.debug_var(debug, N_sanity = X.count())
+            debug_var(debug, bin = i)
+            debug_var(debug, N = (~(X.mask | Y.mask)).sum())
+            debug_var(debug, N_sanity = X.count())
             if NX > 3 and NY > 3:
                 nBox = len(xm.compressed()) / kwargs.get('zbins_rs_frac_box', 20.)
                 dxBox = (X.max() - X.min()) / (nBox - 1.)
                 #kwargs_zbins_rs = dict(dxBox = dxBox, xbinIni = X.min(), xbinFin = X.max(), xbinStep = dxBox)
                 kwargs_zbins_rs = {}
                 kwargs_zbins_rs.update(kwargs.get('kwargs_zbins_rs', dict(smooth = True, sigma = 1.2, overlap = 0.4, nBox = 30)))
-                C.debug_var(debug, kwargs_zbins_rs = kwargs_zbins_rs)
+                debug_var(debug, kwargs_zbins_rs = kwargs_zbins_rs)
                 rsbins = runstats(X.compressed(), Y.compressed(), **kwargs_zbins_rs)
                 #xbinCenter, xMedian, xMean, xStd, yMedian, yMean, yStd, nInBin, xPrc, yPrc = calc_running_stats(X, Y, **kwargs_zbins_rs)
                 zbins_rs_gs = kwargs.get('zbins_rs_gaussian_smooth', None)
@@ -927,21 +932,21 @@ def plot_zbins(**kwargs):
     update_tmp = dict(Rs = Rs, Pvals = Pvals)
     kwargs.update(update_tmp)
     if kwargs.get('spearmanr', None) is not None:
-        C.debug_var(debug, **update_tmp)
+        debug_var(debug, **update_tmp)
         txt = r'Rs %.4f' % Rs
         #fs = 20
         fs = 8
         plot_text_ax(ax, txt, 0.01, 0.99, fs , 'top', 'left', 'k')
-    C.debug_var(debug, xlim = xlim)
-    C.debug_var(debug, ylim = ylim)
+    debug_var(debug, xlim = xlim)
+    debug_var(debug, ylim = ylim)
     x_major_locator = kwargs.get('x_major_locator', (xlim[1] - xlim[0]) / 5.)
     x_minor_locator = kwargs.get('x_minor_locator', (xlim[1] - xlim[0]) / 25.)
     y_major_locator = kwargs.get('y_major_locator', (ylim[1] - ylim[0]) / 5.)
     y_minor_locator = kwargs.get('y_minor_locator', (ylim[1] - ylim[0]) / 25.)
-    C.debug_var(debug, x_major_locator = x_major_locator)
-    C.debug_var(debug, x_minor_locator = x_minor_locator)
-    C.debug_var(debug, y_major_locator = y_major_locator)
-    C.debug_var(debug, y_minor_locator = y_minor_locator)
+    debug_var(debug, x_major_locator = x_major_locator)
+    debug_var(debug, x_minor_locator = x_minor_locator)
+    debug_var(debug, y_major_locator = y_major_locator)
+    debug_var(debug, y_minor_locator = y_minor_locator)
     ax.xaxis.set_major_locator(MultipleLocator(x_major_locator))
     ax.xaxis.set_minor_locator(MultipleLocator(x_minor_locator))
     ax.yaxis.set_major_locator(MultipleLocator(y_major_locator))
@@ -954,11 +959,11 @@ def plot_zbins(**kwargs):
     if kwargs.get('legend', False) is True:
         kwargs_legend = dict(loc = 'upper left', fontsize = 8)
         kwargs_legend.update(kwargs.get('kwargs_legend', {}))
-        C.debug_var(debug, kwargs_legend = kwargs_legend)
+        debug_var(debug, kwargs_legend = kwargs_legend)
         ax.legend(**kwargs_legend)
     kwargs_suptitle = dict(fontsize = 10)
     kwargs_suptitle.update(kwargs.get('kwargs_suptitle', {}))
-    C.debug_var(debug, kwargs_suptitle = kwargs_suptitle)
+    debug_var(debug, kwargs_suptitle = kwargs_suptitle)
     if kwargs.get('title', None) is not None:
         title = kwargs.get('title', None)
         kwargs_title = kwargs.get('kwargs_title', dict(fontsize = 8))
@@ -966,7 +971,7 @@ def plot_zbins(**kwargs):
     if ax_kw is None:
         f.suptitle(kwargs.get('suptitle'), **kwargs_suptitle)
         filename = kwargs.get('filename')
-        C.debug_var(debug, filename = filename)
+        debug_var(debug, filename = filename)
         if filename is not None:
             f.savefig(filename)
         else:
@@ -979,7 +984,7 @@ if __name__ == '__main__':
     import sys
     from CALIFAUtils.plots import plot_zbins
     filename = '/Users/lacerda/dev/astro/EmissionLines/SFR_0.05_0.05_0.05_999.0_listOf300GalPrefixes.h5'
-    H = C.H5SFRData(filename)
+    H = H5SFRData(filename)
     iT = 11
     iU = -1
     tSF = H.tSF__T[iT]
@@ -990,7 +995,7 @@ if __name__ == '__main__':
     SigmaGas__g = k * H.tau_V__Tg[iT]
     f_gas__g = 1. / (1. + (H.McorSD__Tg[iT] / SigmaGas__g))
 
-    P = C.GasProp()
+    P = GasProp()
     tau_V_GP__g = np.ma.masked_where(P.CtoTau(H.chb_in__g) < H.xOkMin, P.CtoTau(H.chb_in__g), copy = True)
 
     Z = {

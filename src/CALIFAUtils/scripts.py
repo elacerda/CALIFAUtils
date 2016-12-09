@@ -5,10 +5,11 @@
 import sys
 import types
 import numpy as np
-import CALIFAUtils as C
+from .objects import GasProp
 from scipy.linalg import eigh
-from CALIFAUtils.lines import Lines
+from .objects import CALIFAPaths
 from CALIFAUtils import __path__
+
 
 def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
     mask__g = np.zeros_like(np.ma.log10(H.SFRSD_Ha__g * 1e6).mask, dtype=np.bool_)
@@ -23,12 +24,14 @@ def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
     #mask__g = np.bitwise_or(mask__g, np.less(H.EW_Ha__g, 3.))
     return mask__g
 
+
 def mask_radius_iT(iT, H, args, maskRadiusOk, gals_slice):
     mask__rg = np.zeros_like(maskRadiusOk, dtype=np.bool_)
     mask__rg[np.less(H.reply_arr_by_radius(H.ba_GAL__g), args.bamin)] = True
     mask__rg[~maskRadiusOk] = True
     mask__rg[~gals_slice] = True
     return mask__rg
+
 
 def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
     from CALIFAUtils.objects import tupperware_none
@@ -49,7 +52,7 @@ def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
         args.underS06 = kwargs.get('underS06', args.underS06)
         args.whanSF = kwargs.get('whanSF', args.whanSF)
         args.filter_residual = kwargs.get('filter_residual', args.filter_residual)
-        C.debug_var(debug, pref='create_masks_gal() >>>>', args=args)
+        debug_var(debug, pref='create_masks_gal() >>>>', args=args)
     #######################
     ### RESID.EML MASKS ###
     #######################
@@ -77,7 +80,7 @@ def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
                 snr = K.GP._dlcons[l]['SN']
             else:
                 pos, sigma, snr = 3.0, 3.0, args.minSNR
-                C.debug_var(debug, l=l)
+                debug_var(debug, l=l)
             if snr < args.minSNR:
                 snr = args.minSNR
             if l == '4861':
@@ -199,6 +202,7 @@ def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
             mask_popx__Tz, mask_tau_V__z, mask_residual__z, \
             mask_tau_V_neb__z, mask_tau_V_neb_err__z, mask_EW_Hb__z, mask_whan__z, mask_bpt__z, retmask_lines
 
+
 def PCA(arr, reduced=False, arrMean=False, arrStd=False, sort=True):
     '''
     ARR array must have shape (measurements, variables)
@@ -228,6 +232,7 @@ def PCA(arr, reduced=False, arrMean=False, arrStd=False, sort=True):
         eigValS__e = eigVal__e[S]
         eigVecS__ve = eigVec__ve[:, S]
     return diff__mv, arrMean__v, arrStd__v, covMat__vv, eigValS__e, eigVecS__ve
+
 
 def my_morf(morf_in=None, get_dict=False):
     mtype = {
@@ -260,6 +265,7 @@ def my_morf(morf_in=None, get_dict=False):
     else:
         return mtype[morf_in]
 
+
 def get_h5_data_masked(h5, prop_str, h5_root='', add_mask=None, **ma_kwargs):
     prop = h5['%sdata/%s' % (h5_root, prop_str)].value
     mask = h5['%smask/%s' % (h5_root, prop_str)].value
@@ -267,10 +273,11 @@ def get_h5_data_masked(h5, prop_str, h5_root='', add_mask=None, **ma_kwargs):
         mask = np.bitwise_or(mask, add_mask)
     return np.ma.masked_array(prop, mask, **ma_kwargs)
 
+
 def get_CALIFAID_by_NEDName(nedname):
     import atpy
     from califa import masterlist
-    t = atpy.Table(C.CALIFAPaths().get_masterlist_file(), type='califa_masterlist')
+    t = atpy.Table(CALIFAPaths().get_masterlist_file(), type='califa_masterlist')
     if isinstance(nedname, str):
         nedlist = [ nedname ]
     else:
@@ -288,10 +295,11 @@ def get_CALIFAID_by_NEDName(nedname):
     #t.close()
     return rval
 
+
 def get_NEDName_by_CALIFAID(califaID, work_dir=None):
     import atpy
     from califa import masterlist
-    t = atpy.Table(C.CALIFAPaths(work_dir=work_dir).get_masterlist_file(), type='califa_masterlist')
+    t = atpy.Table(CALIFAPaths(work_dir=work_dir).get_masterlist_file(), type='califa_masterlist')
     if isinstance(califaID, str):
         califalist = [ califaID ]
     else:
@@ -307,6 +315,7 @@ def get_NEDName_by_CALIFAID(califaID, work_dir=None):
     rval = np.copy(t['ned_name'][i_cal])
     #t.close()
     return rval
+
 
 def get_morfologia(galName, morph_file=None) :
     if morph_file == None:
@@ -341,8 +350,10 @@ def get_morfologia(galName, morph_file=None) :
 
     return tipos, tipo, tipo_m, tipo_p
 
+
 def find_confidence_interval(x, pdf, confidence_level):
     return pdf[pdf > x].sum() - confidence_level
+
 
 def ma_mask_xyz(x, y, z=None, mask=None):
     m = np.zeros_like(x, dtype=np.bool)
@@ -363,6 +374,7 @@ def ma_mask_xyz(x, y, z=None, mask=None):
             m |= np.copy(z.mask) | np.isnan(z)
         return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_), np.ma.masked_array(z, mask=m, dtype=np.float_)
     return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_)
+
 
 def calc_running_stats(x, y, **kwargs):
     '''
@@ -483,7 +495,7 @@ def calc_running_stats(x, y, **kwargs):
                 xPrc_out.append(np.asarray([0., 0., 0., 0.]))
                 yPrc_out.append(np.asarray([0., 0., 0., 0.]))
         ixBin += 1
-    C.debug_var(
+    debug_var(
         debug,
         xbinCenter_out = np.array(xbinCenter_out),
         xMedian_out = np.array(xMedian_out),
@@ -494,6 +506,7 @@ def calc_running_stats(x, y, **kwargs):
         np.array(xbinCenter_out), np.array(xMedian_out), np.array(xMean_out), np.array(xStd_out), \
         np.array(yMedian_out), np.array(yMean_out), np.array(yStd_out), np.array(nInBin_out), \
         np.array(xPrc_out).T, np.array(yPrc_out).T
+
 
 def gaussSmooth_YofX(x, y, FWHM):
     '''
@@ -515,6 +528,7 @@ def gaussSmooth_YofX(x, y, FWHM):
         yS[i] = (w__ij[i, :] * y).sum()
 
     return xS , yS
+
 
 def calcYofXStats_EqNumberBins(x, y, nPerBin=25):
     '''
@@ -541,6 +555,7 @@ def calcYofXStats_EqNumberBins(x, y, nPerBin=25):
         nInBin[ixBin] = len(xx)
     return xMedian, xMean, xStd, yMedian, yMean , yStd, nInBin
 
+
 def data_uniq(list_gal, data):
     list_uniq_gal = np.unique(list_gal)
     NGal = len(list_uniq_gal)
@@ -548,6 +563,7 @@ def data_uniq(list_gal, data):
     for i, g in enumerate(list_uniq_gal):
         data__g[i] = np.unique(data[np.where(list_gal == g)])
     return NGal, list_uniq_gal, data__g
+
 
 def OLS_bisector(x, y, **kwargs):
     xdev = x - x.mean()
@@ -582,20 +598,24 @@ def OLS_bisector(x, y, **kwargs):
     var_intercept *= ((ydev - b3 * xdev - n * x.mean() * (gamma13 / Sxx * xdev * (ydev - b1 * xdev) + gamma23 / Sxy * ydev * (ydev - b2 * xdev))) ** 2.0).sum()
     sigma_slope = var_slope ** 0.5
     sigma_intercept = var_intercept ** 0.5
-    C.debug_var(kwargs.get('debug', False),
+    debug_var(kwargs.get('debug', False),
                 slope = slope, intercept = intercept,
                 sigma_slope = sigma_slope, sigma_intercept = sigma_intercept)
     return slope, intercept, sigma_slope, sigma_intercept
 
+
 def get_HLR_pc(K, **kwargs):
     return K.HLR_pc
+
 
 def get_HMR_pc(K, **kwargs):
     HMR_pix = K.getHalfRadius(K.McorSD__yx)
     return HMR_pix * K.parsecPerPixel
 
+
 def get_McorSD_GAL(K, **kwargs):
     return K.McorSD__yx.mean()
+
 
 def read_gal_cubes(gal, **kwargs):
     from pycasso import fitsQ3DataCube
@@ -623,7 +643,7 @@ def read_gal_cubes(gal, **kwargs):
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
             emlines_cube_filename = '%s%s%s' % (eml_cube_dir, gal, eml_cube_suffix)
-            C.debug_var(debug, emlines=emlines_cube_filename)
+            debug_var(debug, emlines=emlines_cube_filename)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -632,9 +652,9 @@ def read_gal_cubes(gal, **kwargs):
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
             gasprop_cube_filename = '%s%s%s' % (gasprop_cube_dir, gal, gasprop_cube_suffix)
-            C.debug_var(debug, gasprop=gasprop_cube_filename)
+            debug_var(debug, gasprop=gasprop_cube_filename)
             try:
-                K.GP = C.GasProp(gasprop_cube_filename)
+                K.GP = GasProp(gasprop_cube_filename)
                 if verbose is not None:
                     print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
             except IOError:
@@ -643,17 +663,18 @@ def read_gal_cubes(gal, **kwargs):
         print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
     return K
 
+
 def read_one_cube(gal, **kwargs):
     from pycasso import fitsQ3DataCube
     EL = kwargs.get('EL', None)
     GP = kwargs.get('GP', None)
-    v_run = kwargs.get('v_run', -1)
+    config = kwargs.get('config', kwargs.get('v_run', -1))
     verbose = kwargs.get('verbose', None)
     debug = kwargs.get('debug', None)
     work_dir = kwargs.get('work_dir', None)
-    paths = C.CALIFAPaths(work_dir=work_dir, v_run=v_run)
+    paths = CALIFAPaths(work_dir=work_dir, config=config)
     pycasso_cube_filename = paths.get_pycasso_file(gal)
-    C.debug_var(debug, pycasso=pycasso_cube_filename)
+    debug_var(debug, pycasso=pycasso_cube_filename)
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
@@ -661,7 +682,7 @@ def read_one_cube(gal, **kwargs):
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if EL is True:
             emlines_cube_filename = paths.get_emlines_file(gal)
-            C.debug_var(debug, emlines=emlines_cube_filename)
+            debug_var(debug, emlines=emlines_cube_filename)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 if verbose is not None:
@@ -670,9 +691,9 @@ def read_one_cube(gal, **kwargs):
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
             gasprop_cube_filename = paths.get_gasprop_file(gal)
-            C.debug_var(debug, gasprop=gasprop_cube_filename)
+            debug_var(debug, gasprop=gasprop_cube_filename)
             try:
-                K.GP = C.GasProp(gasprop_cube_filename)
+                K.GP = GasProp(gasprop_cube_filename)
                 if verbose is not None:
                     print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
             except IOError:
@@ -682,6 +703,7 @@ def read_one_cube(gal, **kwargs):
     del paths
     return K
 
+
 def loop_cubes(gals, **kwargs):
     imax = kwargs.get('imax', None)
     if isinstance(gals, str):
@@ -690,6 +712,7 @@ def loop_cubes(gals, **kwargs):
         gals = gals.tolist()
     for g in gals[:imax]:
         yield gals.index(g), read_one_cube(g, **kwargs)
+
 
 def debug_var(turn_on=False, **kwargs):
     pref = kwargs.pop('pref', '>>>')
@@ -811,6 +834,7 @@ def sort_gals(gals, func=None, order=0, **kwargs):
     else:
         return sgals
 
+
 def create_dx(x):
     dx = np.empty_like(x)
     dx[1:] = (x[1:] - x[:-1]) / 2.   # dl/2 from right neighbor
@@ -819,6 +843,7 @@ def create_dx(x):
     dx[-1] = 2 * dx[-1]
     #dx[-1]      = x[-1]
     return dx
+
 
 def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8):
     '''
@@ -845,6 +870,7 @@ def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8):
 
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
+
 def linearInterpol(x1, x2, y1, y2, x):
     '''
     Let S be the matrix:
@@ -864,6 +890,7 @@ def linearInterpol(x1, x2, y1, y2, x):
         C = x1y2 - x2y1
     '''
     return (x2 * y1 - x1 * y2 - x * (y1 - y2)) / (x2 - x1)
+
 
 def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum=6562.8):
     '''
@@ -890,6 +917,7 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum=6562.8):
 
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
+
 def radialProfileWeighted(v__yx, w__yx, **kwargs):
     r_func = kwargs.get('r_func', None)
     rad_scale = kwargs.get('rad_scale', None)
@@ -904,12 +932,14 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
     return v__r
 
+
 def prop_Y(prop, tY, age_base):
     # prop must have dimension __tZz
     _, aLow__t, aUpp__t, indY = calc_agebins(age_base, tY)
     aux1__z = prop[:indY, :, :].sum(axis=1).sum(axis=0)
     aux2__z = prop[indY, :, :].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
     return (aux1__z + aux2__z)
+
 
 def integrated_prop_Y(prop, tY, age_base):
     # prop must have dimension __tZ
@@ -918,12 +948,14 @@ def integrated_prop_Y(prop, tY, age_base):
     aux2__z = prop[indY, :].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
     return (aux1__z + aux2__z)
 
+
 def calc_xY(K, tY):
     # Compute xY__z
     x__tZz = K.popx / K.popx.sum(axis=1).sum(axis=0)
     integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
     ageBase = K.ageBase
     return prop_Y(x__tZz, tY, ageBase), integrated_prop_Y(integrated_x__tZ, tY, ageBase)
+
 
 def calc_xO(K, tO):
     _, aLow__t, aUpp__t, indO = calc_agebins(K.ageBase, tO)
@@ -935,8 +967,9 @@ def calc_xO(K, tO):
     integrated_aux2 = integrated_x__tZ[indO, :].sum(axis=0) * (aUpp__t[indO] - tO) / (aUpp__t[indO] - aLow__t[indO])
     return (aux1__z + aux2__z), (integrated_aux1 + integrated_aux2)
 
+
 def calc_SFR(K, tSF):
-    '''
+    """
     Add up (in Mini and x) populations younger than tSF to compute SFR's and xY.
     First for zones (__z), and then images (__yx).
 
@@ -951,7 +984,7 @@ def calc_SFR(K, tSF):
     OBS: Note that we are NOT dezonifying SFR__z. (Among other reasons, it'll be compared to the un-dezonifiable tauV!)
 
     Cid@IAA - 27/Jan/2015
-    '''
+    """
     _, aLow__t, aUpp__t, indSF = calc_agebins(K.ageBase, tSF)
 
     # Compute SFR__z
@@ -965,10 +998,11 @@ def calc_SFR(K, tSF):
 
     return SFR__z, SFRSD__z
 
+
 def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
-#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    # flag__t, Rbin__r, weiRadProf = False, xOkMin = 0.10):
+    #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     '''
     Compute average logZ (alogZ_*) both for each zone (*__z) and the galaxy-wide
     average (*_GAL, computed a la GD14).
@@ -1082,6 +1116,7 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
            isOkFrac_GAL, alogZ_mass_oneHLR, alogZ_flux_oneHLR
 
+
 def calc_agebins(ages, age=None):
     # Define ranges for age-bins
     # ToDo: This age-bin-edges thing could be made more elegant & general.
@@ -1098,10 +1133,12 @@ def calc_agebins(ages, age=None):
         age_index = np.where(aLow__t < age)[0][-1]
     return aCen__t, aLow__t, aUpp__t, age_index
 
+
 def redshift_dist_Mpc(z, H0):
     from pystarlight.util.constants import c # m/s
     c /= 1e5
     return  z * c / H0
+
 
 def spaxel_size_pc(z, H0):
     arc2rad = 0.0000048481368111
