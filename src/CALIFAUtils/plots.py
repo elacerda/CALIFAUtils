@@ -4,6 +4,7 @@
 #
 import numpy as np
 import matplotlib as mpl
+from .objects import GasProp
 from scipy import stats as st
 from .scripts import debug_var
 from .scripts import ma_mask_xyz
@@ -13,7 +14,6 @@ from .scripts import OLS_bisector
 from .scripts import read_one_cube
 from matplotlib import pyplot as plt
 from .scripts import calc_running_stats
-from .objects import GasProp, H5SFRData
 from .scripts import find_confidence_interval
 from matplotlib.pyplot import MultipleLocator
 

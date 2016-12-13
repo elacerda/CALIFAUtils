@@ -355,7 +355,7 @@ def find_confidence_interval(x, pdf, confidence_level):
     return pdf[pdf > x].sum() - confidence_level
 
 
-def ma_mask_xyz(x, y, z=None, mask=None):
+def ma_mask_xyz(x, y, z=None, mask=None, copy=True):
     m = np.zeros_like(x, dtype=np.bool)
     m |= np.isnan(x)
     m |= np.isnan(y)
@@ -366,14 +366,14 @@ def ma_mask_xyz(x, y, z=None, mask=None):
     if isinstance(y, np.ma.core.MaskedArray):
         m |= np.bitwise_or(y.mask, np.isnan(y))
     if mask is not None:
-         m |= mask
+        m |= mask
     if z is not None:
         m |= np.isnan(z)
         m |= np.isinf(z)
         if isinstance(z, np.ma.core.MaskedArray):
             m |= np.copy(z.mask) | np.isnan(z)
-        return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_), np.ma.masked_array(z, mask=m, dtype=np.float_)
-    return np.ma.masked_array(x, mask=m, dtype=np.float_), np.ma.masked_array(y, mask=m, dtype=np.float_)
+        return np.ma.masked_array(x, mask=m, dtype=np.float_, copy=copy), np.ma.masked_array(y, mask=m, dtype=np.float_, copy=copy), np.ma.masked_array(z, mask=m, dtype=np.float_, copy=copy)
+    return np.ma.masked_array(x, mask=m, dtype=np.float_, copy=copy), np.ma.masked_array(y, mask=m, dtype=np.float_, copy=copy)
 
 
 def calc_running_stats(x, y, **kwargs):
@@ -1137,11 +1137,15 @@ def calc_agebins(ages, age=None):
 
 
 def redshift_dist_Mpc(z, H0):
-    from pystarlight.util.constants import c # m/s
+    from pystarlight.util.constants import c  # m/s
     c /= 1e5
-    return  z * c / H0
+    return z * c / H0
 
 
-def spaxel_size_pc(z, H0):
+def spaxel_size_pc(dist_Mpc):
     arc2rad = 0.0000048481368111
-    return arc2rad * redshift_dist_Mpc(z, H0) * 1e6
+    return arc2rad * dist_Mpc * 1e6
+
+
+def spaxel_size_pc_hubblelaw(z, H0):
+    return spaxel_size_pc(redshift_dist_Mpc(z, H0))
