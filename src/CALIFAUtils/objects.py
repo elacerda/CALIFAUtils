@@ -104,7 +104,7 @@ class CALIFAPaths(object):
         self._config_run()
 
     def get_masterlist_file(self):
-        return '%s/%s' % (self.califa_work_dir + self._masterlist_file)
+        return '%s/%s' % (self.califa_work_dir, self._masterlist_file)
 
     def get_config(self):
         config = self._config[self.config]
