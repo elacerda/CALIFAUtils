@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import cPickle
 import pyfits
 import h5py
 import os
@@ -103,7 +104,7 @@ class CALIFAPaths(object):
         self._config_run()
 
     def get_masterlist_file(self):
-        return self.califa_work_dir + self._masterlist_file
+        return '%s/%s' % (self.califa_work_dir + self._masterlist_file)
 
     def get_config(self):
         config = self._config[self.config]
@@ -141,11 +142,44 @@ class tupperware(object):
 
 
 class stack_gals(object):
-    def __init__(self):
+    def __init__(self, keys1d=None, keys1d_masked=None, keys2d=None, keys2d_masked=None):
         self.keys1d = []
         self.keys1d_masked = []
         self.keys2d = []
         self.keys2d_masked = []
+        if keys1d is not None:
+            self.addkeys1d(keys1d)
+        if keys1d_masked is not None:
+            self.addkeys1d_masked(keys1d_masked)
+        if keys2d is not None:
+            self.addkeys2d(keys2d)
+        if keys2d_masked is not None:
+            self.addkeys2d_masked(keys2d_masked)
+        pass
+
+    def load(self, filename=None):
+        with open(filename, 'r') as f:
+            return cPickle.load(f)
+
+    def addkeys1d(self, keys):
+        for k in keys:
+            self.new1d(k)
+            self.keys1d.append(k)
+
+    def addkeys1d_masked(self, keys):
+        for k in keys:
+            self.new1d_masked(k)
+            self.keys1d_masked.append(k)
+
+    def addkeys2d(self, keys):
+        for k in keys:
+            self.new2d(k)
+            self.keys2d.append(k)
+
+    def addkeys2d_masked(self, keys):
+        for k in keys:
+            self.new2d_masked(k)
+            self.keys2d_masked.append(k)
 
     def new1d(self, k):
         self.keys1d.append(k)
@@ -156,12 +190,14 @@ class stack_gals(object):
         setattr(self, '_%s' % k, [])
         setattr(self, '_mask_%s' % k, [])
 
-    def new2d(self, k, N):
+    def new2d(self, kN):
+        k, N = kN
         self.keys2d.append(k)
         setattr(self, '_N_%s' % k, N)
         setattr(self, '_%s' % k, [[] for _ in xrange(N)])
 
-    def new2d_masked(self, k, N):
+    def new2d_masked(self, kN):
+        k, N = kN
         self.keys2d_masked.append(k)
         setattr(self, '_N_%s' % k, N)
         setattr(self, '_%s' % k, [[] for _ in xrange(N)])
@@ -214,7 +250,7 @@ class stack_gals(object):
         for k in self.keys1d_masked:
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
-            setattr(self, k, np.ma.masked_array(attr, mask=mask, dtype=attr.dtype))
+            setattr(self, k, np.ma.masked_array(attr, mask=mask, dtype=attr.dtype, copy=True))
 
     def _stack2d(self):
         for k in self.keys2d:
@@ -227,7 +263,38 @@ class stack_gals(object):
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
             mask = getattr(self, '_mask_%s' % k)
-            setattr(self, k, np.ma.asarray([np.ma.masked_array(np.hstack(attr[i]), mask=np.hstack(mask[i]), dtype=attr.dtype) for i in xrange(N)]))
+            setattr(self, k, np.ma.asarray([np.ma.masked_array(np.hstack(attr[i]), mask=np.hstack(mask[i]), dtype=attr.dtype, copy=True) for i in xrange(N)]))
+
+    def dump(self, filename):
+        with open(filename, 'w') as f:
+            cPickle.dump(self, f, cPickle.HIGHEST_PROTOCOL)
+
+    def get_gal_prop(self, gal='K0001', prop_in=None):
+        if isinstance(prop_in, np.ndarray):
+            prop = prop_in
+            prop_N = prop.shape[-1]
+            N_pixel = self.califaID__yx.shape[0]
+            if prop_N == N_pixel:
+                gals = self.califaID__yx
+            else:
+                gals = self.califaID__z
+        else:
+            prop = getattr(self, prop_in)
+            if prop_in.endswith('yx'):
+                gals = self.califaID__yx
+            else:
+                gals = self.califaID__z
+        return prop[np.where(gals == gal)]
+
+    def get_gal_prop_unique(self, gal='K0001', prop_in=None):
+        if isinstance(prop_in, np.ndarray):
+            prop = prop_in
+        else:
+            prop = getattr(self, prop_in)
+        gals = getattr(self, 'califaID__z')
+        _, ind = np.unique(gals, return_index=True)
+        gals_inorder = gals[sorted(ind)]
+        return prop[np.where(gals_inorder == gal)][0]
 
 
 class GasProp(object):

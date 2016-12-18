@@ -2,6 +2,7 @@
 #
 # Lacerda@Granada - 29/Jan/2015
 #
+import os
 import sys
 import types
 import numpy as np
@@ -9,6 +10,44 @@ from .objects import GasProp
 from scipy.linalg import eigh
 from .objects import CALIFAPaths
 from CALIFAUtils import __path__
+
+
+# Trying to correctly load q055 cubes inside q054 directory
+def try_q055_instead_q054(califaID, **kwargs):
+    from pycasso import fitsQ3DataCube
+    config = kwargs.get('config', -1)
+    EL = kwargs.get('EL', False)
+    GP = kwargs.get('GP', False)
+    elliptical = kwargs.get('elliptical', False)
+    K = None
+    P = CALIFAPaths()
+    P.set_config(config)
+    pycasso_file = P.get_pycasso_file(califaID)
+    if not os.path.isfile(pycasso_file):
+        P.pycasso_suffix = P.pycasso_suffix.replace('q054', 'q055')
+        pycasso_file = P.get_pycasso_file(califaID)
+        print pycasso_file
+        if os.path.isfile(pycasso_file):
+            K = fitsQ3DataCube(P.get_pycasso_file(califaID))
+            if elliptical:
+                K.setGeometry(*K.getEllipseParams())
+            if EL:
+                emlines_file = P.get_emlines_file(califaID)
+                if not os.path.isfile(emlines_file):
+                    P.emlines_suffix = P.emlines_suffix.replace('q054', 'q055')
+                    emlines_file = P.get_emlines_file(califaID)
+                    print emlines_file
+                    if os.path.isfile(emlines_file):
+                        K.loadEmLinesDataCube(emlines_file)
+            if GP:
+                gasprop_file = P.get_gasprop_file(califaID)
+                if not os.path.isfile(gasprop_file):
+                    P.gasprop_suffix = P.gasprop_suffix.replace('q054', 'q055')
+                    gasprop_file = P.get_gasprop_file(califaID)
+                    print gasprop_file
+                    if os.path.isfile(gasprop_file):
+                        K.GP = GasProp(gasprop_file)
+    return K
 
 
 def mask_zones_iT(iT, H, args, maskRadiusOk, gals_slice):
@@ -617,53 +656,6 @@ def get_McorSD_GAL(K, **kwargs):
     return K.McorSD__yx.mean()
 
 
-def read_gal_cubes(gal, **kwargs):
-    from pycasso import fitsQ3DataCube
-    verbose = kwargs.get('verbose', None)
-    debug = kwargs.get('debug', None)
-    pycasso_cube_dir = kwargs.get('pycasso_cube_dir', None)
-    pycasso_cube_suffix = kwargs.get('pycasso_cube_suffix', None)
-    eml_cube_dir = kwargs.get('eml_cube_dir', None)
-    EL = (eml_cube_dir is not None)
-    eml_cube_suffix = kwargs.get('eml_cube_suffix', None)
-    gasprop_cube_dir = kwargs.get('gasprop_cube_dir', None)
-    GP = (gasprop_cube_dir is not None)
-    gasprop_cube_suffix = kwargs.get('gasprop_cube_suffix', None)
-    if pycasso_cube_dir[-1] != '/':
-        pycasso_cube_dir += '/'
-    if (EL is not None) and (eml_cube_dir[-1] != '/'):
-        eml_cube_dir += '/'
-    if (GP is not None) and (gasprop_cube_dir[-1] != '/'):
-        gasprop_cube_dir += '/'
-    pycasso_cube_filename = '%s%s%s' % (pycasso_cube_dir, gal, pycasso_cube_suffix)
-    K = None
-    try:
-        K = fitsQ3DataCube(pycasso_cube_filename)
-        if verbose is not None:
-            print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
-        if EL is True:
-            emlines_cube_filename = '%s%s%s' % (eml_cube_dir, gal, eml_cube_suffix)
-            debug_var(debug, emlines=emlines_cube_filename)
-            try:
-                K.loadEmLinesDataCube(emlines_cube_filename)
-                if verbose is not None:
-                    print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
-            except IOError:
-                print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
-        if GP is True:
-            gasprop_cube_filename = '%s%s%s' % (gasprop_cube_dir, gal, gasprop_cube_suffix)
-            debug_var(debug, gasprop=gasprop_cube_filename)
-            try:
-                K.GP = GasProp(gasprop_cube_filename)
-                if verbose is not None:
-                    print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
-            except IOError:
-                print >> sys.stderr, 'GP: File does not exists: %s' % gasprop_cube_filename
-    except IOError:
-        print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
-    return K
-
-
 def read_one_cube(gal, **kwargs):
     from pycasso import fitsQ3DataCube
     EL = kwargs.get('EL', None)
@@ -936,11 +928,11 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
 
 
 def prop_Y(prop, tY, age_base):
-    # prop must have dimension __tZz
+    # prop must have dimension __tZz or __tZyx
     _, aLow__t, aUpp__t, indY = calc_agebins(age_base, tY)
-    aux1__z = prop[:indY, :, :].sum(axis=1).sum(axis=0)
-    aux2__z = prop[indY, :, :].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
-    return (aux1__z + aux2__z)
+    aux1 = prop[:indY, ...].sum(axis=1).sum(axis=0)
+    aux2 = prop[indY, ...].sum(axis=0) * (tY - aLow__t[indY]) / (aUpp__t[indY] - aLow__t[indY])
+    return (aux1 + aux2)
 
 
 def integrated_prop_Y(prop, tY, age_base):
@@ -951,12 +943,16 @@ def integrated_prop_Y(prop, tY, age_base):
     return (aux1__z + aux2__z)
 
 
-def calc_xY(K, tY):
-    # Compute xY__z
-    x__tZz = K.popx / K.popx.sum(axis=1).sum(axis=0)
-    integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
-    ageBase = K.ageBase
-    return prop_Y(x__tZz, tY, ageBase), integrated_prop_Y(integrated_x__tZ, tY, ageBase)
+def calc_xY(K=None, tY=32e6, popx=None, ageBase=None):
+    integrated_x_Y = None
+    if K is not None:
+        popx = K.popx
+        ageBase = K.ageBase
+        integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
+        integrated_x_Y = integrated_prop_Y(integrated_x__tZ, tY, ageBase)
+    # Compute xY
+    x__tZdim = popx / popx.sum(axis=1).sum(axis=0)
+    return prop_Y(x__tZdim, tY, ageBase), integrated_x_Y
 
 
 def calc_xO(K, tO):

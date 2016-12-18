@@ -69,9 +69,9 @@ def plotPercentilesAxis(ax, x, y, **kwargs):
     ax.plot(x, np.percentile(y, 95), **kwargs)
 
 
-def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5, bins=[1, 2]):
+def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color='white', lw=1.5, bins=[1, 2]):
     from matplotlib.patches import Ellipse
-    center = np.array([ 256 , 256])
+    center = np.array([256, 256])
     a = HLR_pix * 512.0 / 75.0
     b_a = ba
     theta = pa * 180 / np.pi
@@ -88,14 +88,19 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color = 'white', lw = 1.5, bin
     # ax.add_artist(e2)
 
 
-def DrawHLRCircle(ax, K, color = 'white', lw = 1.5, bins=[1, 2]):
+def DrawHLRCircle(ax, K=None, color='white', lw=1.5, bins=[1, 2], a=None, pa=None, ba=None, x0=0, y0=0):
     from matplotlib.patches import Ellipse
-    center = np.array([K.x0, K.y0])
-    a = K.HLR_pix
-    b_a = K.ba
-    theta = K.pa * 180 / np.pi
+    center = np.array([x0, y0])
+    if K is not None:
+        x0 = K.x0
+        y0 = K.y0
+        pa = K.pa
+        a = K.HLR_pix
+        ba = K.ba
+    center = np.array([x0, y0])
+    theta = pa * 180 / np.pi
     for bin in bins:
-        height = bin * 2. * a * b_a
+        height = bin * 2. * a * ba
         width = bin * 2. * a
         e = Ellipse(center, height=height, width=width, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
         ax.add_artist(e)
