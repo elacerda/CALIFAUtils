@@ -21,7 +21,8 @@ class CALIFAPaths(object):
     ]
     _spacialSampling = [
         'v20',
-        'pix'
+        'pix',
+        'px1'
     ]
     _qVersion = [
         'q036',
@@ -32,7 +33,8 @@ class CALIFAPaths(object):
         'q051',
         'q053',
         'q054',
-        'q055'
+        'q055',
+        'q057'
     ]
     _dVersion = [
         'd13c',
@@ -65,6 +67,14 @@ class CALIFAPaths(object):
             0,
             _bases.index('Bgstf6e')
         ],
+        [
+            _superfits_dir.index('superfits'),
+            _spacialSampling.index('px1'),
+            _qVersion.index('q057'),
+            _dVersion.index('d22a'),
+            0,
+            _bases.index('Bgstf6e')
+        ],
     ]
     _masterlist_file = 'califa_master_list_rgb.txt'
 
@@ -86,9 +96,18 @@ class CALIFAPaths(object):
         tmp_suffix = '_synthesis_eBR_'
         tmp_suffix += config['spacialSampling'] + '_' + config['qVersion'] + '.' + config['dVersion']
         tmp_suffix += config['othSuffix'] + config['base']
-        self.pycasso_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/' + config['superfits_dir'] + '/' + config['base'] + '/'
-        self.emlines_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/EML/' + config['base'] + '/'
-        self.gasprop_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + '/EML/' + config['base'] + '/prop/'
+
+        superfits_dir = '/' + config['superfits_dir'] + '/'
+        eml_dir = '/EML/'
+        if config['spacialSampling'] == 'px1':
+            superfits_dir += config['spacialSampling']
+            eml_dir += config['spacialSampling']
+        superfits_dir += config['base']
+        eml_dir += config['base']
+
+        self.pycasso_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + superfits_dir + '/'
+        self.emlines_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + eml_dir + '/'
+        self.gasprop_cube_dir = self.califa_work_dir + '/legacy/' + config['qVersion'] + eml_dir + '/prop/'
         self.pycasso_suffix = tmp_suffix + '.fits'
         self.emlines_suffix = tmp_suffix + '.EML.MC100.fits'
         self.gasprop_suffix = tmp_suffix + '.EML.MC100.GasProp.fits'
