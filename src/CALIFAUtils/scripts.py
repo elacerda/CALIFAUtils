@@ -8,8 +8,70 @@ import types
 import numpy as np
 from .objects import GasProp
 from scipy.linalg import eigh
-from .objects import CALIFAPaths
+from .objects import CALIFAPaths, tupperware_none
 from CALIFAUtils import __path__
+
+
+def stack_spectra(K, sel, v_0=None, segmap__yx=None):
+    '''
+        XXX TODO:
+        This function receive a pycasso fitsQ3DataCube (K).
+    '''
+    if segmap__yx is not None:
+        '''
+        Good to remember that if segmap is not None sel_zones is not but an array
+        with the zones index. Otherwise sel_zones can be a boolean array with
+        K.N_zone length marking True for each zone inside stack.
+        '''
+        sel = K.qZones[segmap__yx]
+    wl_of = K.l_obs
+    N = sel.astype('int').sum()
+    O_of__lz = K.f_obs[:, sel]
+    M_of__lz = K.f_syn[:, sel]
+    err_of__lz = K.f_err[:, sel]
+    b_of__lz = K.f_flag[:, sel]
+    v_0__z = v_0
+    if v_0 is None:
+        v_0__z = K.v_0[sel]
+    bindata = tupperware_none()
+    bindata.O_rf__lz = np.zeros((K.Nl_obs, N), dtype='float')
+    bindata.M_rf__lz = np.zeros((K.Nl_obs, N), dtype='float')
+    bindata.err_rf__lz = np.zeros((K.Nl_obs, N), dtype='float')
+    bindata.b_rf__lz = np.zeros((K.Nl_obs, N), dtype='float')
+    for iz in range(N):
+        #  bring all spectra local rest-frame
+        R, bindata.O_rf__lz[:, iz] = doppler_resample_spec(wl_of, v_0__z[iz], O_of__lz[:, iz])
+        _, bindata.M_rf__lz[:, iz] = doppler_resample_spec(wl_of, v_0__z[iz], M_of__lz[:, iz], R)
+        _, bindata.err_rf__lz[:, iz] = doppler_resample_spec(wl_of, v_0__z[iz], err_of__lz[:, iz], R)
+        _, bindata.b_rf__lz[:, iz] = doppler_resample_spec(wl_of, v_0__z[iz], b_of__lz[:, iz], R)
+    # set the data to store
+    # creating badpixels flag
+    b_tmp = np.where(bindata.b_rf__lz == 0., 0., 1.)
+    bad_ratio = b_tmp.sum(axis=1)/(1.*N)
+    flag_factor = np.where(bad_ratio == 1., 0., 1./(1.-bad_ratio))
+    b_rf__l = bindata.b_rf__lz.sum(axis=1)
+    bad_ratio__l = bad_ratio
+    # improved sum of values for each lambda in this bin
+    fmasktmp__l = np.ma.masked_array(bindata.O_rf__lz, mask=b_tmp.astype('bool')).sum(axis=1)
+    fsumok__l = np.where(np.ma.is_mask(fmasktmp__l), 0., fmasktmp__l * flag_factor)
+    O_rf__l = fsumok__l
+    M_rf__l = bindata.M_rf__lz.sum(axis=1)
+    # squareroot of the sum of squares
+    ferrmasktmp__l = np.square(np.ma.masked_array(bindata.err_rf__lz, mask=b_tmp.astype('bool'))).sum(axis=1)
+    ferrsumok__l = np.where(np.ma.is_mask(ferrmasktmp__l), 0., ferrmasktmp__l * flag_factor)
+    err_rf__l = ferrsumok__l ** 0.5
+    return O_rf__l, M_rf__l, err_rf__l, b_rf__l, bad_ratio__l, bindata
+
+
+def doppler_resample_spec(lorig, v_0, Fobs__l, R=None):
+    from astropy import constants as const
+    from pystarlight.util.StarlightUtils import ReSamplingMatrixNonUniform
+    # doppler factor to correct wavelength
+    dopp_fact = (1.0 + v_0 / const.c.to('km/s').value)
+    # resample matrix
+    if R is None:
+        R = ReSamplingMatrixNonUniform(lorig=lorig / dopp_fact, lresam=lorig)
+    return R, np.tensordot(R, Fobs__l * dopp_fact, (1, 0))
 
 
 # Trying to correctly load q055 cubes inside q054 directory
@@ -657,6 +719,7 @@ def get_McorSD_GAL(K, **kwargs):
 
 
 def read_one_cube(gal, **kwargs):
+    print kwargs
     from pycasso import fitsQ3DataCube
     EL = kwargs.get('EL', None)
     GP = kwargs.get('GP', None)
@@ -667,20 +730,29 @@ def read_one_cube(gal, **kwargs):
     paths = CALIFAPaths(work_dir=work_dir, config=config)
     pycasso_cube_filename = paths.get_pycasso_file(gal)
     debug_var(debug, pycasso=pycasso_cube_filename)
+    elliptical = kwargs.get('elliptical', False)
     K = None
     try:
         K = fitsQ3DataCube(pycasso_cube_filename)
+        K._fits_filename = pycasso_cube_filename
+        if elliptical:
+            pa, ba = K.getEllipseParams()
+            print K.pa, K.ba, pa, ba
+            K.setGeometry(*K.getEllipseParams())
+            print K.pa, K.ba        
         if verbose is not None:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
-        if EL is True:
-            emlines_cube_filename = paths.get_emlines_file(gal)
+        if not isinstance(EL, type(None)):
+            if EL is True:
+                emlines_cube_filename = paths.get_emlines_file(gal)
+            else:
+                emlines_cube_filename = EL
             debug_var(debug, emlines=emlines_cube_filename)
             try:
                 K.loadEmLinesDataCube(emlines_cube_filename)
+                K.EL._fits_filename = emlines_cube_filename
                 if verbose is not None:
                     print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
-                if kwargs.get('elliptical', False) is True:
-                    K.setGeometry(*K.getEllipseParams())
             except IOError:
                 print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
         if GP is True:
@@ -688,6 +760,7 @@ def read_one_cube(gal, **kwargs):
             debug_var(debug, gasprop=gasprop_cube_filename)
             try:
                 K.GP = GasProp(gasprop_cube_filename)
+                K.GP._fits_filename = gasprop_cube_filename
                 if verbose is not None:
                     print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
             except IOError:
@@ -1138,9 +1211,9 @@ def redshift_dist_Mpc(z, H0):
     return z * c / H0
 
 
-def spaxel_size_pc(dist_Mpc):
-    arc2rad = 0.0000048481368111
-    return arc2rad * dist_Mpc * 1e6
+def spaxel_size_pc(dist_Mpc, arcsec=1):
+    arc2rad = 4.84814e-6
+    return arcsec * arc2rad * dist_Mpc * 1e6
 
 
 def spaxel_size_pc_hubblelaw(z, H0):

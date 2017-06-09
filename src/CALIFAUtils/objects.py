@@ -183,22 +183,25 @@ class stack_gals(object):
     def addkeys1d(self, keys):
         for k in keys:
             self.new1d(k)
-            self.keys1d.append(k)
+            # self.keys1d.append(k)
 
     def addkeys1d_masked(self, keys):
         for k in keys:
             self.new1d_masked(k)
-            self.keys1d_masked.append(k)
+            # self.keys1d_masked.append(k)
 
     def addkeys2d(self, keys):
-        for k in keys:
-            self.new2d(k)
-            self.keys2d.append(k)
+        print keys
+        for kN in keys:
+            k, N = kN
+            self.new2d(k, N)
+            # self.keys2d.append(k)
 
     def addkeys2d_masked(self, keys):
-        for k in keys:
-            self.new2d_masked(k)
-            self.keys2d_masked.append(k)
+        for kN in keys:
+            k, N = kN
+            self.new2d_masked(k, N)
+            # self.keys2d_masked.append(k)
 
     def new1d(self, k):
         self.keys1d.append(k)
@@ -209,14 +212,12 @@ class stack_gals(object):
         setattr(self, '_%s' % k, [])
         setattr(self, '_mask_%s' % k, [])
 
-    def new2d(self, kN):
-        k, N = kN
+    def new2d(self, k, N):
         self.keys2d.append(k)
         setattr(self, '_N_%s' % k, N)
         setattr(self, '_%s' % k, [[] for _ in xrange(N)])
 
-    def new2d_masked(self, kN):
-        k, N = kN
+    def new2d_masked(self, k, N):
         self.keys2d_masked.append(k)
         setattr(self, '_N_%s' % k, N)
         setattr(self, '_%s' % k, [[] for _ in xrange(N)])
@@ -252,37 +253,49 @@ class stack_gals(object):
 
     def stack(self):
         if len(self.keys1d) > 0:
+            print 'keys1d'
             self._stack1d()
         if len(self.keys1d_masked) > 0:
+            print 'keys1d_masked'
             self._stack1d_masked()
         if len(self.keys2d) > 0:
+            print 'keys2d'
             self._stack2d()
         if len(self.keys2d_masked) > 0:
+            print 'keys2d_masked'
             self._stack2d_masked()
 
     def _stack1d(self):
         for k in self.keys1d:
             attr = np.hstack(getattr(self, '_%s' % k))
+            print k, attr, attr.dtype
             setattr(self, k, np.array(attr, dtype=attr.dtype))
 
     def _stack1d_masked(self):
         for k in self.keys1d_masked:
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
-            setattr(self, k, np.ma.masked_array(attr, mask=mask, dtype=attr.dtype, copy=True))
+            new_attr = np.ma.masked_array(attr, mask=mask, dtype=attr.dtype, copy=True)
+            # print k, len(attr), mask.sum(), new_attr.count(), new_attr
+            setattr(self, k, new_attr)
 
     def _stack2d(self):
         for k in self.keys2d:
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
-            setattr(self, k, np.asarray([np.array(np.hstack(attr[i]), dtype=attr.dtype) for i in xrange(N)]))
+            setattr(self, k, np.asarray([np.array(np.hstack(attr[i]), dtype=np.hstack(attr[i]).dtype) for i in xrange(N)]))
 
     def _stack2d_masked(self):
         for k in self.keys2d_masked:
             N = getattr(self, '_N_%s' % k)
             attr = getattr(self, '_%s' % k)
             mask = getattr(self, '_mask_%s' % k)
-            setattr(self, k, np.ma.asarray([np.ma.masked_array(np.hstack(attr[i]), mask=np.hstack(mask[i]), dtype=attr.dtype, copy=True) for i in xrange(N)]))
+            list__N = []
+            for i in xrange(N):
+                attr_stacked = np.hstack(attr[i])
+                mask_stacked = np.hstack(mask[i])
+                list__N.append(np.ma.masked_array(attr_stacked, mask=mask_stacked, dtype=np.hstack(attr[i]).dtype, copy=True))
+            setattr(self, k, np.ma.asarray(list__N))
 
     def dump(self, filename):
         with open(filename, 'w') as f:
