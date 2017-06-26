@@ -739,7 +739,7 @@ def read_one_cube(gal, **kwargs):
             pa, ba = K.getEllipseParams()
             print K.pa, K.ba, pa, ba
             K.setGeometry(*K.getEllipseParams())
-            print K.pa, K.ba        
+            print K.pa, K.ba
         if verbose is not None:
             print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
         if not isinstance(EL, type(None)):
@@ -912,7 +912,7 @@ def create_dx(x):
     return dx
 
 
-def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8):
+def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8, qh__Zt=None):
     '''
     Find the k parameter in the equation SFR = k [M_sun yr^-1] L(Halpha) [(10^8 L_sun)^-1]
 
@@ -929,7 +929,8 @@ def SFR_parametrize(flux, wl, ages, tSF, wl_lum=6562.8):
     y = flux * wl * cmInAA * L_sun / (h * c)
     #y = flux * cmInAA * L_sun #BOL
 
-    qh__Zt = (y * create_dx(wl)).sum(axis=2)
+    if qh__Zt is None:
+        qh__Zt = (y * create_dx(wl)).sum(axis=2)
     Nh__Z = (qh__Zt[:, mask_age] * create_dx(ages[mask_age])).sum(axis=1) * yr_sec
     Nh__Zt = np.cumsum(qh__Zt * create_dx(ages), axis=1) * yr_sec
 
