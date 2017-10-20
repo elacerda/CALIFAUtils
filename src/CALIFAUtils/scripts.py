@@ -12,7 +12,7 @@ from .objects import CALIFAPaths, tupperware_none
 from CALIFAUtils import __path__
 
 
-def stack_spectra(K, sel, v_0=None, segmap__yx=None):
+def stack_spectra(K, sel, v_0=None, segmap__yx=None, noflag=False):
     '''
         XXX TODO:
         This function receive a pycasso fitsQ3DataCube (K).
@@ -23,7 +23,10 @@ def stack_spectra(K, sel, v_0=None, segmap__yx=None):
         with the zones index. Otherwise sel_zones can be a boolean array with
         K.N_zone length marking True for each zone inside stack.
         '''
-        sel = K.qZones[segmap__yx]
+        zones = K.qZones[segmap__yx]
+        sel = np.zeros(K.N_zone, dtype='bool')
+        for z in zones:
+            sel[z] = True
     wl_of = K.l_obs
     N = sel.astype('int').sum()
     O_of__lz = K.f_obs[:, sel]
@@ -46,7 +49,10 @@ def stack_spectra(K, sel, v_0=None, segmap__yx=None):
         _, bindata.b_rf__lz[:, iz] = doppler_resample_spec(wl_of, v_0__z[iz], b_of__lz[:, iz], R)
     # set the data to store
     # creating badpixels flag
-    b_tmp = np.where(bindata.b_rf__lz == 0., 0., 1.)
+    if noflag:
+        b_tmp = np.zeros_like(bindata.b_rf__lz)
+    else:
+        b_tmp = np.where(bindata.b_rf__lz == 0., 0., 1.)
     bad_ratio = b_tmp.sum(axis=1)/(1.*N)
     flag_factor = np.where(bad_ratio == 1., 0., 1./(1.-bad_ratio))
     b_rf__l = bindata.b_rf__lz.sum(axis=1)
@@ -771,6 +777,12 @@ def read_one_cube(gal, **kwargs):
     return K
 
 
+def F_to_L(flux, distance_Mpc):
+    Mpc_in_cm = 3.08567758e24  # cm
+    solidAngle = 4. * np.pi * (distance_Mpc * Mpc_in_cm) ** 2.0
+    return solidAngle * flux
+
+
 def loop_cubes(gals, **kwargs):
     imax = kwargs.get('imax', None)
     if isinstance(gals, str):
@@ -1001,6 +1013,23 @@ def radialProfileWeighted(v__yx, w__yx, **kwargs):
     return v__r
 
 
+def calc_agebins(ages, age=None):
+    # Define ranges for age-bins
+    # ToDo: This age-bin-edges thing could be made more elegant & general.
+    aCen__t = ages
+    aLow__t = np.empty_like(ages)
+    aUpp__t = np.empty_like(ages)
+    aLow__t[0] = 0.
+    aLow__t[1:] = (aCen__t[1:] + aCen__t[:-1]) / 2
+    aUpp__t[:-1] = aLow__t[1:]
+    aUpp__t[-1] = aCen__t[-1]
+    # Find index of age-bin corresponding to the last bin fully within < tSF
+    age_index = -1
+    if age is not None:
+        age_index = np.where(aLow__t < age)[0][-1]
+    return aCen__t, aLow__t, aUpp__t, age_index
+
+
 def prop_Y(prop, tY, age_base):
     # prop must have dimension __tZz or __tZyx
     _, aLow__t, aUpp__t, indY = calc_agebins(age_base, tY)
@@ -1025,7 +1054,8 @@ def calc_xY(K=None, tY=32e6, popx=None, ageBase=None):
         integrated_x__tZ = K.integrated_popx / K.integrated_popx.sum()
         integrated_x_Y = integrated_prop_Y(integrated_x__tZ, tY, ageBase)
     # Compute xY
-    x__tZdim = popx / popx.sum(axis=1).sum(axis=0)
+    if popx is not None:
+        x__tZdim = popx / popx.sum(axis=1).sum(axis=0)
     return prop_Y(x__tZdim, tY, ageBase), integrated_x_Y
 
 
@@ -1187,23 +1217,6 @@ def calc_alogZ_Stuff(K, tZ, xOkMin, Rbin__r):
     return alogZ_mass__z, alogZ_flux__z, alogZ_mass_GAL, alogZ_flux_GAL, \
            alogZ_mass__r, alogZ_flux__r, alogZ_mass_wei__r, alogZ_flux_wei__r, \
            isOkFrac_GAL, alogZ_mass_oneHLR, alogZ_flux_oneHLR
-
-
-def calc_agebins(ages, age=None):
-    # Define ranges for age-bins
-    # ToDo: This age-bin-edges thing could be made more elegant & general.
-    aCen__t = ages
-    aLow__t = np.empty_like(ages)
-    aUpp__t = np.empty_like(ages)
-    aLow__t[0] = 0.
-    aLow__t[1:] = (aCen__t[1:] + aCen__t[:-1]) / 2
-    aUpp__t[:-1] = aLow__t[1:]
-    aUpp__t[-1] = aCen__t[-1]
-    # Find index of age-bin corresponding to the last bin fully within < tSF
-    age_index = -1
-    if age is not None:
-        age_index = np.where(aLow__t < age)[0][-1]
-    return aCen__t, aLow__t, aUpp__t, age_index
 
 
 def redshift_dist_Mpc(z, H0):

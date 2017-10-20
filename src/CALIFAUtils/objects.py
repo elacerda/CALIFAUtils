@@ -76,7 +76,7 @@ class CALIFAPaths(object):
             _bases.index('Bgstf6e')
         ],
     ]
-    _masterlist_file = 'califa_master_list_rgb.txt'
+    _masterlist_file = 'califa_masterlist.txt'
 
     def __init__(self,
                  qVersion='q050',
@@ -276,7 +276,7 @@ class stack_gals(object):
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
             new_attr = np.ma.masked_array(attr, mask=mask, dtype=attr.dtype, copy=True)
-            # print k, len(attr), mask.sum(), new_attr.count(), new_attr
+            print k, len(attr), mask.sum(), new_attr.count(), new_attr
             setattr(self, k, new_attr)
 
     def _stack2d(self):
