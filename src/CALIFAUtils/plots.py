@@ -82,7 +82,7 @@ def DrawHLRCircleInSDSSImage(ax, HLR_pix, pa, ba, color='white', lw=1.5, bins=[1
     for bin in bins:
         height = bin * 2. * a * b_a
         width = bin * 2. * a
-        print bin, height, width
+        print(bin, height, width)
         e = Ellipse(center, height=height, width=width, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
         ax.add_artist(e)
     # # e0 = Ellipse(center, height = 1.4 * a * b_a, width = 1.4 * a, angle = theta, fill = False, color = color, lw = lw, ls = 'dotted')
@@ -107,7 +107,7 @@ def DrawHLRCircle(ax, K=None, color='white', lw=1.5, bins=[1, 2], a=None, pa=Non
     for bin in bins:
         height = bin * 2. * a * ba
         width = bin * 2. * a
-        print bin, height, width
+        print(bin, height, width)
         e = Ellipse(center, height=height, width=width, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
         ax.add_artist(e)
     # # e0 = Ellipse(center, height=1.4 * a * b_a, width=1.4 * a, angle=theta, fill=False, color=color, lw=lw, ls='dotted')
@@ -226,10 +226,10 @@ def density_contour(xdata, ydata, binsx, binsy, ax = None, levels_confidence = [
     y_bin_sizes = (yedges[1:] - yedges[:-1])
 
     pdf = (H * (x_bin_sizes * y_bin_sizes))
-    print pdf.max(), pdf.min()
+    print(pdf.max(), pdf.min())
     levels = [ so.brentq(find_confidence_interval, 0., 1., args = (pdf, lvl)) for lvl in levels_confidence ]
 
-    print levels
+    print(levels)
 
     #EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     # one_sigma = so.brentq(find_confidence_interval, 0., 1., args = (pdf, 0.68))
@@ -292,7 +292,7 @@ def plotOLSbisectorAxis(ax, x, y, **kwargs):
         txt_y = '%s (%.3f, %.3f, %.3f)' % (label, a, b, Yrms)
         plot_text_ax(ax, txt_y, pos_x, pos_y, fontsize, va, ha, color = color)
     else:
-        print txt_y
+        print(txt_y)
     return a, b, sigma_a, sigma_b
 
 def plot_gal_img_ax(ax, imgfile, gal, pos_x, pos_y, fontsize, K = None, bins=[1, 2]):
@@ -879,7 +879,7 @@ def plot_zbins(**kwargs):
             kwargs.update(dict(zbins_colors = zbins_colors))
         if zbins_labels is None or zbins_colors is None:
             listrange = xrange(len(zbins_mask))
-            print len(zbins_mask)
+            print(len(zbins_mask))
             #zmsk = [ zm[np.where(np.asarray(zbins_mask[i]) == True)] for i in listrange ]
             zmsk = [ zm[zbins_mask[i]] for i in listrange ]
             if zbins_labels is None:

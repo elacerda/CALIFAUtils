@@ -1,7 +1,7 @@
+from astropy.io import fits
 import numpy as np
 import itertools
-import cPickle
-import pyfits
+import pickle
 import h5py
 import os
 
@@ -178,7 +178,7 @@ class stack_gals(object):
 
     def load(self, filename=None):
         with open(filename, 'r') as f:
-            return cPickle.load(f)
+            return pickle.load(f)
 
     def addkeys1d(self, keys):
         for k in keys:
@@ -191,7 +191,7 @@ class stack_gals(object):
             # self.keys1d_masked.append(k)
 
     def addkeys2d(self, keys):
-        print keys
+        print(keys)
         for kN in keys:
             k, N = kN
             self.new2d(k, N)
@@ -253,22 +253,22 @@ class stack_gals(object):
 
     def stack(self):
         if len(self.keys1d) > 0:
-            print 'keys1d'
+            print('keys1d')
             self._stack1d()
         if len(self.keys1d_masked) > 0:
-            print 'keys1d_masked'
+            print('keys1d_masked')
             self._stack1d_masked()
         if len(self.keys2d) > 0:
-            print 'keys2d'
+            print('keys2d')
             self._stack2d()
         if len(self.keys2d_masked) > 0:
-            print 'keys2d_masked'
+            print('keys2d_masked')
             self._stack2d_masked()
 
     def _stack1d(self):
         for k in self.keys1d:
             attr = np.hstack(getattr(self, '_%s' % k))
-            print k, attr, attr.dtype
+            print(k, attr, attr.dtype)
             setattr(self, k, np.array(attr, dtype=attr.dtype))
 
     def _stack1d_masked(self):
@@ -276,7 +276,7 @@ class stack_gals(object):
             attr = np.hstack(getattr(self, '_%s' % k))
             mask = np.hstack(getattr(self, '_mask_%s' % k))
             new_attr = np.ma.masked_array(attr, mask=mask, dtype=attr.dtype, copy=True)
-            print k, len(attr), mask.sum(), new_attr.count(), new_attr
+            print(k, len(attr), mask.sum(), new_attr.count(), new_attr)
             setattr(self, k, new_attr)
 
     def _stack2d(self):
@@ -299,7 +299,7 @@ class stack_gals(object):
 
     def dump(self, filename):
         with open(filename, 'w') as f:
-            cPickle.dump(self, f, cPickle.HIGHEST_PROTOCOL)
+            pickle.dump(self, f, protocol=2)
 
     def get_gal_prop(self, gal='K0001', prop_in=None):
         if isinstance(prop_in, np.ndarray):
@@ -332,9 +332,9 @@ class stack_gals(object):
 class GasProp(object):
     def __init__(self, filename=None):
         try:
-            self._hdulist = pyfits.open(filename)
+            self._hdulist = fits.open(filename)
         except:
-            print 'pyfits: %s: file error' % filename
+            print('fits: %s: file error' % filename)
             self._hdulist = None
 
         if self._hdulist is not None:

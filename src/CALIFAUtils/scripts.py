@@ -94,7 +94,7 @@ def try_q055_instead_q054(califaID, **kwargs):
     if not os.path.isfile(pycasso_file):
         P.pycasso_suffix = P.pycasso_suffix.replace('q054', 'q055')
         pycasso_file = P.get_pycasso_file(califaID)
-        print pycasso_file
+        print(pycasso_file)
         if os.path.isfile(pycasso_file):
             K = fitsQ3DataCube(P.get_pycasso_file(califaID))
             if elliptical:
@@ -104,7 +104,7 @@ def try_q055_instead_q054(califaID, **kwargs):
                 if not os.path.isfile(emlines_file):
                     P.emlines_suffix = P.emlines_suffix.replace('q054', 'q055')
                     emlines_file = P.get_emlines_file(califaID)
-                    print emlines_file
+                    print(emlines_file)
                     if os.path.isfile(emlines_file):
                         K.loadEmLinesDataCube(emlines_file)
             if GP:
@@ -112,7 +112,7 @@ def try_q055_instead_q054(califaID, **kwargs):
                 if not os.path.isfile(gasprop_file):
                     P.gasprop_suffix = P.gasprop_suffix.replace('q054', 'q055')
                     gasprop_file = P.get_gasprop_file(califaID)
-                    print gasprop_file
+                    print(gasprop_file)
                     if os.path.isfile(gasprop_file):
                         K.GP = GasProp(gasprop_file)
     return K
@@ -258,30 +258,30 @@ def create_zones_masks_gal(K, tSF__T, args=None, **kwargs):
     #######################
     #######################
     if summary or debug:
-        print '# Mask Summary '
-        print '#'
-        print '# Gal: ', K.califaID
-        print '# N_Zone: ', K.N_zone
-        print '# N_x: ', K.N_x
-        print '# N_y: ', K.N_y
-        print '# N_pix: ', K.qMask.astype(int).sum()
-        print '# Number of not contributing zones: '
+        print('# Mask Summary ')
+        print('#')
+        print('# Gal: ', K.califaID)
+        print('# N_Zone: ', K.N_zone)
+        print('# N_x: ', K.N_x)
+        print('# N_y: ', K.N_y)
+        print('# N_pix: ', K.qMask.astype(int).sum())
+        print('# Number of not contributing zones: ')
         for l in lines_central_wl:
-            print '# N_mask_line_', l, ' fluxneg: ', mask_lines_dict__Lmz[l]['fluxneg'].astype(int).sum()
-            print '# N_mask_line_', l, ' pos: ', mask_lines_dict__Lmz[l]['pos'].astype(int).sum()
-            print '# N_mask_line_', l, ' sigma: ', mask_lines_dict__Lmz[l]['sigma'].astype(int).sum()
-            print '# N_mask_line_', l, ' SNR: ', mask_lines_dict__Lmz[l]['SNR'].astype(int).sum()
-            print '# N_mask_line_', l, ' : ', mask_lines_dict__Lz[l].astype(int).sum()
-        print '# N_mask_tauVNeb: ', mask_tau_V_neb__z.astype(int).sum()
-        print '# N_mask_bpt: ',mask_bpt__z.astype(int).sum()
-        print '# N_mask_whan: ',mask_whan__z.astype(int).sum()
-        print '# N_mask_eml: ', mask_eml__z.astype(int).sum()
-        print '# N_mask_residual: ', mask_residual__z.astype(int).sum()
-        print '# N_mask_tauV: ', mask_tau_V__z.astype(int).sum()
+            print('# N_mask_line_', l, ' fluxneg: ', mask_lines_dict__Lmz[l]['fluxneg'].astype(int).sum())
+            print('# N_mask_line_', l, ' pos: ', mask_lines_dict__Lmz[l]['pos'].astype(int).sum())
+            print('# N_mask_line_', l, ' sigma: ', mask_lines_dict__Lmz[l]['sigma'].astype(int).sum())
+            print('# N_mask_line_', l, ' SNR: ', mask_lines_dict__Lmz[l]['SNR'].astype(int).sum())
+            print('# N_mask_line_', l, ' : ', mask_lines_dict__Lz[l].astype(int).sum())
+        print('# N_mask_tauVNeb: ', mask_tau_V_neb__z.astype(int).sum())
+        print('# N_mask_bpt: ',mask_bpt__z.astype(int).sum())
+        print('# N_mask_whan: ',mask_whan__z.astype(int).sum())
+        print('# N_mask_eml: ', mask_eml__z.astype(int).sum())
+        print('# N_mask_residual: ', mask_residual__z.astype(int).sum())
+        print('# N_mask_tauV: ', mask_tau_V__z.astype(int).sum())
         for iT, tSF in enumerate(tSF__T):
-            print '# N_mask_popx (%.3f Myrs): %d' % ((tSF / 1e6), mask_popx__Tz[iT].astype(int).sum())
-            print '# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum())
-            print '# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum())
+            print('# N_mask_popx (%.3f Myrs): %d' % ((tSF / 1e6), mask_popx__Tz[iT].astype(int).sum()))
+            print('# N_mask_syn (%.3f Myrs): %d' % ((tSF / 1e6), mask_syn__Tz[iT].astype(int).sum()))
+            print('# N_mask_total (%.3f Myrs): %d' % ((tSF / 1e6), mask__Tz[iT].astype(int).sum()))
     retmask_lines = mask_lines_dict__Lz
     k = 'mask_lines_dict__Lz'
     k_oth = 'mask_lines_dict__Lmz'
@@ -394,7 +394,7 @@ def get_CALIFAID_by_NEDName(nedname):
         try:
             i_ned.append(t['ned_name'].tolist().index(nn))
         except:
-            print nedname, ': not found'
+            print(nedname, ': not found')
             #t.close()
             return False
 
@@ -416,7 +416,7 @@ def get_NEDName_by_CALIFAID(califaID, work_dir=None):
         try:
             i_cal.append(t['CALIFA_ID'].tolist().index(ci))
         except:
-            print califaID, ': not found'
+            print(califaID, ': not found')
             #t.close()
             return False
     rval = np.copy(t['ned_name'][i_cal])
@@ -512,7 +512,7 @@ def calc_running_stats(x, y, **kwargs):
             to_i = i + next_i
             delta = (nx - to_i)
             miss_frac = 1. * delta / nx
-            #print to_i, int(to_i), xS[to_i], xS[int(to_i)]
+            #print(to_i, int(to_i), xS[to_i], xS[int(to_i)])
             if to_i < nx:
                 if (xS[to_i] != xbin[-1]) and (miss_frac >= frac):
                     xbin.append(xS[to_i])
@@ -552,7 +552,7 @@ def calc_running_stats(x, y, **kwargs):
         Np = isInBin.astype(np.int).sum()
         nInBin_out.append(Np)
         xx , yy = x[isInBin] , y[isInBin]
-        # print ixBin, Np, xx, yy
+        # print(ixBin, Np, xx, yy)
         center = (right + left) / 2.
         xbin_out.append(right)
         xbinCenter_out.append(center)
@@ -725,7 +725,7 @@ def get_McorSD_GAL(K, **kwargs):
 
 
 def read_one_cube(gal, **kwargs):
-    print kwargs
+    print(kwargs)
     from pycasso import fitsQ3DataCube
     EL = kwargs.get('EL', None)
     GP = kwargs.get('GP', None)
@@ -743,11 +743,11 @@ def read_one_cube(gal, **kwargs):
         K._fits_filename = pycasso_cube_filename
         if elliptical:
             pa, ba = K.getEllipseParams()
-            print K.pa, K.ba, pa, ba
+            print(K.pa, K.ba, pa, ba)
             K.setGeometry(*K.getEllipseParams())
-            print K.pa, K.ba
+            print(K.pa, K.ba)
         if verbose is not None:
-            print >> sys.stderr, 'PyCASSO: Reading file: %s' % pycasso_cube_filename
+            print('PyCASSO: Reading file: %s' % pycasso_cube_filename, file=sys.stderr)
         if not isinstance(EL, type(None)):
             if EL is True:
                 emlines_cube_filename = paths.get_emlines_file(gal)
@@ -758,9 +758,9 @@ def read_one_cube(gal, **kwargs):
                 K.loadEmLinesDataCube(emlines_cube_filename)
                 K.EL._fits_filename = emlines_cube_filename
                 if verbose is not None:
-                    print >> sys.stderr, 'EL: Reading file: %s' % emlines_cube_filename
+                    print('EL: Reading file: %s' % emlines_cube_filename, file=sys.stderr)
             except IOError:
-                print >> sys.stderr, 'EL: File does not exists: %s' % emlines_cube_filename
+                print('EL: File does not exists: %s' % emlines_cube_filename, file=sys.stderr)
         if GP is True:
             gasprop_cube_filename = paths.get_gasprop_file(gal)
             debug_var(debug, gasprop=gasprop_cube_filename)
@@ -768,11 +768,11 @@ def read_one_cube(gal, **kwargs):
                 K.GP = GasProp(gasprop_cube_filename)
                 K.GP._fits_filename = gasprop_cube_filename
                 if verbose is not None:
-                    print >> sys.stderr, 'GP: Reading file: %s' % gasprop_cube_filename
+                    print('GP: Reading file: %s' % gasprop_cube_filename, file=sys.stderr)
             except IOError:
-                print >> sys.stderr, 'GP: File does not exists: %s' % gasprop_cube_filename
+                print('GP: File does not exists: %s' % gasprop_cube_filename, file=sys.stderr)
     except IOError:
-        print >> sys.stderr, 'PyCASSO: File does not exists: %s' % pycasso_cube_filename
+        print('PyCASSO: File does not exists: %s' % pycasso_cube_filename, file=sys.stderr)
     del paths
     return K
 
@@ -798,11 +798,11 @@ def debug_var(turn_on=False, **kwargs):
     if turn_on:
         for kw, vw in kwargs.iteritems():
             if isinstance(vw, dict):
-                print '%s' % pref, kw
+                print('%s' % pref, kw)
                 for k, v in vw.iteritems():
-                    print '\t%s' % pref, k, ':\t', v
+                    print('\t%s' % pref, k, ':\t', v)
             else:
-                print '%s' % pref, '%s:\t' % kw, vw
+                print('%s' % pref, '%s:\t' % kw, vw)
 
 
 def get_data_gals(gals, func=None, **kwargs):
@@ -831,12 +831,12 @@ def get_data_gals(gals, func=None, **kwargs):
     Ng = len(gals)
     if isinstance(func, types.FunctionType):
         if verbose:
-            print gals
+            print(gals)
         data__g = []
         for i, K in loop_cubes(gals.tolist(), **kwargs):
             data__g.append(func(K, **kwargs))
             if verbose:
-                print K.califaID, data__g[i]
+                print(K.califaID, data__g[i])
             K.close()
         sgals = gals
         sdata = data__g
@@ -881,12 +881,12 @@ def sort_gals(gals, func=None, order=0, **kwargs):
     Ng = len(gals)
     if isinstance(func, types.FunctionType):
         if verbose:
-            print gals
+            print(gals)
         data__g = np.ma.empty((Ng))
         for i, K in loop_cubes(gals.tolist(), **kwargs):
             data__g[i] = func(K, **kwargs)
             if verbose:
-                print K.califaID, data__g[i]
+                print(K.califaID, data__g[i])
             K.close()
         if order != 0:
             sgals = None
@@ -993,7 +993,7 @@ def SFR_parametrize_trapz(flux, wl, ages, tSF, wl_lum=6562.8):
     Nh__Zt = spi.cumtrapz(y=qh__Zt, x=ages, initial=0, axis=1) * yr_sec
     Nh__Z = np.trapz(y=qh__Zt[:, mask_age], x=ages[mask_age], axis=1) * yr_sec
 
-    k_SFR__Z = 2.226 * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
+    k_SFR__Z = (1./0.453) * wl_lum * L_sun * yr_sec / (Nh__Z * h * c) # M_sun / yr
 
     return qh__Zt, Nh__Zt, Nh__Z, k_SFR__Z
 
