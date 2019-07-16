@@ -1230,5 +1230,5 @@ def spaxel_size_pc(dist_Mpc, arcsec=1):
     return arcsec * arc2rad * dist_Mpc * 1e6
 
 
-def spaxel_size_pc_hubblelaw(z, H0):
-    return spaxel_size_pc(redshift_dist_Mpc(z, H0))
+def spaxel_size_pc_hubblelaw(z, H0, arcsec=1):
+    return spaxel_size_pc(redshift_dist_Mpc(z, H0), arcsec)
