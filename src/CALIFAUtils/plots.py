@@ -631,7 +631,7 @@ def plotLinRegAxis(ax, x, y, xlabel, ylabel, xlim, ylim):
     ax.plot(ax.get_xlim(), ax.get_xlim(), ls = '--', label = '', c = 'k')
     ax.legend()
 
-def add_subplot_axes(ax, rect, axisbg = 'w'):
+def add_subplot_axes(ax, rect, facecolor = 'w'):
     fig = plt.gcf()
     box = ax.get_position()
     width = box.width
@@ -643,7 +643,7 @@ def add_subplot_axes(ax, rect, axisbg = 'w'):
     y = infig_position[1]
     width *= rect[2]
     height *= rect[3]
-    subax = fig.add_axes([x, y, width, height], axisbg = axisbg)
+    subax = fig.add_axes([x, y, width, height], facecolor = facecolor)
     x_labelsize = subax.get_xticklabels()[0].get_size()
     y_labelsize = subax.get_yticklabels()[0].get_size()
     x_labelsize *= rect[2] ** 0.5
